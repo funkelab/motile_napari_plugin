@@ -1,0 +1,27 @@
+name: motile-plugin
+display_name: Motile
+# use 'hidden' to remove plugin from napari hub search results
+visibility: public
+# see https://napari.org/stable/plugins/manifest.html for valid categories
+categories: ["Annotation", "Segmentation", "Acquisition"]
+contributions:
+  commands:
+    - id: motile-plugin.make_container_widget
+      python_name: motile_plugin:ImageThreshold
+      title: Make threshold Container widget
+    - id: motile-plugin.make_magic_widget
+      python_name: motile_plugin:threshold_magic_widget
+      title: Make threshold magic widget
+    - id: motile-plugin.make_function_widget
+      python_name: motile_plugin:threshold_autogenerate_widget
+      title: Make threshold function widget
+  widgets:
+    - command: motile-plugin.make_container_widget
+      display_name: Container Threshold
+    - command: motile-plugin.make_magic_widget
+      display_name: Magic Threshold
+    - command: motile-plugin.make_function_widget
+      autogenerate: true
+      display_name: Autogenerate Threshold
+    - command: motile-plugin.make_qwidget
+      display_name: Example QWidget
