@@ -32,7 +32,10 @@ from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
 from magicgui.widgets import CheckBox, Container, create_widget
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSlider
+from qtpy.QtWidgets import (
+    QWidget, QPushButton, QSlider, QHBoxLayout, QVBoxLayout, 
+    QLabel, QSpinBox, QCheckBox, QDoubleSpinBox, QGroupBox, QLineEdit
+)
 from qtpy.QtCore import Qt
 from skimage.util import img_as_float
 #from napari_graph import UndirectedGraph
@@ -56,30 +59,107 @@ if TYPE_CHECKING:
 
 
 class ExampleQWidget(QWidget):
-    # your QWidget.__init__ can optionally request the napari viewer instance
-    # use a type annotation of 'napari.viewer.Viewer' for any parameter
     def __init__(self, viewer: "napari.viewer.Viewer"):
         super().__init__()
         self.viewer = viewer
 
+        main_layout = QVBoxLayout()
 
-        btn = QPushButton("Generate Graph")
-        btn.clicked.connect(self._on_click)
+        # Data-specific Hyperparameters section
+        hyperparameters_group = QGroupBox("Data-specific Hyperparameters")
+        hyperparameters_layout = QHBoxLayout()
+        self.max_edge_distance_spinbox = QDoubleSpinBox()
+        hyperparameters_layout.addWidget(QLabel("Max Edge Distance:"))
+        hyperparameters_layout.addWidget(self.max_edge_distance_spinbox)
+        hyperparameters_group.setLayout(hyperparameters_layout)
+        main_layout.addWidget(hyperparameters_group)
 
-        self.slider = QSlider()
-        self.slider.setOrientation(Qt.Horizontal)
-        self.slider.setRange(1, 100)  # Adjust the range as needed
-        self.slider.setValue(10)  # Set a default value
-        self.slider.valueChanged.connect(self.update_thickness)
+        
+        # Constraints section
+        constraints_group = QGroupBox("Constraints")
+        constraints_layout = QHBoxLayout()
+        self.max_parents_spinbox = QSpinBox()
+        self.max_children_spinbox = QSpinBox()
+        constraints_layout.addWidget(QLabel("Max Parents:"))
+        constraints_layout.addWidget(self.max_parents_spinbox)
+        constraints_layout.addWidget(QLabel("Max Children:"))
+        constraints_layout.addWidget(self.max_children_spinbox)
+        constraints_group.setLayout(constraints_layout)
+        main_layout.addWidget(constraints_group)
 
+        # Constant Costs section
+        constant_costs_group = QGroupBox("Constant Costs")
+        constant_costs_layout = QHBoxLayout()
+        self.appear_spinbox = QDoubleSpinBox()
+        self.appear_checkbox = QCheckBox("Appear")
+        self.division_spinbox = QDoubleSpinBox()
+        self.division_checkbox = QCheckBox("Division")
+        constant_costs_layout.addWidget(self.appear_checkbox)
+        constant_costs_layout.addWidget(self.appear_spinbox)
+        constant_costs_layout.addWidget(self.division_checkbox)
+        constant_costs_layout.addWidget(self.division_spinbox)
+        constant_costs_group.setLayout(constant_costs_layout)
+        main_layout.addWidget(constant_costs_group)
 
-        self.setLayout(QHBoxLayout())
-        self.layout().addWidget(btn)
-        self.layout().addWidget(self.slider)
+        # Feature-based Costs section
+        feature_costs_group = QGroupBox("Feature-based Costs")
+        feature_costs_layout = QVBoxLayout()
+
+        # Distance row
+        distance_layout = QHBoxLayout()
+        self.distance_checkbox = QCheckBox("Distance")
+        self.distance_weight_spinbox = QDoubleSpinBox()
+        self.distance_offset_spinbox = QDoubleSpinBox()
+        distance_layout.addWidget(self.distance_checkbox)
+        distance_layout.addWidget(QLabel("Weight:"))
+        distance_layout.addWidget(self.distance_weight_spinbox)
+        distance_layout.addWidget(QLabel("Offset:"))
+        distance_layout.addWidget(self.distance_offset_spinbox)
+        feature_costs_layout.addLayout(distance_layout)
+
+        # IOU row
+        iou_layout = QHBoxLayout()
+        self.iou_checkbox = QCheckBox("IOU")
+        self.iou_weight_spinbox = QDoubleSpinBox()
+        self.iou_offset_spinbox = QDoubleSpinBox()
+        iou_layout.addWidget(self.iou_checkbox)
+        iou_layout.addWidget(QLabel("Weight:"))
+        iou_layout.addWidget(self.iou_weight_spinbox)
+        iou_layout.addWidget(QLabel("Offset:"))
+        iou_layout.addWidget(self.iou_offset_spinbox)
+        feature_costs_layout.addLayout(iou_layout)
+
+        feature_costs_group.setLayout(feature_costs_layout)
+        main_layout.addWidget(feature_costs_group)
+
+        # Generate Tracks button
+        generate_tracks_btn = QPushButton("Generate Tracks")
+        generate_tracks_btn.clicked.connect(self._on_click_generate_tracks)
+        main_layout.addWidget(generate_tracks_btn)
+
+        # Original layout elements
+        # btn = QPushButton("Generate Graph")
+        # btn.clicked.connect(self._on_click)
+        # self.slider = QSlider()
+        # self.slider.setOrientation(Qt.Horizontal)
+        # self.slider.setRange(1, 100)
+        # self.slider.setValue(10)
+        # self.slider.valueChanged.connect(self.update_thickness)
+
+        # original_layout = QHBoxLayout()
+        # original_layout.addWidget(btn)
+        # original_layout.addWidget(self.slider)
+
+        # main_layout.addLayout(original_layout)
+
+        self.setLayout(main_layout)
 
     def _on_click(self):
-        # graph = build_graph(n_nodes=1_000_000, n_neighbors=5)
-        # self.viewer.add_graph(graph, out_of_slice_display=True)
+        # Original click event logic
+        pass
+
+    def _on_click_generate_tracks(self):
+        # Logic for generating tracks
         pass
 
     def update_thickness(self, value):
