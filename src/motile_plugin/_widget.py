@@ -32,11 +32,27 @@ from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
 from magicgui.widgets import CheckBox, Container, create_widget
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget
+from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSlider
+from qtpy.QtCore import Qt
 from skimage.util import img_as_float
+#from napari_graph import UndirectedGraph
+import numpy as np
+import pandas as pd
 
 if TYPE_CHECKING:
     import napari
+
+# def build_graph(n_nodes: int, n_neighbors: int) -> UndirectedGraph:
+#     neighbors = np.random.randint(n_nodes, size=(n_nodes * n_neighbors))
+#     edges = np.stack([np.repeat(np.arange(n_nodes), n_neighbors), neighbors], axis=1)
+
+#     nodes_df = pd.DataFrame(
+#         400 * np.random.uniform(size=(n_nodes, 4)),
+#         columns=["t", "z", "y", "x"],
+#     )
+#     graph = UndirectedGraph(edges=edges, coords=nodes_df)
+
+#     return graph
 
 
 class ExampleQWidget(QWidget):
@@ -46,11 +62,25 @@ class ExampleQWidget(QWidget):
         super().__init__()
         self.viewer = viewer
 
-        btn = QPushButton("Click me!")
+
+        btn = QPushButton("Generate Graph")
         btn.clicked.connect(self._on_click)
+
+        self.slider = QSlider()
+        self.slider.setOrientation(Qt.Horizontal)
+        self.slider.setRange(1, 100)  # Adjust the range as needed
+        self.slider.setValue(10)  # Set a default value
+        self.slider.valueChanged.connect(self.update_thickness)
+
 
         self.setLayout(QHBoxLayout())
         self.layout().addWidget(btn)
+        self.layout().addWidget(self.slider)
 
     def _on_click(self):
-        print("napari has", len(self.viewer.layers), "layers")
+        # graph = build_graph(n_nodes=1_000_000, n_neighbors=5)
+        # self.viewer.add_graph(graph, out_of_slice_display=True)
+        pass
+
+    def update_thickness(self, value):
+        self.viewer.dims.thickness = (value, ) * self.viewer.dims.ndim
