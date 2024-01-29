@@ -5,7 +5,7 @@ from magicgui.widgets import CheckBox, Container, create_widget
 from qtpy.QtWidgets import (
     QWidget, QPushButton, QSlider, QHBoxLayout, QVBoxLayout, 
     QLabel, QSpinBox, QCheckBox, QDoubleSpinBox, QGroupBox, QLineEdit,
-    QComboBox
+    QComboBox, QFormLayout
 )
 from qtpy.QtCore import Qt
 from skimage.util import img_as_float
@@ -66,46 +66,57 @@ class MotileWidget(QWidget):
         main_layout.addWidget(layer_group)
 
         # Data-specific Hyperparameters section
-        hyperparameters_group = QGroupBox("Data-specific Hyperparameters")
-        hyperparameters_layout = QHBoxLayout()
+        hyperparameters_group = QGroupBox("Data-Specific Hyperparameters")
+        hyperparameters_layout = QFormLayout()
         self.max_edge_distance_spinbox = QDoubleSpinBox()
         self.max_edge_distance_spinbox.setValue(50)
         self.max_edge_distance_spinbox.setRange(1, 1e10)
-        hyperparameters_layout.addWidget(QLabel("Max Edge Distance:"))
-        hyperparameters_layout.addWidget(self.max_edge_distance_spinbox)
+        self.max_edge_distance_spinbox.setDecimals(1)
+        hyperparameters_layout.addRow("Max Move Distance:", self.max_edge_distance_spinbox)
         hyperparameters_group.setLayout(hyperparameters_layout)
         main_layout.addWidget(hyperparameters_group)
 
         
         # Constraints section
         constraints_group = QGroupBox("Constraints")
-        constraints_layout = QHBoxLayout()
-        self.max_parents_spinbox = QSpinBox()
-        self.max_parents_spinbox.setValue(1)
+        constraints_layout = QFormLayout()
+        #self.max_parents_spinbox = QSpinBox()
+        #self.max_parents_spinbox.setValue(1)
         self.max_children_spinbox = QSpinBox()
         self.max_children_spinbox.setValue(2)
-        constraints_layout.addWidget(QLabel("Max Parents:"))
-        constraints_layout.addWidget(self.max_parents_spinbox)
-        constraints_layout.addWidget(QLabel("Max Children:"))
-        constraints_layout.addWidget(self.max_children_spinbox)
+        #constraints_layout.addRow("Max Parents:", self.max_parents_spinbox)
+        constraints_layout.addRow("Max Children:", self.max_children_spinbox)
         constraints_group.setLayout(constraints_layout)
         main_layout.addWidget(constraints_group)
 
         # Constant Costs section
         constant_costs_group = QGroupBox("Constant Costs")
-        constant_costs_layout = QHBoxLayout()
+        constant_costs_layout = QVBoxLayout()
+        
+        appear_layout = QHBoxLayout()
         self.appear_spinbox = QDoubleSpinBox()
         self.appear_spinbox.setValue(30)
         self.appear_spinbox.setRange(0.0, 1e10)
+        self.appear_spinbox.setDecimals(1)
         self.appear_checkbox = QCheckBox("Appear")
         self.appear_checkbox.setChecked(True)
+        self.appear_checkbox.stateChanged.connect(self._on_toggle_cost_appear)
+        appear_layout.addWidget(self.appear_checkbox)
+        appear_layout.addWidget(self.appear_spinbox)
+        constant_costs_layout.addLayout(appear_layout)
+
+        division_layout = QHBoxLayout()
         self.division_spinbox = QDoubleSpinBox()
+        self.appear_spinbox.setValue(20)
         self.division_spinbox.setRange(0.0, 1e10)
+        self.division_spinbox.setDecimals(1)
         self.division_checkbox = QCheckBox("Division")
-        constant_costs_layout.addWidget(self.appear_checkbox)
-        constant_costs_layout.addWidget(self.appear_spinbox)
-        constant_costs_layout.addWidget(self.division_checkbox)
-        constant_costs_layout.addWidget(self.division_spinbox)
+        division_layout.addWidget(self.division_checkbox)
+        division_layout.addWidget(self.division_spinbox)
+        self.division_spinbox.hide()
+        self.division_checkbox.stateChanged.connect(self._on_toggle_cost_division)
+        constant_costs_layout.addLayout(division_layout)
+
         constant_costs_group.setLayout(constant_costs_layout)
         main_layout.addWidget(constant_costs_group)
 
@@ -117,17 +128,23 @@ class MotileWidget(QWidget):
         distance_layout = QHBoxLayout()
         self.distance_checkbox = QCheckBox("Distance")
         self.distance_checkbox.setChecked(True)
+        self.distance_checkbox.stateChanged.connect(self._on_toggle_distance_cost)
+        distance_layout.addWidget(self.distance_checkbox)
+
+        distance_params_layout = QFormLayout()
         self.distance_weight_spinbox = QDoubleSpinBox()
         self.distance_weight_spinbox.setRange(-1e10, 1e10)
         self.distance_weight_spinbox.setValue(1)
         self.distance_offset_spinbox = QDoubleSpinBox()
         self.distance_offset_spinbox.setRange(-1e10, 1e10)
         self.distance_offset_spinbox.setValue(-20)
-        distance_layout.addWidget(self.distance_checkbox)
-        distance_layout.addWidget(QLabel("Weight:"))
-        distance_layout.addWidget(self.distance_weight_spinbox)
-        distance_layout.addWidget(QLabel("Offset:"))
-        distance_layout.addWidget(self.distance_offset_spinbox)
+        self.distance_offset_spinbox.setDecimals(1)
+        distance_params_layout.addRow("Weight:", self.distance_weight_spinbox)
+        distance_params_layout.addRow("Bias:", self.distance_offset_spinbox)
+        self.distance_params_widget = QWidget()
+        self.distance_params_widget.setLayout(distance_params_layout)
+        distance_layout.addWidget(self.distance_params_widget)
+
         feature_costs_layout.addLayout(distance_layout)
 
         # IOU row
@@ -147,10 +164,11 @@ class MotileWidget(QWidget):
 
         # Specify name text box
         run_group = QGroupBox("Run")
-        run_layout = QHBoxLayout()
+        run_layout = QVBoxLayout()
+        run_name_layout = QFormLayout()
         self.run_name = QLineEdit("tracks")
-        run_layout.addWidget(QLabel("Run name:"))
-        run_layout.addWidget(self.run_name)
+        run_name_layout.addRow("Run Name:", self.run_name)
+        run_layout.addLayout(run_name_layout)
 
         # Generate Tracks button
         generate_tracks_btn = QPushButton("Generate Tracks")
@@ -215,6 +233,28 @@ class MotileWidget(QWidget):
         if curr_text == "None":
             return None
         return self.viewer.layers[curr_text]
+    
+    def _on_toggle_cost_division(self):
+        if self.division_checkbox.isChecked():
+            self.division_spinbox.show()
+        else:
+            self.division_spinbox.hide()
+    
+    def _on_toggle_cost_appear(self):
+        if self.appear_checkbox.isChecked():
+            self.appear_spinbox.show()
+        else:
+            self.appear_spinbox.hide()
+
+    def _on_toggle_distance_cost(self):
+        if self.distance_checkbox.isChecked():
+            self.distance_params_widget.show()
+            #self.distance_weight_spinbox.show()
+            #self.distance_offset_spinbox.show()
+        else:
+            self.distance_params_widget.hide()
+            #self.distance_weight_spinbox.hide()
+            #self.distance_offset_spinbox.hide()
 
     def _on_click_generate_tracks(self):
         # Logic for generating tracks

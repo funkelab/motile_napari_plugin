@@ -86,7 +86,7 @@ def solve_with_motile(cand_graph, widget):
     solver = Solver(motile_cand_graph)
 
     solver.add_constraints(MaxChildren(widget.get_max_children()))
-    solver.add_constraints(MaxParents(widget.get_max_parents()))
+    solver.add_constraints(MaxParents(1))
 
     if widget.get_distance_weight() is not None:
         solver.add_costs(EdgeSelection(widget.get_distance_weight(), attribute="dist", constant=widget.get_distance_offset()))
