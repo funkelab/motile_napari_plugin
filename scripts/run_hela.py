@@ -3,6 +3,14 @@ import zarr
 
 from motile_plugin import MotileWidget
 from napari.utils.theme import _themes
+import logging
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(filename)s:%(lineno)d] %(levelname)-8s %(message)s"
+)
+# logging.getLogger('napari').setLevel(logging.DEBUG)
+
+GRAPH_LAYER = False
 
 _themes["dark"].font_size = "18pt"
 
@@ -22,7 +30,7 @@ viewer.add_image(image_stack, name='Image Stack')
 viewer.add_labels(labeled_mask, name='Labels')
 
 # Add your custom widget
-widget = MotileWidget(viewer)
+widget = MotileWidget(viewer, graph_layer=GRAPH_LAYER)
 viewer.window.add_dock_widget(widget, name="Motile")
 
 # Start the Napari GUI event loop
