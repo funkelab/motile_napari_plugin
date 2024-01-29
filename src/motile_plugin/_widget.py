@@ -35,7 +35,10 @@ from skimage.measure import regionprops
 import tifffile
 import logging
 
-from ._utils import get_cand_graph_from_segmentation, solve_with_motile, get_solution_nx_graph, to_napari_tracks_layer
+from ._utils import (
+    get_cand_graph_from_segmentation, solve_with_motile, get_solution_nx_graph,
+    to_napari_tracks_layer, to_napari_graph_layer)
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(name)s %(levelname)-8s %(message)s"
 )
@@ -272,3 +275,6 @@ class MotileWidget(QWidget):
         track_data, track_props, track_edges = to_napari_tracks_layer(solution_nx_graph)
 
         self.viewer.add_tracks(track_data, properties=track_props, graph=track_edges, name=self.get_run_name())
+
+        graph_layer = to_napari_graph_layer(solution_nx_graph, "Graph " + self.get_run_name(), loc_keys=("t", "y", "x"))
+        self.viewer.add_layer(graph_layer)
