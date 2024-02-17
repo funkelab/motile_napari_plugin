@@ -1,6 +1,38 @@
 from rtree import index
 from scipy.spatial import KDTree
 import numpy as np
+import napari
+import zarr
+
+from motile_plugin import MotileWidget
+from napari.utils.theme import _themes
+
+_themes["dark"].font_size = "18pt"
+
+
+# Load Zarr datasets
+zarr_directory = "/Users/kharrington/git/cmalinmayor/motile-plugin/data/zarr_data.zarr"
+zarr_group = zarr.open_group(zarr_directory, mode='r')
+image_stack = zarr_group['stack'][:]
+labeled_mask = zarr_group['labeled_stack'][:]
+labeled_mask = labeled_mask[0:5, :, :]
+
+# Initialize Napari viewer
+viewer = napari.Viewer()
+
+# Add image and label layers to the viewer
+viewer.add_image(image_stack, name='Image Stack')
+viewer.add_labels(labeled_mask, name='Labels')
+
+# Add your custom widget
+widget = MotileWidget(viewer)
+viewer.window.add_dock_widget(widget, name="Motile")
+
+widget._on_click_generate_tracks()
+
+# Start the Napari GUI event loop
+# napari.run()
+
 
 def build_tree(cylinders):
     """
@@ -51,7 +83,8 @@ def build_tree(cylinders):
 
 
 # TODO dont hardcode graph
-graph = viewer.layers[-1].data
+graph_layer = viewer.layers[-1]
+graph = graph_layer.data
 
 cylinder_radius = 5
 cylinders = []
@@ -149,4 +182,39 @@ result = query_ray_intersection(ray_origin, ray_direction, cylinders, tree, bbox
 
 (result, cylinders[result])
 
+from napari.layers.points._points_utils import create_box
 
+tracks_layer = viewer.layers['tracks']
+
+edge_selection_layer = viewer.add_points([], size=10, face_color='red', ndim=3)
+
+@graph_layer.mouse_drag_callbacks.append
+def on_click(layer, event):
+    near_point, far_point = layer.get_ray_intersections(
+        event.position,
+        event.view_direction,
+        event.dims_displayed
+    )
+
+    if len(event.dims_displayed) == 3:        
+        ray_origin = event.position
+    else:
+        # 2D case
+        ray_origin = tuple([0] + [event.position[dim] for dim in event.dims_displayed])
+
+    ray_direction = (0, 1, 0)
+    result = query_ray_intersection(ray_origin, ray_direction, cylinders, tree, bboxes)
+
+    print(f"on_click: ray origin {ray_origin} result {(result, cylinders[result])}")
+
+    edge_selection_layer.data = np.array(cylinders[result][:2])
+    
+
+image_stack = viewer.layers['Image Stack']
+
+
+def on_visible(event):
+    print("visibiltiy change")
+    event.source.refresh()
+
+image_stack.events.visible.connect(on_visible)
