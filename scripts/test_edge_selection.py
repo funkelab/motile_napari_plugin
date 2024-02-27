@@ -6,32 +6,28 @@ import zarr
 
 from motile_plugin import MotileWidget
 from napari.utils.theme import _themes
+from napari.layers.points._points_utils import create_box
+from napari_graph import UndirectedGraph
+import pandas as pd
+from napari.layers import Graph
 
 _themes["dark"].font_size = "18pt"
 
+def build_graph(n_nodes: int, n_neighbors: int, n_dims=2) -> UndirectedGraph:
+    neighbors = np.random.randint(n_nodes, size=(n_nodes * n_neighbors))
+    edges = np.stack([np.repeat(np.arange(n_nodes), n_neighbors), neighbors], axis=1)
+    for edge in edges:
+        if edge[0] == edge[1]:
+            print("SELF EDGE DETECTED: incrementing")
+            edge[1] = edge[1] + 1 % n_nodes
 
-# Load Zarr datasets
-zarr_directory = "/Users/kharrington/git/cmalinmayor/motile-plugin/data/zarr_data.zarr"
-zarr_group = zarr.open_group(zarr_directory, mode='r')
-image_stack = zarr_group['stack'][:]
-labeled_mask = zarr_group['labeled_stack'][:]
-labeled_mask = labeled_mask[0:5, :, :]
+    nodes_df = pd.DataFrame(
+        400 * np.random.uniform(size=(n_nodes, n_dims)),
+        columns=["t", "z", "y", "x"][-n_dims:],
+    )
+    graph = UndirectedGraph(edges=edges, coords=nodes_df)
 
-# Initialize Napari viewer
-viewer = napari.Viewer()
-
-# Add image and label layers to the viewer
-viewer.add_image(image_stack, name='Image Stack')
-viewer.add_labels(labeled_mask, name='Labels')
-
-# Add your custom widget
-widget = MotileWidget(viewer)
-viewer.window.add_dock_widget(widget, name="Motile")
-
-widget._on_click_generate_tracks()
-
-# Start the Napari GUI event loop
-# napari.run()
+    return graph
 
 
 def build_tree(cylinders):
@@ -41,6 +37,10 @@ def build_tree(cylinders):
     :param cylinders: List of cylinders, where each cylinder is represented as ((x1, y1, z1), (x2, y2, z2), radius).
     :return: KDTree object.
     """
+    # Example usage:
+    # cylinders = [((0,0,0), (1,1,1), 0.5), ((2,2,2), (3,3,3), 0.3)]
+    # tree = build_kdtree(cylinders)
+
     p = index.Property()
     p.dimension = 3
     idx = index.Index(properties=p)
@@ -53,6 +53,7 @@ def build_tree(cylinders):
         axis_length = np.linalg.norm(axis_vector)
 
         if axis_length == 0:
+            print("SKIPPING DEGENERATE CYLINDER")
             continue  # Skip degenerate cylinders
 
         axis_vector /= axis_length  # Normalize the axis vector
@@ -77,27 +78,26 @@ def build_tree(cylinders):
     # Build and return the KD-Tree
     return idx, bboxes
 
-# Example usage:
-# cylinders = [((0,0,0), (1,1,1), 0.5), ((2,2,2), (3,3,3), 0.3)]
-# tree = build_kdtree(cylinders)
+def create_cylinders(graph, radius=5):
+    # For undirected graphs, this currently adds each edge twice
+    # Because I couldn't figure out how to iterate the edges properly
+    cylinders = []
+    for edge_set in graph.get_edges():
+        for edge in edge_set:
+            print(f"Edge: {edge}")
+        # (start_node, end_node) = edge[0]
+        # cylinders += [(graph.get_coordinates()[start_node], graph.get_coordinates()[end_node], cylinder_radius)]
+            coords = graph.get_coordinates(edge)
+            # Coords should have shape (2, ndim)
 
+            print(f"Coords: {coords} shape {coords.shape}")
+            if coords.shape[1] == 2:
+                # add dummy third dimension to endpoints
+                coords = np.c_[np.zeros(2), coords]
 
-# TODO dont hardcode graph
-graph_layer = viewer.layers[-1]
-graph = graph_layer.data
-
-cylinder_radius = 5
-cylinders = []
-for edge in graph.get_edges():
-    (start_node, end_node) = edge[0]
-    # cylinders += [(graph.get_coordinates()[start_node], graph.get_coordinates()[end_node], cylinder_radius)]
-    coords = graph.get_coordinates(edge[0])
-    
-    cylinders += [(coords[0,:], coords[1,:],  cylinder_radius)]
-
-tree, bboxes = build_tree(cylinders)
-
-
+            print(f"New coords: {coords} shape {coords.shape}")
+            cylinders += [(coords[0,:], coords[1,:],  radius)]
+    return cylinders
 
 
 def ray_intersects_cylinder(ray_origin, ray_direction, cylinder, tolerance=1e-6):
@@ -175,46 +175,65 @@ def query_ray_intersection(ray_origin, ray_direction, cylinders, rtree_index, bb
 
     return None  # No intersection found
 
-# Example usage:
-ray_origin = (2, 367, 514)
-ray_direction = (0, 1, 0)
-result = query_ray_intersection(ray_origin, ray_direction, cylinders, tree, bboxes)
+if __name__ == "__main__":
+    # Create example graph
+    n_dims = 3
+    example_graph = build_graph(100, 1, n_dims=n_dims)
 
-(result, cylinders[result])
+    # Initialize Napari viewer
+    viewer = napari.Viewer()
+    graph_layer = Graph(data=example_graph, name=f"{n_dims}D Graph")
+    viewer.add_layer(graph_layer)
 
-from napari.layers.points._points_utils import create_box
+    # Put edges into KD Tree
+    # Currently this includes all edges, without consideration for the view
+    # TODO: Should also link rtree to dims changes and rebuild the tree based on the currently visible edges
+    edge_width = 2 # TODO: this should be linked to the view
+    cylinders = create_cylinders(example_graph, radius=edge_width)
+    print(f"{len(cylinders)} cylinders created")
+    tree, bboxes = build_tree(cylinders)
 
-tracks_layer = viewer.layers['tracks']
+    print(f"Tree {tree}")
+    # print(f"BBoxes {bboxes}")
 
-edge_selection_layer = viewer.add_points([], size=10, face_color='red', ndim=3)
+    # Instead of proper highlighting, we just add points layer with endpoints in red
+    edge_selection_layer = viewer.add_points([], size=10, face_color='red', ndim=n_dims, name="Selection Endpoints")
 
-@graph_layer.mouse_drag_callbacks.append
-def on_click(layer, event):
-    near_point, far_point = layer.get_ray_intersections(
-        event.position,
-        event.view_direction,
-        event.dims_displayed
-    )
+    # Add callback to graph layer on click to select edge
+    @graph_layer.mouse_drag_callbacks.append
+    def on_click(layer, event):
+        near_point, far_point = layer.get_ray_intersections(
+            np.array(event.position),
+            event.view_direction,
+            event.dims_displayed
+        )
+        print(f"Near point {near_point} far point {far_point}")
+        if len(event.dims_displayed) == 3:        
+            ray_origin = near_point
+            ray_direction = event.view_direction
+        else:
+            # 2D case
+            ray_origin = list([0] + [event.position[dim] for dim in event.dims_displayed])
+            ray_direction = list([1, 0, 0])
 
-    if len(event.dims_displayed) == 3:        
-        ray_origin = event.position
-    else:
-        # 2D case
-        ray_origin = tuple([0] + [event.position[dim] for dim in event.dims_displayed])
+        if ray_origin is None:
+            edge_selection_layer.data = []
+            return
+        result_id = query_ray_intersection(ray_origin, ray_direction, cylinders, tree, bboxes)
 
-    ray_direction = (0, 1, 0)
-    result = query_ray_intersection(ray_origin, ray_direction, cylinders, tree, bboxes)
+        print(f"on_click: ray origin {ray_origin} result id {result_id}")
+        if result_id:
+            cylinder = cylinders[result_id]
+            source = cylinder[0]
+            target = cylinder[1] 
+            if n_dims == 2:
+                # Remove dummy first element of each coord
+                source = source[1:]
+                target = target[1:]
+            print(f"source {source} target {target}")
+            edge_selection_layer.data = np.array([source, target])
+        else:
+            edge_selection_layer.data = []
 
-    print(f"on_click: ray origin {ray_origin} result {(result, cylinders[result])}")
-
-    edge_selection_layer.data = np.array(cylinders[result][:2])
-    
-
-image_stack = viewer.layers['Image Stack']
-
-
-def on_visible(event):
-    print("visibiltiy change")
-    event.source.refresh()
-
-image_stack.events.visible.connect(on_visible)
+    # Start the Napari GUI event loop
+    napari.run()
