@@ -268,7 +268,8 @@ class MotileWidget(QWidget):
         print(f"Cand graph has {cand_graph.number_of_nodes()} nodes")
 
         solution, solver = solve_with_motile(cand_graph, self)
-        solution_nx_graph = get_solution_nx_graph(solution, solver, cand_graph)
+        solution_graph = solver.get_selected_subgraph(solution=solution)
+        solution_nx_graph = graph_to_nx(solution_graph)
         track_data, track_props, track_edges = to_napari_tracks_layer(solution_nx_graph)
 
         self.viewer.add_tracks(track_data, properties=track_props, graph=track_edges, name=self.get_run_name())
