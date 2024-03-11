@@ -10,6 +10,7 @@ from napari.layers.points._points_utils import create_box
 from napari_graph import UndirectedGraph
 import pandas as pd
 from napari.layers import Graph
+import time
 
 _themes["dark"].font_size = "18pt"
 
@@ -40,7 +41,7 @@ def build_tree(cylinders):
     # Example usage:
     # cylinders = [((0,0,0), (1,1,1), 0.5), ((2,2,2), (3,3,3), 0.3)]
     # tree = build_kdtree(cylinders)
-
+    start_time = time.time()
     p = index.Property()
     p.dimension = 3
     idx = index.Index(properties=p)
@@ -74,28 +75,30 @@ def build_tree(cylinders):
 
         # Insert the bounding box into the R-tree
         idx.insert(i, bbox)
-
+    end_time = time.time()
+    print(f"Took {end_time - start_time} seconds to build RTree with {len(cylinders)} cylinders")
     # Build and return the KD-Tree
     return idx, bboxes
 
 def create_cylinders(graph, radius=5):
     # For undirected graphs, this currently adds each edge twice
     # Because I couldn't figure out how to iterate the edges properly
+    # Could use buffer??? graph.edges buffer skipping code
     cylinders = []
     for edge_set in graph.get_edges():
         for edge in edge_set:
-            print(f"Edge: {edge}")
+            # print(f"Edge: {edge}")
         # (start_node, end_node) = edge[0]
         # cylinders += [(graph.get_coordinates()[start_node], graph.get_coordinates()[end_node], cylinder_radius)]
             coords = graph.get_coordinates(edge)
             # Coords should have shape (2, ndim)
 
-            print(f"Coords: {coords} shape {coords.shape}")
+            # print(f"Coords: {coords} shape {coords.shape}")
             if coords.shape[1] == 2:
                 # add dummy third dimension to endpoints
                 coords = np.c_[np.zeros(2), coords]
 
-            print(f"New coords: {coords} shape {coords.shape}")
+            # print(f"New coords: {coords} shape {coords.shape}")
             cylinders += [(coords[0,:], coords[1,:],  radius)]
     return cylinders
 
@@ -178,7 +181,12 @@ def query_ray_intersection(ray_origin, ray_direction, cylinders, rtree_index, bb
 if __name__ == "__main__":
     # Create example graph
     n_dims = 3
-    example_graph = build_graph(100, 1, n_dims=n_dims)
+    n_nodes = 100
+    n_neighbors = 1
+    start_time = time.time()
+    example_graph = build_graph(n_nodes, n_neighbors, n_dims=n_dims)
+    end_time = time.time()
+    print(f"Took {end_time - start_time} second to build napari graph with {n_nodes} nodes and {n_neighbors * n_nodes} edges")
 
     # Initialize Napari viewer
     viewer = napari.Viewer()
