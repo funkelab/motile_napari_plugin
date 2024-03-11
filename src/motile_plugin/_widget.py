@@ -1,44 +1,26 @@
-from typing import TYPE_CHECKING
 
-from magicgui import magic_factory
-from magicgui.widgets import CheckBox, Container, create_widget
-from qtpy.QtWidgets import (
-    QWidget, QPushButton, QSlider, QHBoxLayout, QVBoxLayout, 
-    QLabel, QSpinBox, QCheckBox, QDoubleSpinBox, QGroupBox, QLineEdit,
-    QComboBox, QFormLayout
-)
-from qtpy.QtCore import Qt
-from skimage.util import img_as_float
-#from napari_graph import UndirectedGraph
-import numpy as np
-from napari.layers import Labels
-import pandas as pd
-
-if TYPE_CHECKING:
-    import napari
-
-
-import math
-from pathlib import Path
-import numpy as np
-
-from motile import Solver, TrackGraph
-from motile.constraints import MaxChildren, MaxParents
-from motile.costs import EdgeSelection, Appear
-from motile.variables import NodeSelected, EdgeSelected
-import networkx as nx
-import toml
-from tqdm import tqdm
-import pprint
-import time
-from skimage.measure import regionprops
-import tifffile
 import logging
 
-from motile_toolbox.candidate_graph import graph_from_segmentation
+from motile_toolbox.candidate_graph import graph_from_segmentation, graph_to_nx
 from motile_toolbox.visualization import to_napari_tracks_layer
-from ._utils import (
-    solve_with_motile, get_solution_nx_graph)
+
+#from napari_graph import UndirectedGraph
+from napari.layers import Labels
+from qtpy.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDoubleSpinBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLineEdit,
+    QPushButton,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ._utils import solve_with_motile
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(name)s %(levelname)-8s %(message)s"
@@ -50,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class MotileWidget(QWidget):
-    def __init__(self, viewer: "napari.viewer.Viewer", graph_layer=False):
+    def __init__(self, viewer, graph_layer=False):
         super().__init__()
         self.viewer = viewer
         self.graph_layer = graph_layer
@@ -81,7 +63,7 @@ class MotileWidget(QWidget):
         hyperparameters_group.setLayout(hyperparameters_layout)
         main_layout.addWidget(hyperparameters_group)
 
-        
+
         # Constraints section
         constraints_group = QGroupBox("Constraints")
         constraints_layout = QFormLayout()
@@ -97,7 +79,7 @@ class MotileWidget(QWidget):
         # Constant Costs section
         constant_costs_group = QGroupBox("Constant Costs")
         constant_costs_layout = QVBoxLayout()
-        
+
         appear_layout = QHBoxLayout()
         self.appear_spinbox = QDoubleSpinBox()
         self.appear_spinbox.setValue(30)
@@ -242,22 +224,22 @@ class MotileWidget(QWidget):
 
     def get_iou_offset(self):
         return self.iou_offset_spinbox.value() if self.iou_checkbox.isChecked() else None
-    
+
     def get_run_name(self):
         return self.run_name.text()
-    
+
     def get_labels_layer(self):
         curr_text = self.layer_selection_box.currentText()
         if curr_text == "None":
             return None
         return self.viewer.layers[curr_text]
-    
+
     def _on_toggle_cost_division(self):
         if self.division_checkbox.isChecked():
             self.division_spinbox.show()
         else:
             self.division_spinbox.hide()
-    
+
     def _on_toggle_cost_appear(self):
         if self.appear_checkbox.isChecked():
             self.appear_spinbox.show()
