@@ -35,9 +35,10 @@ from skimage.measure import regionprops
 import tifffile
 import logging
 
+from motile_toolbox.candidate_graph import graph_from_segmentation
+from motile_toolbox.visualization import to_napari_tracks_layer
 from ._utils import (
-    get_cand_graph_from_segmentation, solve_with_motile, get_solution_nx_graph,
-    to_napari_tracks_layer)
+    solve_with_motile, get_solution_nx_graph)
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(name)s %(levelname)-8s %(message)s"
@@ -184,11 +185,24 @@ class MotileWidget(QWidget):
         # Original layout elements
         # btn = QPushButton("Generate Graph")
         # btn.clicked.connect(self._on_click)
-        # self.slider = QSlider()
-        # self.slider.setOrientation(Qt.Horizontal)
-        # self.slider.setRange(1, 100)
-        # self.slider.setValue(10)
-        # self.slider.valueChanged.connect(self.update_thickness)
+        """graph_ui_group = QGroupBox("Graph UI Control")
+        graph_ui_layout = QVBoxLayout()
+        self.graph_layer_selection_box = QComboBox()
+        for layer in viewer.layers:
+            if isinstance(layer, Labels):
+                self.graph_layer_selection_box.addItem(layer.name)
+        if len(self.graph_layer_selection_box) == 0:
+            self.graph_layer_selection_box.addItem("None")
+        graph_ui_layout.addWidget(self.graph_layer_selection_box)
+
+        self.thickness_slider = QSlider()
+        self.thickness_slider.setOrientation(Qt.Horizontal)
+        self.thickness_slider.setRange(1, 100)
+        self.thickness_slider.setValue(10)
+        self.thickness_slider.valueChanged.connect(self.update_thickness)
+        graph_ui_group.setLayout(layer_layout)
+        main_layout.addWidget(graph_ui_group)"""
+
 
         # original_layout = QHBoxLayout()
         # original_layout.addWidget(btn)
@@ -268,7 +282,7 @@ class MotileWidget(QWidget):
         segmentation = labels_layer.data
 
         print(f"Segmentation shape: {segmentation.shape}")
-        cand_graph = get_cand_graph_from_segmentation(segmentation, self.get_max_edge_distance())
+        cand_graph = graph_from_segmentation(segmentation, self.get_max_edge_distance())
         print(f"Cand graph has {cand_graph.number_of_nodes()} nodes")
 
         solution, solver = solve_with_motile(cand_graph, self)
