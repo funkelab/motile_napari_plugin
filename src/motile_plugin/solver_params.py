@@ -1,11 +1,11 @@
 
-from pydantic import Field, BaseModel
+from pydantic import BaseModel, Field
 
 
 class SolverParams(BaseModel):
     max_edge_distance: float = Field(
-        50.0, 
-        title="Max Move Distance", 
+        50.0,
+        title="Max Move Distance",
         description=r"""The maximum distance an object center can move between time frames.
 Objects further than this cannot be matched, but making this value larger will increase solving time."""
     )
