@@ -3,7 +3,8 @@ import logging
 
 from motile_toolbox.utils import relabel_segmentation
 from motile_toolbox.visualization import to_napari_tracks_layer
-from napari.layers import Labels, Layer
+from napari.layers import Labels, Layer, Tracks
+from napari import Viewer
 from qtpy.QtCore import Signal
 from functools import partial
 from qtpy.QtWidgets import (
@@ -18,6 +19,7 @@ from qtpy.QtWidgets import (
     QComboBox,
 )
 from superqt.utils import thread_worker
+from warnings import warn
 
 from ._qwidget_components import (
     LayerSelectBox,
@@ -143,11 +145,12 @@ class RunViewer(QWidget):
 class MotileWidget(QWidget):
     def __init__(self, viewer, graph_layer=False, storage_path="./motile_results"):
         super().__init__()
-        self.viewer = viewer
+        self.viewer: Viewer = viewer
         self.graph_layer = graph_layer
 
-        self.in_progress_params = SolverParams()
-        self.in_progress_name = "new_run"
+        self.input_seg_layer : Labels | None = None
+        self.output_seg_layer: Labels | None = None
+        self.tracks_layer: Tracks | None = None
 
         main_layout = QVBoxLayout()
         self.edit_run_widget = RunEditor("new_run", SolverParams(), self.viewer.layers)
@@ -169,6 +172,38 @@ class MotileWidget(QWidget):
         main_layout.addWidget(self.run_list_widget)
         self.setLayout(main_layout)
 
+    def remove_napari_layers(self):
+        if self.output_seg_layer and self.output_seg_layer in self.viewer.layers:
+            self.viewer.layers.remove(self.output_seg_layer)
+        if self.tracks_layer and self.tracks_layer in self.viewer.layers:
+            self.viewer.layers.remove(self.tracks_layer)
+
+    def update_napari_layers(self, run):
+        self.output_seg_layer = Labels(run.output_segmentation, name=run.run_name + "_seg")
+
+        if self.tracks_layer and self.tracks_layer in self.viewer.layers:
+            self.viewer.layers.remove(self.tracks_layer)
+        if not self.graph_layer:
+            # add tracks
+            if run.tracks is None or run.tracks.number_of_nodes() == 0:
+                warn("No tracks found for run {run.run_name}")
+                self.tracks_layer = None
+            else:
+                track_data, track_props, track_edges = to_napari_tracks_layer(
+                    run.tracks, location_keys=self._get_pos_keys(run)
+                )
+                self.tracks_layer = Tracks(track_data, properties=track_props, graph=track_edges, name=run.run_name + "_tracks")
+        else:
+            print("Adding graph layer")
+            from ._graph_layer_utils import to_napari_graph_layer
+            self.tracks_layer = to_napari_graph_layer(run.tracks, "Graph " + self.get_run_name(), loc_keys=("t", "y", "x"))
+
+
+    def add_napari_layers(self):
+        self.viewer.add_layer(self.output_seg_layer)
+        self.viewer.add_layer(self.tracks_layer)
+        
+
     def view_run(self, run: MotileRun):
         # TODO: remove old layers from napari and replace with new
         self.view_run_widget.update_run(run)
@@ -176,25 +211,10 @@ class MotileWidget(QWidget):
         self.view_run_widget.show()
 
         # Add layers to Napari
-        self.viewer.add_labels(run.output_segmentation, name=run.run_name + "_seg",)
-        # add tracks
-        if run.tracks is None or run.tracks.number_of_nodes() == 0:
-            # TODO: Handle this edge case without error
-            # warn("No tracks selected.")
-            self.viewer.add_tracks([], name=run.run_name)
-        track_data, track_props, track_edges = to_napari_tracks_layer(
-            run.tracks, location_keys=self._get_pos_keys(run)
-        )
-        self.viewer.add_tracks(
-            track_data, properties=track_props, graph=track_edges,
-            name=run.run_name)
-
-        logger.debug(self.graph_layer)
-        if self.graph_layer:
-            print("Adding graph layer")
-            from ._graph_layer_utils import to_napari_graph_layer
-            graph_layer = to_napari_graph_layer(run.tracks, "Graph " + self.get_run_name(), loc_keys=("t", "y", "x"))
-            self.viewer.add_layer(graph_layer)
+        self.remove_napari_layers()
+        self.update_napari_layers(run)
+        self.add_napari_layers()
+        
 
     def _get_pos_keys(self, run: MotileRun):
         if run.input_segmentation is None:
@@ -210,6 +230,8 @@ class MotileWidget(QWidget):
         self.edit_run_widget.show()
         if run:
             self.edit_run_widget.new_run(run)
+        
+        self.remove_napari_layers()
 
 
     def _generate_tracks(self, run):

@@ -91,8 +91,9 @@ class SolverParamsWidget(QWidget):
     that unchecking the box will update the parameter value to None, and checking will 
     update the parameter to the current spinbox value.
     If editable is false, the whole widget will be disabled.
-    To update for a backend change to SolverParams, create a new Widget with the
-    new params.
+    To update for a backend change to SolverParams, emit the new_params signal,
+    which the spinboxes and checkboxes will connect to and use to update the
+    UI and thus the stored solver params.
     """
     def __init__(self, solver_params: SolverParams, editable=False):
         super().__init__()
