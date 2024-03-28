@@ -104,9 +104,10 @@ class RunsList(QWidget):
         run_row = RunButton(run)
         print(run_row.sizeHint())
         self.runs_list.setItemWidget(item, run_row)
-        item.setSizeHint(run_row.sizeHint())
+        item.setSizeHint(run_row.minimumSizeHint())
         self.runs_list.addItem(item)
-        run_row.delete.clicked.connect(self.remove_run)
+        run_row.delete.clicked.connect(
+            partial(self.remove_run, item))
         run_row.new_config.clicked.connect(
             partial(self.edit_run.emit, run)
         )
