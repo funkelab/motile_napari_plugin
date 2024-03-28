@@ -24,6 +24,18 @@ class ParamSpinBox(QSpinBox):
         # necessary to have custom signal that is also emitted when checkboxes are
         # checked, without changing the spinbox value
         self.valueChanged.connect(self.send_value.emit)
+    
+    def update_from_params(self, params: SolverParams):
+        param_val = params.__getattribute__(self.param_name)
+        if param_val is not None:
+            self.setValue(param_val)
+    
+    def toggle_enable(self, checked: bool):
+        if checked:
+            self.enable()
+        else:
+            self.disable()
+
 
 class ParamDoubleSpinBox(QDoubleSpinBox):
     send_value = Signal(object)
@@ -35,23 +47,39 @@ class ParamDoubleSpinBox(QDoubleSpinBox):
         # checked, without changing the spinbox value
         self.valueChanged.connect(self.send_value.emit)
 
-class ParamCheckBox(QCheckBox):
-    toggle_none = Signal()
-
-    def _on_toggle(self, param_spinbox: ParamSpinBox | ParamDoubleSpinBox):
-        if self.isChecked():
-            param_spinbox.setEnabled(True)
-            param_spinbox.send_value.emit(param_spinbox.value())
+    def update_from_params(self, params: SolverParams):
+        param_val = params.__getattribute__(self.param_name)
+        if param_val is not None:
+            self.setValue(param_val)
+    
+    def toggle_enable(self, checked: bool):
+        if checked:
+            self.setEnabled(True)
+            self.send_value.emit(self.value())
         else:
-            param_spinbox.setEnabled(False)
-            param_spinbox.send_value.emit(None)
+            self.setEnabled(False)
+            self.send_value.emit(None)
+
+class ParamCheckBox(QCheckBox):
+    def __init__(self, param_name, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.param_name = param_name
+    
+    def update_from_params(self, params: SolverParams):
+        param_val = params.__getattribute__(self.param_name)
+        if param_val is None:
+            self.setChecked(False)
+    
 
 class ParamCheckGroup(QGroupBox):
-    def _on_toggle(self, param_spinbox: ParamSpinBox | ParamDoubleSpinBox):
-        if self.isChecked():
-            param_spinbox.send_value.emit(param_spinbox.value())
-        else:
-            param_spinbox.send_value.emit(None)
+    def __init__(self, param_names, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.param_names = param_names
+
+    def update_from_params(self, params: SolverParams):
+        param_vals = [params.__getattribute__(name) for name in self.param_names]
+        if all([v is None for v in param_vals]):
+            self.setChecked(False)
 
 
 class SolverParamsWidget(QWidget):
@@ -102,12 +130,11 @@ class SolverParamsWidget(QWidget):
             layout = QHBoxLayout()
             field = self.solver_params.model_fields[param_name]
             spinbox = self._param_spinbox(param_name, negative=False)
-            checkbox = ParamCheckBox(field.title)
+            checkbox = ParamCheckBox(param_name, field.title)
             checkbox.setToolTip(field.description)
             checkbox.setChecked(True)
-            checkbox.toggled.connect(
-                partial(checkbox._on_toggle, spinbox)
-            )
+            checkbox.toggled.connect(spinbox.toggle_enable)
+            self.new_params.connect(checkbox.update_from_params)
             layout.addWidget(checkbox)
             layout.addWidget(spinbox)
             constant_costs_layout.addLayout(layout)
@@ -136,17 +163,16 @@ class SolverParamsWidget(QWidget):
         checked=True,
         group_tooltip=None,
     ) -> ParamCheckGroup:
-        feature_cost = ParamCheckGroup(title)
+        feature_cost = ParamCheckGroup(param_names, title)
         feature_cost.setCheckable(True)
         feature_cost.setChecked(checked)
         feature_cost.setToolTip(group_tooltip)
+        self.new_params.connect(feature_cost.update_from_params)
         layout = QFormLayout()
         for param_name in param_names:
             field = self.solver_params.model_fields[param_name]
             spinbox = self._param_spinbox(param_name, negative=True)
-            feature_cost.toggled.connect(
-                partial(feature_cost._on_toggle, spinbox)
-            )
+            feature_cost.toggled.connect(spinbox.toggle_enable)
             self._add_form_row(layout, field.title, spinbox, tooltip=field.description)
         feature_cost.setLayout(layout)
         return feature_cost
@@ -186,7 +212,7 @@ class SolverParamsWidget(QWidget):
         spinbox.send_value.connect(
             partial(self.solver_params.__setattr__, param_name)
         )
-        self.new_params.connect(spinbox.setValue)
+        self.new_params.connect(spinbox.update_from_params)
         return spinbox
 
     def _add_form_row(self, layout: QFormLayout, label, value, tooltip=None):

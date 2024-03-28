@@ -109,6 +109,10 @@ class RunEditor(QWidget):
     
     def emit_run(self):
         self.create_run.emit(self.get_run())
+    
+    def new_run(self, run):
+        self.run_name.setText(run.run_name)
+        self.solver_params_widget.new_params.emit(run.solver_params)
 
     def _print_parameters(self):
         print(f"Solving with parameters {self.solver_params_widget.solver_params}")
@@ -123,7 +127,7 @@ class RunViewer(QWidget):
             self.params_widget = SolverParamsWidget(run.solver_params, editable=False)
         else:
             self.run_name_widget = QLabel("temp")
-            self.params_widget = QWidget()
+            self.params_widget = SolverParamsWidget(SolverParams(), editable=False)
         self.main_layout = QVBoxLayout()
         self.main_layout.addWidget(self.run_name_widget)
         self.main_layout.addWidget(self.params_widget)
@@ -133,21 +137,10 @@ class RunViewer(QWidget):
         print(f"Updating run with params {run.solver_params}")
         self.run = run
         self.run_name_widget.setText(self.run.run_name)
-        self.main_layout.removeWidget(self.params_widget)
-        self.params_widget = SolverParamsWidget(run.solver_params, editable=False)
-        self.main_layout.addWidget(self.params_widget)
-        # self.update()
-
+        self.params_widget.new_params.emit(run.solver_params)
 
 
 class MotileWidget(QWidget):
-    """
-    For Runs, a couple options:
-    - view (read-only)
-    - load config (and input seg?) to current run (e.g. New run from loaded run)
-    - delete
-    """
-
     def __init__(self, viewer, graph_layer=False, storage_path="./motile_results"):
         super().__init__()
         self.viewer = viewer
@@ -212,9 +205,11 @@ class MotileWidget(QWidget):
         elif len(run.input_segmentation.shape) == 4:
             return ["z", "y", "x"]
 
-    def edit_run(self):
+    def edit_run(self, run: MotileRun | None):
         self.view_run_widget.hide()
         self.edit_run_widget.show()
+        if run:
+            self.edit_run_widget.new_run(run)
 
 
     def _generate_tracks(self, run):
