@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from qtpy.QtCore import Signal
+from qtpy.QtCore import Signal, QSize
+from qtpy.QtGui import QColor
 from qtpy.QtWidgets import (
     QGroupBox,
     QListWidget,
@@ -9,12 +10,12 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QHBoxLayout,
-    QLabel
+    QLabel,
 )
-from qtpy.QtGui import QIcon
-from napari.resources import ICONS, get_colorized_svg
+from napari._qt.qt_resources import QColoredSVGIcon
 
 from .motile_run import MotileRun
+from functools import partial
 
 
 class RunButton(QWidget):
@@ -27,15 +28,27 @@ class RunButton(QWidget):
         super().__init__()
         self.run: MotileRun = run
         self.run_name = QLabel(self.run.run_name)
+        self.run_name.setFixedHeight(20)
         self.datetime = QLabel(self.run.time.strftime("%m/%d/%y, %H:%M:%S"))
+        self.datetime.setFixedHeight(20)
         self.new_config = QPushButton("+")
-        self.delete = QPushButton(icon=QIcon(get_colorized_svg(ICONS['delete'])))
+        self.new_config.setFixedSize(20, 20)
+        icon = QColoredSVGIcon.from_resources("delete")
+        self.delete = QPushButton(icon=icon.colored("white"))
+        self.delete.setFixedSize(20, 20)
         layout = QHBoxLayout()
+        layout.setSpacing(1)
         layout.addWidget(self.run_name)
         layout.addWidget(self.datetime)
         layout.addWidget(self.new_config)
         layout.addWidget(self.delete)
         self.setLayout(layout)
+    
+    def sizeHint(self):
+        hint = super().sizeHint()
+        hint.setHeight(30)
+        return hint
+
 
 class RunsList(QWidget):
     """
@@ -50,7 +63,7 @@ class RunsList(QWidget):
     # TODO: Add delete button
     # TODO: Add new config from run button
     view_run = Signal(MotileRun)
-    edit_run = Signal()
+    edit_run = Signal(object)
 
     def __init__(self, storage_path):
         super().__init__()
@@ -64,7 +77,7 @@ class RunsList(QWidget):
             self.add_run(run)
 
         edit_run_button = QPushButton("Back to Editing")
-        edit_run_button.clicked.connect(self.edit_run.emit)
+        edit_run_button.clicked.connect(partial(self.edit_run.emit, None))
         layout.addWidget(edit_run_button)
         self.setLayout(layout)
 
@@ -76,6 +89,7 @@ class RunsList(QWidget):
         save_load_group = QGroupBox("Tracking Runs")
         save_load_layout = QVBoxLayout()
         self.runs_list = QListWidget()
+        # self.runs_list.setSpacing(0)
         self.runs_list.setSelectionMode(1)  # single selection
         self.runs_list.itemClicked.connect(
             lambda e: self.view_run.emit(self.runs_list.itemWidget(e).run)
@@ -88,14 +102,21 @@ class RunsList(QWidget):
     def add_run(self, run: MotileRun):
         item = QListWidgetItem(self.runs_list)
         run_row = RunButton(run)
+        print(run_row.sizeHint())
         self.runs_list.setItemWidget(item, run_row)
-        item.setSizeHint(run_row.minimumSizeHint())
+        item.setSizeHint(run_row.sizeHint())
         self.runs_list.addItem(item)
+        run_row.delete.clicked.connect(self.remove_run)
+        run_row.new_config.clicked.connect(
+            partial(self.edit_run.emit, run)
+        )
     
     def save_run(self, run: MotileRun):
         run.save(self.storage_path)
 
-    def remove_run(self, row_index):
-        run_button: RunButton = self.runs_list.takeItem(row_index)
-        run_button.run.delete(self.storage_path)
+    def remove_run(self, item: QListWidgetItem):
+        row = self.runs_list.indexFromItem(item).row()
+        run_widget = self.runs_list.itemWidget(item)
+        self.runs_list.takeItem(row)
+        run_widget.run.delete(self.storage_path)
 
