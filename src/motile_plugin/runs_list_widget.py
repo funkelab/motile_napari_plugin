@@ -8,19 +8,44 @@ from qtpy.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QWidget,
+    QHBoxLayout,
+    QLabel
 )
+from qtpy.QtGui import QIcon
+from napari.resources import ICONS, get_colorized_svg
 
 from .motile_run import MotileRun
 
 
-class RunButton(QListWidgetItem):
-    def __init__(self, run, *args, **kwargs):
+class RunButton(QWidget):
+    # https://doc.qt.io/qt-5/qlistwidget.html#setItemWidget
+    # I think this means if we want static buttons we can just make the row here
+    # but if we want to change the buttons we need to do something more complex
+    # Lets start with static then!
+    # Columns: Run name, Date/time, new edit config btn, delete btn
+    def __init__(self, run):
+        super().__init__()
         self.run: MotileRun = run
-        time_text = run.time.strftime("%m/%d/%Y, %H:%M:%S")
-        btn_text = f"{run.run_name} ({time_text})"
-        super().__init__(btn_text, *args, **kwargs)
+        self.run_name = QLabel(self.run.run_name)
+        self.datetime = QLabel(self.run.time.strftime("%m/%d/%y, %H:%M:%S"))
+        self.new_config = QPushButton("+")
+        self.delete = QPushButton(icon=QIcon(get_colorized_svg(ICONS['delete'])))
+        layout = QHBoxLayout()
+        layout.addWidget(self.run_name)
+        layout.addWidget(self.datetime)
+        layout.addWidget(self.new_config)
+        layout.addWidget(self.delete)
+        self.setLayout(layout)
 
 class RunsList(QWidget):
+    """
+    For Runs, a couple options:
+    - view (read-only)
+    - load config (and input seg?) to current run (e.g. New run from loaded run)
+    - delete
+    - save?
+    """
+
     # TODO: remove storage and loading from widget
     # TODO: Add delete button
     # TODO: Add new config from run button
@@ -53,7 +78,7 @@ class RunsList(QWidget):
         self.runs_list = QListWidget()
         self.runs_list.setSelectionMode(1)  # single selection
         self.runs_list.itemClicked.connect(
-            lambda e: self.view_run.emit(e.run)
+            lambda e: self.view_run.emit(self.runs_list.itemWidget(e).run)
         )
         save_load_layout.addWidget(self.runs_list)
 
@@ -61,7 +86,11 @@ class RunsList(QWidget):
         return save_load_group
 
     def add_run(self, run: MotileRun):
-        self.runs_list.addItem(RunButton(run))
+        item = QListWidgetItem(self.runs_list)
+        run_row = RunButton(run)
+        self.runs_list.setItemWidget(item, run_row)
+        item.setSizeHint(run_row.minimumSizeHint())
+        self.runs_list.addItem(item)
     
     def save_run(self, run: MotileRun):
         run.save(self.storage_path)
