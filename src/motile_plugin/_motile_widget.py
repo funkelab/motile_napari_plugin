@@ -16,9 +16,12 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QComboBox,
+    QListWidget,
+    QAbstractItemView
 )
 from superqt.utils import thread_worker
 from warnings import warn
+import numpy as np
 
 from .motile_run import MotileRun
 from .motile_solver import solve
@@ -35,8 +38,8 @@ class RunEditor(QWidget):
         # TODO: Don't pass static layers
         super().__init__()
         self.run_name: QLineEdit
-        self.layers: list[Layer]
-        self.layer_selection_box: QComboBox
+        self.layers: list
+        self.layer_selection_box: QListWidget
         self.solver_params_widget = SolverParamsWidget(solver_params, editable=True)
         main_layout = QVBoxLayout()
         main_layout.addWidget(self._ui_select_labels_layer(layers))
@@ -48,7 +51,8 @@ class RunEditor(QWidget):
         # Select Labels layer
         layer_group = QGroupBox("Select Input Layer")
         layer_layout = QHBoxLayout()
-        self.layer_selection_box = QComboBox()
+        self.layer_selection_box = QListWidget()
+        self.layer_selection_box.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
         self.update_labels_layers(layers)
         self.layer_selection_box.setToolTip("Select the labels layer you want to use for tracking")
         layer_layout.addWidget(self.layer_selection_box)
@@ -64,11 +68,11 @@ class RunEditor(QWidget):
         if len(self.layer_selection_box) == 0:
             self.layer_selection_box.addItem("None")
 
-    def get_labels_layer(self) -> str:
-        layer_name = self.layer_selection_box.currentText()
-        if layer_name == "None":
+    def get_labels_layer(self) -> list[Layer]:
+        layer_names = [i.text() for i in self.layer_selection_box.selectedItems()]
+        if len(layer_names) == 1 and layer_names[0] == "None":
             return None
-        return self.layers[self.layer_selection_box.currentText()]
+        return [self.layers[name] for name in layer_names]
 
     def _ui_run_motile(self, run_name) -> QGroupBox:
         # Specify name text box
@@ -101,9 +105,17 @@ class RunEditor(QWidget):
 
     def get_run(self):
         run_name = self.get_run_name()
-        input_seg = self.get_labels_layer().data
+        input_layers = self.get_labels_layer()
+        if len(input_layers) == 1:
+            multihypo = False
+            input_segs = input_layers[0].data
+        else:
+            multihypo = True
+            input_segs = np.stack([labels.data for labels in input_layers])
+            input_segs = np.swapaxes(input_segs, 0, 1)
+        print(f"{input_segs.shape=}")
         params = self.solver_params_widget.solver_params
-        return MotileRun(run_name=run_name, solver_params=params, input_segmentation=input_seg)
+        return MotileRun(run_name=run_name, solver_params=params, input_segmentation=input_segs, multihypo=multihypo)
     
     def emit_run(self):
         self.create_run.emit(self.get_run())
@@ -237,7 +249,7 @@ class MotileWidget(QWidget):
         self,
         run: MotileRun
         ):
-        run.tracks = solve(run.solver_params, run.input_segmentation)
+        run.tracks = solve(run.solver_params, run.input_segmentation, run.multihypo)
         run.output_segmentation = relabel_segmentation(run.tracks, run.input_segmentation)
         return run
 

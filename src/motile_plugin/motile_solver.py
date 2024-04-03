@@ -3,7 +3,7 @@ import logging
 import time
 
 from motile import Solver, TrackGraph
-from motile.constraints import MaxChildren, MaxParents
+from motile.constraints import MaxChildren, MaxParents, ExclusiveNodes
 from motile.costs import Appear, Disappear, EdgeSelection, Split
 from motile_toolbox.candidate_graph import (
     EdgeAttr,
@@ -20,15 +20,16 @@ logger = logging.getLogger(__name__)
 def solve(
     solver_params: SolverParams,
     segmentation: np.ndarray,
+    multihypo: bool
     ):
-    cand_graph, _ = get_candidate_graph(
+    cand_graph, conflict_sets = get_candidate_graph(
         segmentation,
         solver_params.max_edge_distance,
         iou=solver_params.iou_weight is not None,
-        multihypo=False
+        multihypo=multihypo,
     )
     logger.debug(f"Cand graph has {cand_graph.number_of_nodes()} nodes")
-    solver = construct_solver(cand_graph, solver_params)
+    solver = construct_solver(cand_graph, solver_params, conflict_sets)
     start_time = time.time()
     solution = solver.solve(verbose=True)
     logger.info(f"Solution took {time.time() - start_time} seconds")
@@ -39,10 +40,12 @@ def solve(
     return solution_nx_graph
 
 
-def construct_solver(cand_graph, solver_params):
+def construct_solver(cand_graph, solver_params, exclusive_sets):
     solver = Solver(TrackGraph(cand_graph, frame_attribute=NodeAttr.TIME.value))
     solver.add_constraints(MaxChildren(solver_params.max_children))
     solver.add_constraints(MaxParents(solver_params.max_parents))
+    if exclusive_sets is not None:
+        solver.add_constraints(ExclusiveNodes(exclusive_sets))
 
     if solver_params.appear_cost is not None:
         solver.add_costs(Appear(solver_params.appear_cost))

@@ -27,6 +27,7 @@ class MotileRun(BaseModel):
     input_segmentation: np.ndarray | None = Field(None)
     output_segmentation: np.ndarray | None = Field(None)
     tracks: nx.DiGraph | None = Field(None)
+    multihypo: bool = Field(False)
     time: datetime = Field(datetime.now())
 
     class Config:
