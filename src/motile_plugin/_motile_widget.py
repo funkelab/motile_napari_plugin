@@ -6,7 +6,6 @@ from motile_toolbox.visualization import to_napari_tracks_layer
 from napari.layers import Labels, Layer, Tracks
 from napari import Viewer
 from qtpy.QtCore import Signal
-from functools import partial
 from qtpy.QtWidgets import (
     QFormLayout,
     QGroupBox,
@@ -21,11 +20,8 @@ from qtpy.QtWidgets import (
 from superqt.utils import thread_worker
 from warnings import warn
 
-from ._qwidget_components import (
-    LayerSelectBox,
-)
 from .motile_run import MotileRun
-from .motile_solver import MotileSolver
+from .motile_solver import solve
 from .runs_list_widget import RunsList
 from .solver_params import SolverParams
 from .solver_params_widget import SolverParamsWidget
@@ -190,7 +186,7 @@ class MotileWidget(QWidget):
                 self.tracks_layer = None
             else:
                 track_data, track_props, track_edges = to_napari_tracks_layer(
-                    run.tracks, location_keys=self._get_pos_keys(run)
+                    run.tracks
                 )
                 self.tracks_layer = Tracks(track_data, properties=track_props, graph=track_edges, name=run.run_name + "_tracks")
         else:
@@ -215,15 +211,6 @@ class MotileWidget(QWidget):
         self.update_napari_layers(run)
         self.add_napari_layers()
         
-
-    def _get_pos_keys(self, run: MotileRun):
-        if run.input_segmentation is None:
-            print("Cannot infer position keys")
-            return None
-        if len(run.input_segmentation.shape) == 3:
-            return ["y", "x"]
-        elif len(run.input_segmentation.shape) == 4:
-            return ["z", "y", "x"]
 
     def edit_run(self, run: MotileRun | None):
         self.view_run_widget.hide()
@@ -250,9 +237,7 @@ class MotileWidget(QWidget):
         self,
         run: MotileRun
         ):
-        position_keys = self._get_pos_keys(run)
-        solver = MotileSolver(run.solver_params)
-        run.tracks = solver.solve(run.input_segmentation, position_keys=position_keys)
+        run.tracks = solve(run.solver_params, run.input_segmentation)
         run.output_segmentation = relabel_segmentation(run.tracks, run.input_segmentation)
         return run
 

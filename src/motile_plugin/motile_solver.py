@@ -8,68 +8,62 @@ from motile.costs import Appear, Disappear, EdgeSelection, Split
 from motile_toolbox.candidate_graph import (
     EdgeAttr,
     NodeAttr,
-    graph_from_segmentation,
+    get_candidate_graph,
     graph_to_nx,
 )
+import numpy as np
 
 from .solver_params import SolverParams
 
 logger = logging.getLogger(__name__)
 
-
-class MotileSolver:
-    def __init__(self, solver_params: SolverParams):
-        self.params = solver_params
-
-    def solve(
-        self,
+def solve(
+    solver_params: SolverParams,
+    segmentation: np.ndarray,
+    ):
+    cand_graph, _ = get_candidate_graph(
         segmentation,
-        position_keys,
-        ):
-        edge_attributes = []
-        if self.params.distance_weight is not None:
-            edge_attributes.append(EdgeAttr.DISTANCE)
-        if self.params.iou_weight is not None:
-            edge_attributes.append(EdgeAttr.IOU)
-        cand_graph = graph_from_segmentation(
-            segmentation,
-            self.params.max_edge_distance,
-            node_attributes=(NodeAttr.SEG_ID,),
-            edge_attributes=edge_attributes,
-            position_keys=position_keys,
-        )
-        logger.debug(f"Cand graph has {cand_graph.number_of_nodes()} nodes")
+        solver_params.max_edge_distance,
+        iou=solver_params.iou_weight is not None,
+        multihypo=False
+    )
+    logger.debug(f"Cand graph has {cand_graph.number_of_nodes()} nodes")
+    solver = construct_solver(cand_graph, solver_params)
+    start_time = time.time()
+    solution = solver.solve(verbose=True)
+    logger.info(f"Solution took {time.time() - start_time} seconds")
 
-        solver = Solver(TrackGraph(cand_graph))
-        solver.add_constraints(MaxChildren(self.params.max_children))
-        solver.add_constraints(MaxParents(self.params.max_parents))
+    solution_graph = solver.get_selected_subgraph(solution=solution)
+    solution_nx_graph = graph_to_nx(solution_graph)
 
-        if self.params.appear_cost is not None:
-            solver.add_costs(Appear(self.params.appear_cost))
-        if self.params.disappear_cost is not None:
-            solver.add_costs(Disappear(self.params.disappear_cost))
-        if self.params.division_cost is not None:
-            solver.add_costs(Split(constant=self.params.division_cost))
-        if self.params.merge_cost is not None:
-            from motile.costs import Merge
-            solver.add_costs(Merge(constant=self.params.merge_cost))
+    return solution_nx_graph
 
-        if self.params.distance_weight is not None:
-            solver.add_costs(EdgeSelection(
-                self.params.distance_weight,
-                attribute=EdgeAttr.DISTANCE.value,
-                constant=self.params.distance_offset), name="distance")
-        if self.params.iou_weight is not None:
-            solver.add_costs(EdgeSelection(
-                weight=self.params.iou_weight,
-                attribute=EdgeAttr.IOU.value,
-                constant=self.params.iou_offset), name="iou")
 
-        start_time = time.time()
-        solution = solver.solve(verbose=True)
-        logger.info(f"Solution took {time.time() - start_time} seconds")
+def construct_solver(cand_graph, solver_params):
+    solver = Solver(TrackGraph(cand_graph, frame_attribute=NodeAttr.TIME.value))
+    solver.add_constraints(MaxChildren(solver_params.max_children))
+    solver.add_constraints(MaxParents(solver_params.max_parents))
 
-        solution_graph = solver.get_selected_subgraph(solution=solution)
-        solution_nx_graph = graph_to_nx(solution_graph)
+    if solver_params.appear_cost is not None:
+        solver.add_costs(Appear(solver_params.appear_cost))
+    if solver_params.disappear_cost is not None:
+        solver.add_costs(Disappear(solver_params.disappear_cost))
+    if solver_params.division_cost is not None:
+        solver.add_costs(Split(constant=solver_params.division_cost))
+    if solver_params.merge_cost is not None:
+        from motile.costs import Merge
+        solver.add_costs(Merge(constant=solver_params.merge_cost))
 
-        return solution_nx_graph
+    if solver_params.distance_weight is not None:
+        solver.add_costs(EdgeSelection(
+            solver_params.distance_weight,
+            attribute=EdgeAttr.DISTANCE.value,
+            constant=solver_params.distance_offset), name="distance")
+    if solver_params.iou_weight is not None:
+        solver.add_costs(EdgeSelection(
+            weight=solver_params.iou_weight,
+            attribute=EdgeAttr.IOU.value,
+            constant=solver_params.iou_offset), name="iou")
+    return solver
+
+    
