@@ -20,13 +20,11 @@ logger = logging.getLogger(__name__)
 def solve(
     solver_params: SolverParams,
     segmentation: np.ndarray,
-    multihypo: bool
     ):
     cand_graph, conflict_sets = get_candidate_graph(
         segmentation,
         solver_params.max_edge_distance,
         iou=solver_params.iou_weight is not None,
-        multihypo=multihypo,
     )
     logger.debug(f"Cand graph has {cand_graph.number_of_nodes()} nodes")
     solver = construct_solver(cand_graph, solver_params, conflict_sets)
@@ -44,7 +42,7 @@ def construct_solver(cand_graph, solver_params, exclusive_sets):
     solver = Solver(TrackGraph(cand_graph, frame_attribute=NodeAttr.TIME.value))
     solver.add_constraints(MaxChildren(solver_params.max_children))
     solver.add_constraints(MaxParents(solver_params.max_parents))
-    if exclusive_sets is not None:
+    if len(exclusive_sets) > 0:
         solver.add_constraints(ExclusiveNodes(exclusive_sets))
 
     if solver_params.appear_cost is not None:

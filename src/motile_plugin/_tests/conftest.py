@@ -22,7 +22,7 @@ def segmentation_2d():
     rr, cc = disk(center=(60, 45), radius=15, shape=frame_shape)
     segmentation[1][rr, cc] = 2
 
-    return segmentation
+    return np.expand_dims(segmentation, 1)
 
 
 @pytest.fixture
@@ -210,7 +210,7 @@ def segmentation_3d():
     mask = sphere(center=(60, 50, 45), radius=15, shape=frame_shape)
     segmentation[1][mask] = 2
 
-    return segmentation
+    return np.expand_dims(segmentation, 1)
 
 
 @pytest.fixture
