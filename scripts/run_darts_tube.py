@@ -33,29 +33,34 @@ if __name__ == "__main__":
             config = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             print(exc)
-    data_config = config["data"]    
 
-    base_path = data_config["data_base_path"]
-    ds_name = data_config["dataset"]
-    result_names = data_config["result_names"]
-    roi = Roi(data_config["roi_offset"], data_config["roi_shape"])
+    storage_config = config["storage"]
+    dataset_config = config["dataset"]    
+
+    base_path = storage_config["data_base_path"]
+    seg_path = storage_config["seg_base_path"]
+    experiments_path = Path(storage_config["exp_base_path"])
+
+    ds_name = dataset_config["dataset"]
+    result_names = dataset_config["result_names"]
+    roi = Roi(dataset_config["roi_offset"], dataset_config["roi_shape"])
     
     raw_zarr = RawDataZarr(base_path, ds_name, mode="r", store_type="flat")
-    if not "fov" in data_config:
+    if not "fov" in dataset_config:
         fovs = raw_zarr.get_fovs()
         if not fovs:
             print(f"no fovs for dataset {ds_name}, exiting")
             sys.exit()
         fov = raw_zarr.get_fovs()[0]
     else:
-        fov = data_config["fov"]
+        fov = dataset_config["fov"]
 
-    if not "channels" in data_config:
+    if not "channels" in dataset_config:
         channels = raw_zarr.get_channels(fov)
     else:
-        channels = data_config["channels"]
+        channels = dataset_config["channels"]
     seg_zarr = SegmentationZarr(
-                data_config["seg_base_path"], ds_name, None, mode="r"
+                seg_path, ds_name, None, mode="r"
             )
     
     print("Starting napari viewer")
@@ -84,7 +89,10 @@ if __name__ == "__main__":
     
     print("Done adding images")
     # Add your custom widget
-    widget = MotileWidget(viewer)
+
+    ds_exp_path = experiments_path  / ds_name
+    ds_exp_path.mkdir(exist_ok=True)
+    widget = MotileWidget(viewer, storage_path=ds_exp_path)
     viewer.window.add_dock_widget(widget)
 
     # Start the Napari GUI event loop
