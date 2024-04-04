@@ -65,6 +65,8 @@ class RunEditor(QWidget):
         for layer in self.layers:
             if isinstance(layer, Labels):
                 self.layer_selection_box.addItem(layer.name)
+        if len(self.layer_selection_box) > 0:
+            self.layer_selection_box.setCurrentRow(0)
         if len(self.layer_selection_box) == 0:
             self.layer_selection_box.addItem("None")
 
@@ -106,6 +108,9 @@ class RunEditor(QWidget):
     def get_run(self):
         run_name = self.get_run_name()
         input_layers = self.get_labels_layer()
+        if input_layers is None or len(input_layers) == 0:
+            warn("No input labels layer selected")
+            return None
         if len(input_layers) == 1:
             multihypo = False
             input_segs = input_layers[0].data
@@ -118,7 +123,9 @@ class RunEditor(QWidget):
         return MotileRun(run_name=run_name, solver_params=params, input_segmentation=input_segs, multihypo=multihypo)
     
     def emit_run(self):
-        self.create_run.emit(self.get_run())
+        run = self.get_run()
+        if run is not None:
+            self.create_run.emit(run)
     
     def new_run(self, run):
         self.run_name.setText(run.run_name)
@@ -250,7 +257,10 @@ class MotileWidget(QWidget):
         run: MotileRun
         ):
         run.tracks = solve(run.solver_params, run.input_segmentation, run.multihypo)
-        run.output_segmentation = relabel_segmentation(run.tracks, run.input_segmentation)
+        seg = run.input_segmentation
+        if not run.multihypo:
+            seg = np.expand_dims(seg, 1)
+        run.output_segmentation = relabel_segmentation(run.tracks, seg).squeeze()
         return run
 
     def _on_solve_complete(self, run: MotileRun):
