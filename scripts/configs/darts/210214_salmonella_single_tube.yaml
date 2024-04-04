@@ -1,0 +1,11 @@
+storage:
+  data_base_path: "/Volumes/funke/data/darts"
+  seg_base_path: "/Volumes/funke/projects/darts/experiments/segmentation"
+  exp_base_path: "~/experiments/motile-napari-plugin"
+
+dataset:
+  dataset: "210214_salmonella"
+  result_names: ["voronoi_otsu_2_1"]
+  fov: 3
+  roi_offset: [0, 700, 0]
+  roi_shape: [50, 400, 35]
