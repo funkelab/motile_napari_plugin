@@ -65,7 +65,7 @@ if __name__ == "__main__":
         print(f"Adding images for channel {channel}")
         image_stack = raw_zarr.get_data(fov, channel)
         image_stack = image_stack[raw_zarr.roi_to_slices(roi)]
-        viewer.add_image(image_stack, name=f"{channel}_raw")
+        viewer.add_image(image_stack[:, 0], name=f"{channel}_raw")
 
         fluorescent_prefixes = [
             "mCherry",
@@ -79,7 +79,7 @@ if __name__ == "__main__":
                 seg_zarr.set_result_name(result)
                 labeled_mask = seg_zarr.get_data(fov, channel)
                 labeled_mask = labeled_mask[seg_zarr.roi_to_slices(roi)]
-                viewer.add_labels(labeled_mask, name=f"{channel}_{result}")
+                viewer.add_labels(labeled_mask[:,0], name=f"{channel}_{result}")
             
     
     print("Done adding images")
