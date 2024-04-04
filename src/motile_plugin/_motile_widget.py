@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 class RunEditor(QWidget):
     create_run = Signal(MotileRun)
-    def __init__(self, run_name, solver_params, layers):
+    def __init__(self, run_name, solver_params, layers, multiseg=False):
         # TODO: Don't pass static layers
         super().__init__()
         self.run_name: QLineEdit
@@ -42,17 +42,18 @@ class RunEditor(QWidget):
         self.layer_selection_box: QListWidget
         self.solver_params_widget = SolverParamsWidget(solver_params, editable=True)
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self._ui_select_labels_layer(layers))
+        main_layout.addWidget(self._ui_select_labels_layer(layers, multiseg=multiseg))
         main_layout.addWidget(self.solver_params_widget)
         main_layout.addWidget(self._ui_run_motile(run_name))
         self.setLayout(main_layout)
 
-    def _ui_select_labels_layer(self, layers) -> QGroupBox:
+    def _ui_select_labels_layer(self, layers, multiseg=False) -> QGroupBox:
         # Select Labels layer
         layer_group = QGroupBox("Select Input Layer")
         layer_layout = QHBoxLayout()
         self.layer_selection_box = QListWidget()
-        self.layer_selection_box.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        if multiseg:
+            self.layer_selection_box.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
         self.update_labels_layers(layers)
         self.layer_selection_box.setToolTip("Select the labels layer you want to use for tracking")
         layer_layout.addWidget(self.layer_selection_box)
@@ -112,15 +113,12 @@ class RunEditor(QWidget):
             warn("No input labels layer selected")
             return None
         if len(input_layers) == 1:
-            multihypo = False
-            input_segs = input_layers[0].data
+            input_segs = np.expand_dims(input_layers[0].data, 1)
         else:
-            multihypo = True
-            input_segs = np.stack([labels.data for labels in input_layers])
-            input_segs = np.swapaxes(input_segs, 0, 1)
+            input_segs = np.stack([labels.data for labels in input_layers], axis=1)
         print(f"{input_segs.shape=}")
         params = self.solver_params_widget.solver_params
-        return MotileRun(run_name=run_name, solver_params=params, input_segmentation=input_segs, multihypo=multihypo)
+        return MotileRun(run_name=run_name, solver_params=params, input_segmentation=input_segs)
     
     def emit_run(self):
         run = self.get_run()
@@ -158,10 +156,11 @@ class RunViewer(QWidget):
 
 
 class MotileWidget(QWidget):
-    def __init__(self, viewer, graph_layer=False, storage_path="./motile_results"):
+    def __init__(self, viewer, graph_layer=False, multiseg=False, storage_path="./motile_results"):
         super().__init__()
         self.viewer: Viewer = viewer
         self.graph_layer = graph_layer
+        self.multiseg = multiseg
 
         self.input_seg_layer : Labels | None = None
         self.output_seg_layer: Labels | None = None
@@ -194,7 +193,7 @@ class MotileWidget(QWidget):
             self.viewer.layers.remove(self.tracks_layer)
 
     def update_napari_layers(self, run):
-        self.output_seg_layer = Labels(run.output_segmentation, name=run.run_name + "_seg")
+        self.output_seg_layer = Labels(run.output_segmentation[:, 0], name=run.run_name + "_seg")
 
         if self.tracks_layer and self.tracks_layer in self.viewer.layers:
             self.viewer.layers.remove(self.tracks_layer)
@@ -204,9 +203,7 @@ class MotileWidget(QWidget):
                 warn("No tracks found for run {run.run_name}")
                 self.tracks_layer = None
             else:
-                track_data, track_props, track_edges = to_napari_tracks_layer(
-                    run.tracks
-                )
+                track_data, track_props, track_edges = to_napari_tracks_layer(run.tracks)
                 self.tracks_layer = Tracks(track_data, properties=track_props, graph=track_edges, name=run.run_name + "_tracks")
         else:
             print("Adding graph layer")
@@ -256,11 +253,10 @@ class MotileWidget(QWidget):
         self,
         run: MotileRun
         ):
-        run.tracks = solve(run.solver_params, run.input_segmentation, run.multihypo)
-        seg = run.input_segmentation
-        if not run.multihypo:
-            seg = np.expand_dims(seg, 1)
-        run.output_segmentation = relabel_segmentation(run.tracks, seg).squeeze()
+        run.tracks = solve(run.solver_params, run.input_segmentation)
+        print(f"{run.input_segmentation.shape=}")
+        run.output_segmentation = relabel_segmentation(run.tracks, run.input_segmentation)
+        print(f"{run.output_segmentation.shape=}")
         return run
 
     def _on_solve_complete(self, run: MotileRun):
