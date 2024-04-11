@@ -17,9 +17,11 @@ from .solver_params import SolverParams
 
 logger = logging.getLogger(__name__)
 
+
 def solve(
     solver_params: SolverParams,
     segmentation: np.ndarray,
+    on_solver_update=None,
     ):
     cand_graph, conflict_sets = get_candidate_graph(
         segmentation,
@@ -29,7 +31,7 @@ def solve(
     logger.debug(f"Cand graph has {cand_graph.number_of_nodes()} nodes")
     solver = construct_solver(cand_graph, solver_params, conflict_sets)
     start_time = time.time()
-    solution = solver.solve(verbose=True)
+    solution = solver.solve(verbose=False, on_event=on_solver_update)
     logger.info(f"Solution took {time.time() - start_time} seconds")
 
     solution_graph = solver.get_selected_subgraph(solution=solution)
@@ -42,7 +44,7 @@ def construct_solver(cand_graph, solver_params, exclusive_sets):
     solver = Solver(TrackGraph(cand_graph, frame_attribute=NodeAttr.TIME.value))
     solver.add_constraints(MaxChildren(solver_params.max_children))
     solver.add_constraints(MaxParents(solver_params.max_parents))
-    if len(exclusive_sets) > 0:
+    if exclusive_sets is None or len(exclusive_sets) > 0:
         solver.add_constraints(ExclusiveNodes(exclusive_sets))
 
     if solver_params.appear_cost is not None:

@@ -12,7 +12,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from .solver_params import SolverParams
+from motile_plugin.backend.solver_params import SolverParams
 
 
 class ParamSpinBox(QSpinBox):
@@ -101,9 +101,12 @@ class SolverParamsWidget(QWidget):
         self.editable = editable
         self.param_categories = {
             "data_params": ["max_edge_distance",  "max_children", "max_parents"],
-            "constant_costs": ["appear_cost", "division_cost", "disappear_cost", "merge_cost"],
+            "constant_costs": ["appear_cost", "division_cost", "disappear_cost"],
             "variable_costs": ["distance", "iou",],
+            "fixed": [("merge_cost", None)]
         }
+        for fixed_param, val in self.param_categories["fixed"]:
+            solver_params.__setattr__(fixed_param, val)
         main_layout = QVBoxLayout()
         main_layout.addWidget(self._ui_data_specific_hyperparameters())
         main_layout.addWidget(self._ui_constant_costs())

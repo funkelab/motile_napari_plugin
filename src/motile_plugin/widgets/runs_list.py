@@ -14,7 +14,7 @@ from qtpy.QtWidgets import (
 )
 from napari._qt.qt_resources import QColoredSVGIcon
 
-from .motile_run import MotileRun
+from motile_plugin.backend.motile_run import MotileRun
 from functools import partial
 
 
@@ -51,17 +51,7 @@ class RunButton(QWidget):
 
 
 class RunsList(QWidget):
-    """
-    For Runs, a couple options:
-    - view (read-only)
-    - load config (and input seg?) to current run (e.g. New run from loaded run)
-    - delete
-    - save?
-    """
-
     # TODO: remove storage and loading from widget
-    # TODO: Add delete button
-    # TODO: Add new config from run button
     view_run = Signal(MotileRun)
     edit_run = Signal(object)
 
@@ -69,15 +59,17 @@ class RunsList(QWidget):
         super().__init__()
         self.runs_list: QListWidget
         self.storage_path = Path(storage_path)
+        self.storage_path = self.storage_path.expanduser()
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
         layout = QVBoxLayout()
         layout.addWidget(self._ui_save_load())
         for run in self._load_runs():
-            self.add_run(run)
+            self.add_run(run, select=False)
 
         edit_run_button = QPushButton("Back to Editing")
         edit_run_button.clicked.connect(partial(self.edit_run.emit, None))
+        edit_run_button.clicked.connect(self.runs_list.clearSelection)
         layout.addWidget(edit_run_button)
         self.setLayout(layout)
 
@@ -95,14 +87,12 @@ class RunsList(QWidget):
             lambda e: self.view_run.emit(self.runs_list.itemWidget(e).run)
         )
         save_load_layout.addWidget(self.runs_list)
-
         save_load_group.setLayout(save_load_layout)
         return save_load_group
 
-    def add_run(self, run: MotileRun):
+    def add_run(self, run: MotileRun, select=True):
         item = QListWidgetItem(self.runs_list)
         run_row = RunButton(run)
-        print(run_row.sizeHint())
         self.runs_list.setItemWidget(item, run_row)
         item.setSizeHint(run_row.minimumSizeHint())
         self.runs_list.addItem(item)
@@ -111,6 +101,8 @@ class RunsList(QWidget):
         run_row.new_config.clicked.connect(
             partial(self.edit_run.emit, run)
         )
+        if select:
+            self.runs_list.setCurrentRow(-1)
     
     def save_run(self, run: MotileRun):
         run.save(self.storage_path)
