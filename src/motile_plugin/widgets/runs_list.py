@@ -67,12 +67,15 @@ class RunsList(QWidget):
         for run in self._load_runs():
             self.add_run(run, select=False)
 
-        edit_run_button = QPushButton("Back to Editing")
-        edit_run_button.clicked.connect(partial(self.edit_run.emit, None))
-        edit_run_button.clicked.connect(self.runs_list.clearSelection)
-        layout.addWidget(edit_run_button)
+        self.edit_run_button = QPushButton("Back to Editing")
+        self.edit_run_button.clicked.connect(partial(self.edit_run.emit, None))
+        self.edit_run_button.clicked.connect(self.runs_list.clearSelection)
+        layout.addWidget(self.edit_run_button)
         self.setLayout(layout)
 
+    def _view_run(self, e):
+        self.view_run.emit(self.runs_list.itemWidget(e).run)
+        self.edit_run_button.show()
 
     def _load_runs(self):
         return [MotileRun.load(dir) for dir in self.storage_path.iterdir()]
@@ -83,9 +86,7 @@ class RunsList(QWidget):
         self.runs_list = QListWidget()
         # self.runs_list.setSpacing(0)
         self.runs_list.setSelectionMode(1)  # single selection
-        self.runs_list.itemClicked.connect(
-            lambda e: self.view_run.emit(self.runs_list.itemWidget(e).run)
-        )
+        self.runs_list.itemClicked.connect(self._view_run)
         save_load_layout.addWidget(self.runs_list)
         save_load_group.setLayout(save_load_layout)
         return save_load_group
