@@ -12,7 +12,8 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QListWidget,
-    QAbstractItemView
+    QAbstractItemView,
+    QComboBox,
 )
 from napari.layers import Labels, Layer
 from .solver_params import SolverParamsWidget
@@ -28,7 +29,7 @@ class RunEditor(QWidget):
         super().__init__()
         self.run_name: QLineEdit
         self.layers: list
-        self.layer_selection_box: QListWidget
+        self.layer_selection_box: QComboBox
         self.solver_params_widget = SolverParamsWidget(solver_params, editable=True)
         main_layout = QVBoxLayout()
         main_layout.addWidget(self._ui_select_labels_layer(layers, multiseg=multiseg))
@@ -40,7 +41,7 @@ class RunEditor(QWidget):
         # Select Labels layer
         layer_group = QGroupBox("Select Input Layer")
         layer_layout = QHBoxLayout()
-        self.layer_selection_box = QListWidget()
+        self.layer_selection_box = QComboBox()
         if multiseg:
             self.layer_selection_box.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
         self.update_labels_layers(layers)
@@ -55,16 +56,14 @@ class RunEditor(QWidget):
         for layer in self.layers:
             if isinstance(layer, Labels):
                 self.layer_selection_box.addItem(layer.name)
-        if len(self.layer_selection_box) > 0:
-            self.layer_selection_box.setCurrentRow(0)
         if len(self.layer_selection_box) == 0:
             self.layer_selection_box.addItem("None")
-
-    def get_labels_layer(self) -> list[Layer]:
-        layer_names = [i.text() for i in self.layer_selection_box.selectedItems()]
-        if len(layer_names) == 1 and layer_names[0] == "None":
+    
+    def get_labels_layer(self) -> Layer:
+        layer_name = self.layer_selection_box.currentText()
+        if layer_name == "None":
             return None
-        return [self.layers[name] for name in layer_names]
+        return self.layers[layer_name]
 
     def _ui_run_motile(self, run_name) -> QGroupBox:
         # Specify name text box
@@ -97,17 +96,14 @@ class RunEditor(QWidget):
 
     def get_run(self):
         run_name = self.get_run_name()
-        input_layers = self.get_labels_layer()
-        if input_layers is None or len(input_layers) == 0:
+        input_layer = self.get_labels_layer()
+        if input_layer is None:
             warn("No input labels layer selected")
             return None
-        if len(input_layers) == 1:
-            input_segs = np.expand_dims(input_layers[0].data, 1)
-        else:
-            input_segs = np.stack([labels.data for labels in input_layers], axis=1)
-        print(f"{input_segs.shape=}")
+        input_seg = np.expand_dims(input_layer.data, 1)
+        print(f"{input_seg.shape=}")
         params = self.solver_params_widget.solver_params
-        return MotileRun(run_name=run_name, solver_params=params, input_segmentation=input_segs)
+        return MotileRun(run_name=run_name, solver_params=params, input_segmentation=input_seg)
     
     def emit_run(self):
         run = self.get_run()
