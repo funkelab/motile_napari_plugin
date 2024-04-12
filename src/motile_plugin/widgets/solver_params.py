@@ -10,10 +10,27 @@ from qtpy.QtWidgets import (
     QSpinBox,
     QVBoxLayout,
     QWidget,
+    QLabel,
 )
 
 from motile_plugin.backend.solver_params import SolverParams
 
+
+class ParamLabel(QLabel):
+    send_value = Signal(object)
+    def __init__(self, param_name, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.param_name = param_name
+    
+    def update_from_params(self, params: SolverParams):
+        param_val = params.__getattribute__(self.param_name)
+        if param_val is not None:
+            text = str(param_val) if isinstance(param_val, int) else f"{param_val:.1f}"
+            self.setText(text)
+    
+    def toggle_enable(self, checked: bool):
+        self.setEnabled(checked)
+        
 
 class ParamSpinBox(QSpinBox):
     send_value = Signal(object)
@@ -119,7 +136,7 @@ class SolverParamsWidget(QWidget):
         for group in self._ui_variable_costs():
             main_layout.addWidget(group)
         self.setLayout(main_layout)
-        self.setEnabled(self.editable)
+        # self.setEnabled(self.editable)
 
     def _ui_data_specific_hyperparameters(self) -> QGroupBox:
         # Data-specific Hyperparameters section
@@ -127,7 +144,10 @@ class SolverParamsWidget(QWidget):
         hyperparameters_layout = QFormLayout()
         for param_name in self.param_categories["data_params"]:
             field = self.solver_params.model_fields[param_name]
-            spinbox = self._param_spinbox(param_name, negative=False)
+            if self.editable:
+                spinbox = self._param_spinbox(param_name, negative=False)
+            else:
+                spinbox = self._param_label(param_name)
             self._add_form_row(hyperparameters_layout, field.title, spinbox, tooltip=field.description)
         hyperparameters_group.setLayout(hyperparameters_layout)
         return hyperparameters_group
@@ -139,7 +159,10 @@ class SolverParamsWidget(QWidget):
         for param_name in self.param_categories["constant_costs"]:
             layout = QHBoxLayout()
             field = self.solver_params.model_fields[param_name]
-            spinbox = self._param_spinbox(param_name, negative=False)
+            if self.editable:
+                spinbox = self._param_spinbox(param_name, negative=False)
+            else:
+                spinbox = self._param_label(param_name)
             checkbox = ParamCheckBox(param_name, field.title)
             checkbox.setToolTip(field.description)
             checkbox.setChecked(True)
@@ -181,7 +204,10 @@ class SolverParamsWidget(QWidget):
         layout = QFormLayout()
         for param_name in param_names:
             field = self.solver_params.model_fields[param_name]
-            spinbox = self._param_spinbox(param_name, negative=True)
+            if self.editable:
+                spinbox = self._param_spinbox(param_name, negative=True)
+            else:
+                spinbox = self._param_label(param_name)
             feature_cost.toggled.connect(spinbox.toggle_enable)
             self._add_form_row(layout, field.title, spinbox, tooltip=field.description)
         feature_cost.setLayout(layout)
@@ -224,6 +250,17 @@ class SolverParamsWidget(QWidget):
         )
         self.new_params.connect(spinbox.update_from_params)
         return spinbox
+
+    def _param_label(self, param_name) -> ParamLabel:
+        field = self.solver_params.model_fields[param_name]
+        curr_val = self.solver_params.__getattribute__(param_name)
+        if curr_val is None:
+            curr_val = field.get_default()
+        param_label = ParamLabel(param_name)
+        param_label.update_from_params(self.solver_params)
+        self.new_params.connect(param_label.update_from_params)
+        return param_label
+
 
     def _add_form_row(self, layout: QFormLayout, label, value, tooltip=None):
         layout.addRow(label, value)
