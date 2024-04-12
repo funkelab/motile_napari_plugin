@@ -74,10 +74,6 @@ class RunEditor(QWidget):
         run_name_layout.addRow("Run Name:", self.run_name)
         run_layout.addLayout(run_name_layout)
 
-        print_params_btn = QPushButton("Print Params")
-        print_params_btn.clicked.connect(self._print_parameters)
-        run_layout.addWidget(print_params_btn)
-
         # Generate Tracks button
         generate_tracks_btn = QPushButton("Create Run")
         generate_tracks_btn.clicked.connect(self.emit_run)
@@ -113,6 +109,3 @@ class RunEditor(QWidget):
     def new_run(self, run):
         self.run_name.setText(run.run_name)
         self.solver_params_widget.new_params.emit(run.solver_params)
-
-    def _print_parameters(self):
-        print(f"Solving with parameters {self.solver_params_widget.solver_params}")
