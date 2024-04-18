@@ -98,7 +98,7 @@ class RunEditor(QWidget):
             return None
         input_seg = np.expand_dims(input_layer.data, 1)
         print(f"{input_seg.shape=}")
-        params = self.solver_params_widget.solver_params
+        params = self.solver_params_widget.solver_params.copy()
         return MotileRun(run_name=run_name, solver_params=params, input_segmentation=input_seg)
     
     def emit_run(self):
