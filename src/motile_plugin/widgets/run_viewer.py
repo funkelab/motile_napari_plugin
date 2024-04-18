@@ -13,6 +13,9 @@ from motile_plugin.backend.solver_params import SolverParams
 from napari._qt.qt_resources import QColoredSVGIcon
 import importlib.resources
 from warnings import warn
+import networkx as nx
+import json
+from pathlib import Path
 
 class RunViewer(QWidget):
     def __init__(self, run: MotileRun):
@@ -25,9 +28,14 @@ class RunViewer(QWidget):
             self.run_name_widget = QLabel("temp")
             self.params_widget = SolverParamsWidget(SolverParams(), editable=False)
         
-        self.file_dialog = QFileDialog()
-        self.file_dialog.setFileMode(QFileDialog.Directory)
-        self.file_dialog.setOption(QFileDialog.ShowDirsOnly, True)
+        self.save_run_dialog = QFileDialog()
+        self.save_run_dialog.setFileMode(QFileDialog.Directory)
+        self.save_run_dialog.setOption(QFileDialog.ShowDirsOnly, True)
+
+        self.export_tracks_dialog = QFileDialog()
+        self.export_tracks_dialog.setFileMode(QFileDialog.AnyFile)
+        self.export_tracks_dialog.setAcceptMode(QFileDialog.AcceptSave)
+        self.export_tracks_dialog.setDefaultSuffix("json")
 
         title_widget = QWidget()
         title_layout = QHBoxLayout()
@@ -35,8 +43,12 @@ class RunViewer(QWidget):
         title_layout.addWidget(self._save_widget())
         title_widget.setLayout(title_layout)
 
+        export_tracks_btn = QPushButton("Export tracks")
+        export_tracks_btn.clicked.connect(self.export_tracks)
+
         main_layout = QVBoxLayout()
         main_layout.addWidget(title_widget)
+        main_layout.addWidget(export_tracks_btn)
         main_layout.addWidget(self.params_widget)
         self.setLayout(main_layout)
 
@@ -58,9 +70,22 @@ class RunViewer(QWidget):
         return save_run_button
     
     def save_run(self):
-        if self.file_dialog.exec_():
-            directory = self.file_dialog.selectedFiles()[0]
+        if self.save_run_dialog.exec_():
+            directory = self.save_run_dialog.selectedFiles()[0]
             print(directory)
             self.run.save(directory)
         else:
             warn("Saving aborted")
+
+    def export_tracks(self):
+        default_name = MotileRun._make_directory(self.run.time, self.run.run_name)
+        default_name = f"{default_name}_tracks.json"
+        base_path = Path(self.export_tracks_dialog.directory().path())
+        self.export_tracks_dialog.selectFile(str(base_path / default_name))
+        if self.export_tracks_dialog.exec_():
+            outfile = self.export_tracks_dialog.selectedFiles()[0]
+            with open(outfile, 'w') as f:
+                json.dump(nx.node_link_data(self.run.tracks), f)
+        else:
+            warn("Exporting aborted")
+

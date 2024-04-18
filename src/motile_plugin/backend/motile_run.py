@@ -62,7 +62,6 @@ class MotileRun(BaseModel):
     def load(cls, run_dir: Path | str):
         if isinstance(run_dir, str):
             run_dir = Path(run_dir)
-        # TODO: lazy loading
         time, run_name = cls._unpack_directory(run_dir.stem)
         params = cls._load_params(run_dir)
         input_segmentation = cls._load_segmentation(run_dir, IN_SEG_FILEANME)
