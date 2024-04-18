@@ -51,21 +51,17 @@ class RunButton(QWidget):
 
 
 class RunsList(QWidget):
-    # TODO: remove storage and loading from widget
+    """Widget for holding in-memory Runs
+    """
     view_run = Signal(MotileRun)
     edit_run = Signal(object)
 
-    def __init__(self, storage_path):
+    def __init__(self):
         super().__init__()
         self.runs_list: QListWidget
-        self.storage_path = Path(storage_path)
-        self.storage_path = self.storage_path.expanduser()
-        self.storage_path.mkdir(parents=True, exist_ok=True)
 
         layout = QVBoxLayout()
         layout.addWidget(self._ui_save_load())
-        for run in self._load_runs():
-            self.add_run(run, select=False)
 
         self.edit_run_button = QPushButton("Back to Editing")
         self.edit_run_button.clicked.connect(partial(self.edit_run.emit, None))
@@ -76,9 +72,6 @@ class RunsList(QWidget):
     def _view_run(self, e):
         self.view_run.emit(self.runs_list.itemWidget(e).run)
         self.edit_run_button.show()
-
-    def _load_runs(self):
-        return [MotileRun.load(dir) for dir in self.storage_path.iterdir()]
 
     def _ui_save_load(self):
         save_load_group = QGroupBox("Tracking Runs")
@@ -100,17 +93,14 @@ class RunsList(QWidget):
         run_row.delete.clicked.connect(
             partial(self.remove_run, item))
         run_row.new_config.clicked.connect(
-            partial(self.edit_run.emit, run)
+            partial(self.edit_run.emit, run)  # Note: this may cause memory leak
+            # Can use weakref if that happens
+            # https://github.com/Carreau/napari/commit/cd079e9dcb62de115833ea1b6bb1b7a0ab4b78d1
         )
         if select:
             self.runs_list.setCurrentRow(-1)
-    
-    def save_run(self, run: MotileRun):
-        run.save(self.storage_path)
 
     def remove_run(self, item: QListWidgetItem):
         row = self.runs_list.indexFromItem(item).row()
-        run_widget = self.runs_list.itemWidget(item)
         self.runs_list.takeItem(row)
-        run_widget.run.delete(self.storage_path)
 

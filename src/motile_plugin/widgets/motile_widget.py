@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class MotileWidget(QWidget):
-    def __init__(self, viewer, graph_layer=False, multiseg=False, storage_path="./motile_results"):
+    def __init__(self, viewer, graph_layer=False, multiseg=False):
         super().__init__()
         self.viewer: Viewer = viewer
         self.graph_layer = graph_layer
@@ -43,7 +43,7 @@ class MotileWidget(QWidget):
         self.view_run_widget = RunViewer(None)
         self.view_run_widget.hide()
 
-        self.run_list_widget = RunsList(storage_path)
+        self.run_list_widget = RunsList()
         self.run_list_widget.view_run.connect(self.view_run)
         self.run_list_widget.edit_run.connect(self.edit_run)
 
@@ -114,7 +114,6 @@ class MotileWidget(QWidget):
 
 
     def _generate_tracks(self, run):
-        print(f"Creating run {run}")
         # Logic for generating tracks
         logger.debug("Segmentation shape: %s", run.input_segmentation.shape)
         # do this in a separate thread so we can parse stdout and not block
@@ -126,22 +125,18 @@ class MotileWidget(QWidget):
     def on_solver_update(self, event_data):
         self.solver_status_widget.update(event_data)
             
-    # print(event_data)
     @thread_worker
     def solve_with_motile(
         self,
         run: MotileRun
         ):
         run.tracks = solve(run.solver_params, run.input_segmentation, self.on_solver_update)
-        print(f"{run.input_segmentation.shape=}")
         run.output_segmentation = relabel_segmentation(run.tracks, run.input_segmentation)
-        print(f"{run.output_segmentation.shape=}")
         return run
 
     def _on_solve_complete(self, run: MotileRun):
         self.solver_status_widget.hide()
-        self.run_list_widget.add_run(run, select=True)
-        self.run_list_widget.save_run(run)
+        self.run_list_widget.add_run(run.copy(), select=True)
         self.view_run(run)
         self.solver_status_widget.reset()
 
