@@ -11,11 +11,13 @@ from qtpy.QtWidgets import (
     QWidget,
     QHBoxLayout,
     QLabel,
+    QFileDialog,
 )
 from napari._qt.qt_resources import QColoredSVGIcon
 
 from motile_plugin.backend.motile_run import MotileRun
 from functools import partial
+from warnings import warn
 
 
 class RunButton(QWidget):
@@ -62,16 +64,21 @@ class RunsList(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(self._ui_save_load())
+        self.file_dialog = QFileDialog()
+        self.file_dialog.setFileMode(QFileDialog.Directory)
+        self.file_dialog.setOption(QFileDialog.ShowDirsOnly, True)
 
         self.edit_run_button = QPushButton("Back to Editing")
         self.edit_run_button.clicked.connect(partial(self.edit_run.emit, None))
         self.edit_run_button.clicked.connect(self.runs_list.clearSelection)
         layout.addWidget(self.edit_run_button)
+        layout.addWidget(self._load_widget())
         self.setLayout(layout)
 
-    def _view_run(self, e):
-        self.view_run.emit(self.runs_list.itemWidget(e).run)
-        self.edit_run_button.show()
+    def _selection_changed(self):
+        selected = self.runs_list.selectedItems()
+        if selected:
+            self.view_run.emit(self.runs_list.itemWidget(selected[0]).run)
 
     def _ui_save_load(self):
         save_load_group = QGroupBox("Tracking Runs")
@@ -79,10 +86,15 @@ class RunsList(QWidget):
         self.runs_list = QListWidget()
         # self.runs_list.setSpacing(0)
         self.runs_list.setSelectionMode(1)  # single selection
-        self.runs_list.itemClicked.connect(self._view_run)
+        self.runs_list.itemSelectionChanged.connect(self._selection_changed)
         save_load_layout.addWidget(self.runs_list)
         save_load_group.setLayout(save_load_layout)
         return save_load_group
+    
+    def _load_widget(self):
+        load_button = QPushButton("Load run")
+        load_button.clicked.connect(self.load_run)
+        return load_button
 
     def add_run(self, run: MotileRun, select=True):
         item = QListWidgetItem(self.runs_list)
@@ -98,9 +110,19 @@ class RunsList(QWidget):
             # https://github.com/Carreau/napari/commit/cd079e9dcb62de115833ea1b6bb1b7a0ab4b78d1
         )
         if select:
-            self.runs_list.setCurrentRow(-1)
+            self.runs_list.setCurrentRow(len(self.runs_list) - 1)
 
     def remove_run(self, item: QListWidgetItem):
         row = self.runs_list.indexFromItem(item).row()
         self.runs_list.takeItem(row)
+    
+    def load_run(self):
+        if self.file_dialog.exec_():
+            directory = self.file_dialog.selectedFiles()[0]
+            print(directory)
+            try:
+                run = MotileRun.load(directory)
+                self.add_run(run, select=True)
+            except (ValueError, FileNotFoundError) as e:
+                warn(f"Could not load run from {directory}: {e}")
 

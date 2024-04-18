@@ -43,7 +43,10 @@ class MotileRun(BaseModel):
         stamp_len = len(datetime.now().strftime(STAMP_FORMAT))
         stamp = directory[0:stamp_len]
         run_name = directory[stamp_len+1:]
-        time = datetime.strptime(stamp, STAMP_FORMAT)
+        try:
+            time = datetime.strptime(stamp, STAMP_FORMAT)
+        except:
+            raise ValueError(f"Cannot unpack directory {directory} into timestamp and run name.")
         return time, run_name
 
     def save(self, base_path: str | Path):
@@ -56,7 +59,9 @@ class MotileRun(BaseModel):
         self._save_tracks(run_dir)
 
     @classmethod
-    def load(cls, run_dir: Path):
+    def load(cls, run_dir: Path | str):
+        if isinstance(run_dir, str):
+            run_dir = Path(run_dir)
         # TODO: lazy loading
         time, run_name = cls._unpack_directory(run_dir.stem)
         params = cls._load_params(run_dir)
