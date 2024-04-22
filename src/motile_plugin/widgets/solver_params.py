@@ -97,9 +97,7 @@ class ParamCheckGroup(QGroupBox):
 
     def update_from_params(self, params: SolverParams):
         param_vals = [params.__getattribute__(name) for name in self.param_names]
-        print(f"{param_vals=}")
         if all([v is None for v in param_vals]):
-            print(f"setting unchecked for {self.param_names}")
             self.setChecked(False)
         else:
             self.setChecked(True)
