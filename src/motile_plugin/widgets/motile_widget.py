@@ -91,6 +91,7 @@ class MotileWidget(QWidget):
         
 
     def view_run(self, run: MotileRun):
+        self.view_run_widget.reset_progress()
         self.view_run_widget.update_run(run)
         self.edit_run_widget.hide()
         self.view_run_widget.show()
@@ -98,6 +99,7 @@ class MotileWidget(QWidget):
         self.remove_napari_layers()
         self.update_napari_layers(run)
         self.add_napari_layers()
+    
     def edit_run(self, run: MotileRun | None):
         self.view_run_widget.hide()
         self.edit_run_widget.show()
@@ -109,8 +111,10 @@ class MotileWidget(QWidget):
     def _generate_tracks(self, run):
         # Logic for generating tracks
         # do this in a separate thread so we can parse stdout and not block
+        self.view_run_widget.reset_progress()
         self.edit_run_widget.hide()
         self.view_run_widget.update_run(run)
+        self.view_run_widget.set_solver_label("initializing")
         self.view_run_widget.show()
         worker = self.solve_with_motile(run)
         worker.returned.connect(self._on_solve_complete)
@@ -126,12 +130,8 @@ class MotileWidget(QWidget):
         return run
 
     def _on_solve_complete(self, run: MotileRun):
-        self.view_run_widget.set_solver_label("finished")
         self.run_list_widget.add_run(run.copy(), select=True)
-        # Add layers to Napari
-        self.remove_napari_layers()
-        self.update_napari_layers(run)
-        self.add_napari_layers()
+        self.view_run_widget.set_solver_label("done")
 
 
 

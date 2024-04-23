@@ -17,6 +17,7 @@ import networkx as nx
 import json
 from pathlib import Path
 import pyqtgraph as pg
+import numpy as np
 
 
 class RunViewer(QWidget):
@@ -51,6 +52,7 @@ class RunViewer(QWidget):
         self.run = run
         self.run_name_widget.setText(self._run_name_view(self.run))
         self.plot_gaps()
+        self.set_solver_label("done")
         self.params_widget.new_params.emit(run.solver_params)
 
     def _run_name_view(self, run: MotileRun) -> str:
@@ -89,12 +91,29 @@ class RunViewer(QWidget):
         self.solver_label.setText(message)
     
     def _plot_widget(self) -> pg.PlotWidget:
+        class CustomAxisItem(pg.AxisItem):
+
+            def tickStrings(self, values, scale, spacing):
+                print(f"{values=}, {scale=}, {spacing=}")
+                if self.logMode:
+                    strings = self.logTickStrings(values, scale, spacing)
+                    print(f"log {strings=}")
+                    return strings
+
+                places = max(0, np.ceil(-np.log10(spacing*scale)))
+                strings = []
+                for v in values:
+                    vs = v * scale
+                    vstr = ("%%0.%df" % places) % vs
+                    strings.append(vstr)
+                return strings
+
         gap_plot = pg.PlotWidget()
         gap_plot.setBackground((37, 41, 49))
         styles = {"color": "white",}
-        gap_plot.setLabel("left", "Gap", **styles)
-        gap_plot.setLabel("bottom", "Solver round", **styles)
-        gap_plot.getPlotItem().setLogMode(x=False, y=True)
+        gap_plot.plotItem.setLogMode(x=False, y=True)
+        gap_plot.plotItem.setLabel("left", "Gap", **styles)
+        gap_plot.plotItem.setLabel("bottom", "Solver round", **styles)
         return gap_plot
     
     def plot_gaps(self):
@@ -146,5 +165,6 @@ class RunViewer(QWidget):
             self.plot_gaps()
     
     def reset_progress(self):
+        self.set_solver_label("not running")
         self.gap_plot.getPlotItem().clear()
 
