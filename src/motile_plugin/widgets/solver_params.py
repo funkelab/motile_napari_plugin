@@ -131,6 +131,7 @@ class SolverParamsWidget(QWidget):
         main_layout = QVBoxLayout()
         main_layout.addWidget(self._ui_data_specific_hyperparameters())
         main_layout.addWidget(self._ui_constant_costs())
+        main_layout.setContentsMargins(0,0,0,0)
         for group in self._ui_variable_costs():
             main_layout.addWidget(group)
         self.setLayout(main_layout)
