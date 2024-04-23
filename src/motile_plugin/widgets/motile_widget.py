@@ -20,12 +20,14 @@ from .runs_list import RunsList
 from .run_editor import RunEditor
 from .run_viewer import RunViewer
 from .solver_status import SolverStatus
-from .solver_params import SolverParamsWidget
+from qtpy.QtCore import Signal
 
 logger = logging.getLogger(__name__)
 
 
 class MotileWidget(QWidget):
+    update_solver_status = Signal(dict)
+
     def __init__(self, viewer, graph_layer=False, multiseg=False):
         super().__init__()
         self.viewer: Viewer = viewer
@@ -48,6 +50,7 @@ class MotileWidget(QWidget):
         self.run_list_widget.edit_run.connect(self.edit_run)
 
         self.solver_status_widget = SolverStatus()
+        self.update_solver_status.connect(self.solver_status_widget.update)
         self.solver_status_widget.hide()
 
         main_layout.addWidget(self.view_run_widget)
@@ -122,16 +125,13 @@ class MotileWidget(QWidget):
         worker = self.solve_with_motile(run)
         worker.returned.connect(self._on_solve_complete)
         worker.start()
-
-    def on_solver_update(self, event_data):
-        self.solver_status_widget.update(event_data)
             
     @thread_worker
     def solve_with_motile(
         self,
         run: MotileRun
         ):
-        run.tracks = solve(run.solver_params, run.input_segmentation, self.on_solver_update)
+        run.tracks = solve(run.solver_params, run.input_segmentation, self.update_solver_status.emit)
         run.output_segmentation = relabel_segmentation(run.tracks, run.input_segmentation)
         return run
 
