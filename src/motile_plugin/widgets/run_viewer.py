@@ -50,6 +50,7 @@ class RunViewer(QWidget):
     def update_run(self, run: MotileRun):
         self.run = run
         self.run_name_widget.setText(self._run_name_view(self.run))
+        self.plot_gaps()
         self.params_widget.new_params.emit(run.solver_params)
 
     def _run_name_view(self, run: MotileRun) -> str:
