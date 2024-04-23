@@ -117,6 +117,7 @@ class MotileWidget(QWidget):
         # Logic for generating tracks
         logger.debug("Segmentation shape: %s", run.input_segmentation.shape)
         # do this in a separate thread so we can parse stdout and not block
+        self.solver_status_widget.reset()
         self.solver_status_widget.show()
         worker = self.solve_with_motile(run)
         worker.returned.connect(self._on_solve_complete)
@@ -135,10 +136,11 @@ class MotileWidget(QWidget):
         return run
 
     def _on_solve_complete(self, run: MotileRun):
-        self.solver_status_widget.hide()
+        # self.solver_status_widget.hide()
         self.run_list_widget.add_run(run.copy(), select=True)
         self.view_run(run)
-        self.solver_status_widget.reset()
+        self.solver_status_widget.label.setText("Solving complete")
+        # 
 
 
 
