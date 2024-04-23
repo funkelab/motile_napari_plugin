@@ -13,21 +13,19 @@ PARAMS_FILENAME = "solver_params.json"
 IN_SEG_FILEANME = "input_segmentation.npy"
 OUT_SEG_FILEANME = "output_segmentation.npy"
 TRACKS_FILENAME = "tracks.json"
+GAPS_FILENAME = "gaps.txt"
 
 
 class MotileRun(BaseModel):
-    """An object representing a motile tracking run. It is frozen because a completed
-    run cannot be mutated.
-    TODO: lazy loading from zarr, don't re-save existing input zarr
-    (e.g. if its a chunk from a bigger zarr)
-    TODO: Do we need BaseModel? It requires kwargs which is mildly annoying
+    """An object representing a motile tracking run.
     """
-    run_name: str = Field()
-    solver_params: SolverParams = Field()
-    input_segmentation: np.ndarray | None = Field(None)
-    output_segmentation: np.ndarray | None = Field(None)
-    tracks: nx.DiGraph | None = Field(None)
-    time: datetime = Field(datetime.now())
+    run_name: str
+    solver_params: SolverParams
+    input_segmentation: np.ndarray | None = None
+    output_segmentation: np.ndarray | None = None
+    tracks: nx.DiGraph | None = None
+    time: datetime = datetime.now()
+    gaps: list[float] = []
 
     class Config:
         allow_mutation = False
@@ -57,6 +55,8 @@ class MotileRun(BaseModel):
         self._save_segmentation(run_dir, IN_SEG_FILEANME, self.input_segmentation)
         self._save_segmentation(run_dir, OUT_SEG_FILEANME, self.output_segmentation)
         self._save_tracks(run_dir)
+        if self.gaps is not None:
+            self._save_gaps(run_dir)
 
     @classmethod
     def load(cls, run_dir: Path | str):
@@ -67,6 +67,7 @@ class MotileRun(BaseModel):
         input_segmentation = cls._load_segmentation(run_dir, IN_SEG_FILEANME)
         output_segmentation = cls._load_segmentation(run_dir, OUT_SEG_FILEANME)
         tracks = cls._load_tracks(run_dir)
+        gaps = cls._load_gaps(run_dir)
         return cls(
             run_name=run_name,
             solver_params=params,
@@ -74,6 +75,7 @@ class MotileRun(BaseModel):
             output_segmentation=output_segmentation,
             tracks=tracks,
             time=time,
+            gaps=gaps,
         )
 
     def _save_params(self, run_dir):
@@ -123,6 +125,25 @@ class MotileRun(BaseModel):
         else:
             return None
 
+    def _save_gaps(self, run_dir: Path):
+        gaps_file = run_dir / GAPS_FILENAME
+        with open(gaps_file, 'w') as f:
+            f.write(','.join(map(str, self.gaps)))
+
+    @staticmethod
+    def _load_gaps(run_dir, required: bool = True) -> list[float]:
+        gaps_file = run_dir / GAPS_FILENAME
+        if gaps_file.is_file():
+            with open(gaps_file) as f:
+                gaps = list(map(float, f.read().split(",")))
+            return gaps
+        elif required:
+            raise FileNotFoundError(f"No gaps found at {gaps_file}")
+        else:
+            return None
+
+
+
     def delete(self, base_path: str | Path):
         base_path = Path(base_path)
         run_dir = base_path / self._make_directory(self.time, self.run_name)
@@ -132,5 +153,6 @@ class MotileRun(BaseModel):
         (run_dir / IN_SEG_FILEANME).unlink()
         (run_dir / OUT_SEG_FILEANME).unlink()
         (run_dir / TRACKS_FILENAME).unlink()
+        (run_dir / GAPS_FILENAME).unlink()
         run_dir.rmdir()
 
