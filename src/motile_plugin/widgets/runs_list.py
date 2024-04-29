@@ -1,23 +1,21 @@
-from pathlib import Path
 
-from qtpy.QtCore import Signal, QSize
-from qtpy.QtGui import QColor
+from functools import partial
+from warnings import warn
+
+from motile_plugin.backend.motile_run import MotileRun
+from napari._qt.qt_resources import QColoredSVGIcon
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
+    QFileDialog,
     QGroupBox,
+    QHBoxLayout,
+    QLabel,
     QListWidget,
     QListWidgetItem,
     QPushButton,
     QVBoxLayout,
     QWidget,
-    QHBoxLayout,
-    QLabel,
-    QFileDialog,
 )
-from napari._qt.qt_resources import QColoredSVGIcon
-
-from motile_plugin.backend.motile_run import MotileRun
-from functools import partial
-from warnings import warn
 
 
 class RunButton(QWidget):
@@ -45,7 +43,7 @@ class RunButton(QWidget):
         layout.addWidget(self.new_config)
         layout.addWidget(self.delete)
         self.setLayout(layout)
-    
+
     def sizeHint(self):
         hint = super().sizeHint()
         hint.setHeight(30)
@@ -90,7 +88,7 @@ class RunsList(QWidget):
         save_load_layout.addWidget(self.runs_list)
         save_load_group.setLayout(save_load_layout)
         return save_load_group
-    
+
     def _load_widget(self):
         load_button = QPushButton("Load run")
         load_button.clicked.connect(self.load_run)
@@ -115,7 +113,7 @@ class RunsList(QWidget):
     def remove_run(self, item: QListWidgetItem):
         row = self.runs_list.indexFromItem(item).row()
         self.runs_list.takeItem(row)
-    
+
     def load_run(self):
         if self.file_dialog.exec_():
             directory = self.file_dialog.selectedFiles()[0]

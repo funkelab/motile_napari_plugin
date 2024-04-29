@@ -1,23 +1,25 @@
 
-from qtpy.QtWidgets import (
-    QLabel,
-    QVBoxLayout,
-    QWidget,
-    QPushButton,
-    QFileDialog,
-    QHBoxLayout,
-)
-from .solver_params import SolverParamsWidget
+import importlib.resources
+import json
+from pathlib import Path
+from warnings import warn
+
+import networkx as nx
+import numpy as np
+import pyqtgraph as pg
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.backend.solver_params import SolverParams
 from napari._qt.qt_resources import QColoredSVGIcon
-import importlib.resources
-from warnings import warn
-import networkx as nx
-import json
-from pathlib import Path
-import pyqtgraph as pg
-import numpy as np
+from qtpy.QtWidgets import (
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from .solver_params import SolverParamsWidget
 
 
 class RunViewer(QWidget):
@@ -30,7 +32,7 @@ class RunViewer(QWidget):
         else:
             self.run_name_widget = QLabel("temp")
             self.params_widget = SolverParamsWidget(SolverParams(), editable=False)
-        
+
         # Define persistent file dialogs for saving and exporting
         self.save_run_dialog = self._save_dialog()
         self.export_tracks_dialog = self._export_tracks_dialog()
@@ -65,7 +67,7 @@ class RunViewer(QWidget):
         save_run_button = QPushButton(icon=icon.colored("white"))
         save_run_button.clicked.connect(self.save_run)
         return save_run_button
-    
+
     def _title_widget(self):
         title_widget = QWidget()
         title_layout = QHBoxLayout()
@@ -74,7 +76,7 @@ class RunViewer(QWidget):
         title_layout.setContentsMargins(0, 0, 0, 0)
         title_widget.setLayout(title_layout)
         return title_widget
-    
+
     def _progress_widget(self):
         progress_widget = QWidget()
         layout = QVBoxLayout()
@@ -89,7 +91,7 @@ class RunViewer(QWidget):
     def set_solver_label(self, status: str):
         message = "Solver status: " + status
         self.solver_label.setText(message)
-    
+
     def _plot_widget(self) -> pg.PlotWidget:
         class CustomAxisItem(pg.AxisItem):
 
@@ -115,7 +117,7 @@ class RunViewer(QWidget):
         gap_plot.plotItem.setLabel("left", "Gap", **styles)
         gap_plot.plotItem.setLabel("bottom", "Solver round", **styles)
         return gap_plot
-    
+
     def plot_gaps(self):
         gaps = self.run.gaps
         self.gap_plot.getPlotItem().plot(range(len(gaps)), gaps)
@@ -125,14 +127,14 @@ class RunViewer(QWidget):
         save_run_dialog.setFileMode(QFileDialog.Directory)
         save_run_dialog.setOption(QFileDialog.ShowDirsOnly, True)
         return save_run_dialog
-    
+
     def _export_tracks_dialog(self) -> QFileDialog:
         export_tracks_dialog = QFileDialog()
         export_tracks_dialog.setFileMode(QFileDialog.AnyFile)
         export_tracks_dialog.setAcceptMode(QFileDialog.AcceptSave)
         export_tracks_dialog.setDefaultSuffix("json")
         return export_tracks_dialog
-    
+
     def save_run(self):
         if self.save_run_dialog.exec_():
             directory = self.save_run_dialog.selectedFiles()[0]
@@ -163,7 +165,7 @@ class RunViewer(QWidget):
             print(f"{gap=}")
             self.run.gaps.append(event_data["gap"])
             self.plot_gaps()
-    
+
     def reset_progress(self):
         self.set_solver_label("not running")
         self.gap_plot.getPlotItem().clear()

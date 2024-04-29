@@ -1,4 +1,3 @@
-import numpy as np
 
 from motile_plugin.backend.solve import solve
 from motile_plugin.backend.solver_params import SolverParamsWidget

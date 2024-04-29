@@ -1,8 +1,13 @@
 
-from motile_plugin.backend.motile_run import MotileRun
+from warnings import warn
 
+import numpy as np
+from motile_plugin.backend.motile_run import MotileRun
+from napari.layers import Labels, Layer
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
+    QAbstractItemView,
+    QComboBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -11,15 +16,9 @@ from qtpy.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QWidget,
-    QListWidget,
-    QAbstractItemView,
-    QComboBox,
 )
-from napari.layers import Labels, Layer
-from .solver_params import SolverParamsWidget
 
-from warnings import warn
-import numpy as np
+from .solver_params import SolverParamsWidget
 
 
 class RunEditor(QWidget):
@@ -58,7 +57,7 @@ class RunEditor(QWidget):
                 self.layer_selection_box.addItem(layer.name)
         if len(self.layer_selection_box) == 0:
             self.layer_selection_box.addItem("None")
-    
+
     def get_labels_layer(self) -> Layer:
         layer_name = self.layer_selection_box.currentText()
         if layer_name == "None":
@@ -100,12 +99,12 @@ class RunEditor(QWidget):
         print(f"{input_seg.shape=}")
         params = self.solver_params_widget.solver_params.copy()
         return MotileRun(run_name=run_name, solver_params=params, input_segmentation=input_seg)
-    
+
     def emit_run(self):
         run = self.get_run()
         if run is not None:
             self.create_run.emit(run)
-    
+
     def new_run(self, run):
         self.run_name.setText(run.run_name)
         self.solver_params_widget.new_params.emit(run.solver_params)
