@@ -1,4 +1,3 @@
-
 from functools import partial
 from warnings import warn
 
@@ -51,8 +50,8 @@ class RunButton(QWidget):
 
 
 class RunsList(QWidget):
-    """Widget for holding in-memory Runs
-    """
+    """Widget for holding in-memory Runs"""
+
     view_run = Signal(MotileRun)
     edit_run = Signal(object)
 
@@ -100,10 +99,11 @@ class RunsList(QWidget):
         self.runs_list.setItemWidget(item, run_row)
         item.setSizeHint(run_row.minimumSizeHint())
         self.runs_list.addItem(item)
-        run_row.delete.clicked.connect(
-            partial(self.remove_run, item))
+        run_row.delete.clicked.connect(partial(self.remove_run, item))
         run_row.new_config.clicked.connect(
-            partial(self.edit_run.emit, run)  # Note: this may cause memory leak
+            partial(
+                self.edit_run.emit, run
+            )  # Note: this may cause memory leak
             # Can use weakref if that happens
             # https://github.com/Carreau/napari/commit/cd079e9dcb62de115833ea1b6bb1b7a0ab4b78d1
         )
@@ -122,5 +122,4 @@ class RunsList(QWidget):
                 run = MotileRun.load(directory)
                 self.add_run(run, select=True)
             except (ValueError, FileNotFoundError) as e:
-                warn(f"Could not load run from {directory}: {e}")
-
+                warn(f"Could not load run from {directory}: {e}", stacklevel=2)

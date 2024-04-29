@@ -32,7 +32,11 @@ def multi_hypothesis_segmentation_2d():
 
     """
     frame_shape = (100, 100)
-    total_shape = (2, 2, *frame_shape)  # 2 time points, 2 hypotheses layers, H, W
+    total_shape = (
+        2,
+        2,
+        *frame_shape,
+    )  # 2 time points, 2 hypotheses layers, H, W
     segmentation = np.zeros(total_shape, dtype="int32")
     # make frame with one cell in center with label 1 (hypo 1)
     rr0, cc0 = disk(center=(50, 50), radius=20, shape=frame_shape)
@@ -90,8 +94,16 @@ def graph_2d():
         ),
     ]
     edges = [
-        ("0_1", "1_1", {EdgeAttr.DISTANCE.value: 42.43, EdgeAttr.IOU.value: 0.0}),
-        ("0_1", "1_2", {EdgeAttr.DISTANCE.value: 11.18, EdgeAttr.IOU.value: 0.395}),
+        (
+            "0_1",
+            "1_1",
+            {EdgeAttr.DISTANCE.value: 42.43, EdgeAttr.IOU.value: 0.0},
+        ),
+        (
+            "0_1",
+            "1_2",
+            {EdgeAttr.DISTANCE.value: 11.18, EdgeAttr.IOU.value: 0.395},
+        ),
     ]
     graph.add_nodes_from(nodes)
     graph.add_edges_from(edges)
@@ -159,8 +171,16 @@ def multi_hypothesis_graph_2d():
     ]
 
     edges = [
-        ("0_0_1", "1_0_1", {EdgeAttr.DISTANCE.value: 42.426, EdgeAttr.IOU.value: 0.0}),
-        ("0_0_1", "1_1_1", {EdgeAttr.DISTANCE.value: 43.011, EdgeAttr.IOU.value: 0.0}),
+        (
+            "0_0_1",
+            "1_0_1",
+            {EdgeAttr.DISTANCE.value: 42.426, EdgeAttr.IOU.value: 0.0},
+        ),
+        (
+            "0_0_1",
+            "1_1_1",
+            {EdgeAttr.DISTANCE.value: 43.011, EdgeAttr.IOU.value: 0.0},
+        ),
         (
             "0_0_1",
             "1_0_2",
@@ -171,9 +191,21 @@ def multi_hypothesis_graph_2d():
             "1_1_2",
             {EdgeAttr.DISTANCE.value: 11.180, EdgeAttr.IOU.value: 0.4768},
         ),
-        ("0_1_1", "1_0_1", {EdgeAttr.DISTANCE.value: 43.011, EdgeAttr.IOU.value: 0.0}),
-        ("0_1_1", "1_1_1", {EdgeAttr.DISTANCE.value: 42.426, EdgeAttr.IOU.value: 0.0}),
-        ("0_1_1", "1_0_2", {EdgeAttr.DISTANCE.value: 15.0, EdgeAttr.IOU.value: 0.2402}),
+        (
+            "0_1_1",
+            "1_0_1",
+            {EdgeAttr.DISTANCE.value: 43.011, EdgeAttr.IOU.value: 0.0},
+        ),
+        (
+            "0_1_1",
+            "1_1_1",
+            {EdgeAttr.DISTANCE.value: 42.426, EdgeAttr.IOU.value: 0.0},
+        ),
+        (
+            "0_1_1",
+            "1_0_2",
+            {EdgeAttr.DISTANCE.value: 15.0, EdgeAttr.IOU.value: 0.2402},
+        ),
         (
             "0_1_1",
             "1_1_2",
@@ -188,7 +220,9 @@ def multi_hypothesis_graph_2d():
 def sphere(center, radius, shape):
     assert len(center) == len(shape)
     indices = np.moveaxis(np.indices(shape), 0, -1)  # last dim is the index
-    distance = np.linalg.norm(np.subtract(indices, np.asarray(center)), axis=-1)
+    distance = np.linalg.norm(
+        np.subtract(indices, np.asarray(center)), axis=-1
+    )
     mask = distance <= radius
     return mask
 

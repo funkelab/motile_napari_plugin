@@ -17,8 +17,8 @@ GAPS_FILENAME = "gaps.txt"
 
 
 class MotileRun(BaseModel):
-    """An object representing a motile tracking run.
-    """
+    """An object representing a motile tracking run."""
+
     run_name: str
     solver_params: SolverParams
     input_segmentation: np.ndarray | None = None
@@ -40,11 +40,13 @@ class MotileRun(BaseModel):
     def _unpack_directory(directory):
         stamp_len = len(datetime.now().strftime(STAMP_FORMAT))
         stamp = directory[0:stamp_len]
-        run_name = directory[stamp_len+1:]
+        run_name = directory[stamp_len + 1 :]
         try:
             time = datetime.strptime(stamp, STAMP_FORMAT)
-        except:
-            raise ValueError(f"Cannot unpack directory {directory} into timestamp and run name.")
+        except ValueError as e:
+            raise ValueError(
+                f"Cannot unpack directory {directory} into timestamp and run name."
+            ) from e
         return time, run_name
 
     def save(self, base_path: str | Path):
@@ -52,8 +54,12 @@ class MotileRun(BaseModel):
         run_dir = base_path / self._make_directory(self.time, self.run_name)
         Path.mkdir(run_dir)
         self._save_params(run_dir)
-        self._save_segmentation(run_dir, IN_SEG_FILEANME, self.input_segmentation)
-        self._save_segmentation(run_dir, OUT_SEG_FILEANME, self.output_segmentation)
+        self._save_segmentation(
+            run_dir, IN_SEG_FILEANME, self.input_segmentation
+        )
+        self._save_segmentation(
+            run_dir, OUT_SEG_FILEANME, self.output_segmentation
+        )
         self._save_tracks(run_dir)
         if self.gaps is not None:
             self._save_gaps(run_dir)
@@ -80,7 +86,7 @@ class MotileRun(BaseModel):
 
     def _save_params(self, run_dir):
         params_file = run_dir / PARAMS_FILENAME
-        with open(params_file, 'w') as f:
+        with open(params_file, "w") as f:
             json.dump(self.solver_params.__dict__, f)
 
     @staticmethod
@@ -110,7 +116,7 @@ class MotileRun(BaseModel):
 
     def _save_tracks(self, run_dir: Path):
         tracks_file = run_dir / TRACKS_FILENAME
-        with open(tracks_file, 'w') as f:
+        with open(tracks_file, "w") as f:
             json.dump(nx.node_link_data(self.tracks), f)
 
     @staticmethod
@@ -127,8 +133,8 @@ class MotileRun(BaseModel):
 
     def _save_gaps(self, run_dir: Path):
         gaps_file = run_dir / GAPS_FILENAME
-        with open(gaps_file, 'w') as f:
-            f.write(','.join(map(str, self.gaps)))
+        with open(gaps_file, "w") as f:
+            f.write(",".join(map(str, self.gaps)))
 
     @staticmethod
     def _load_gaps(run_dir, required: bool = True) -> list[float]:
@@ -142,8 +148,6 @@ class MotileRun(BaseModel):
         else:
             return None
 
-
-
     def delete(self, base_path: str | Path):
         base_path = Path(base_path)
         run_dir = base_path / self._make_directory(self.time, self.run_name)
@@ -155,4 +159,3 @@ class MotileRun(BaseModel):
         (run_dir / TRACKS_FILENAME).unlink()
         (run_dir / GAPS_FILENAME).unlink()
         run_dir.rmdir()
-

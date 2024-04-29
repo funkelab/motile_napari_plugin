@@ -1,4 +1,3 @@
-
 from warnings import warn
 
 import numpy as np
@@ -23,15 +22,20 @@ from .solver_params import SolverParamsWidget
 
 class RunEditor(QWidget):
     create_run = Signal(MotileRun)
+
     def __init__(self, run_name, solver_params, layers, multiseg=False):
         # TODO: Don't pass static layers
         super().__init__()
         self.run_name: QLineEdit
         self.layers: list
         self.layer_selection_box: QComboBox
-        self.solver_params_widget = SolverParamsWidget(solver_params, editable=True)
+        self.solver_params_widget = SolverParamsWidget(
+            solver_params, editable=True
+        )
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self._ui_select_labels_layer(layers, multiseg=multiseg))
+        main_layout.addWidget(
+            self._ui_select_labels_layer(layers, multiseg=multiseg)
+        )
         main_layout.addWidget(self.solver_params_widget)
         main_layout.addWidget(self._ui_run_motile(run_name))
         self.setLayout(main_layout)
@@ -42,9 +46,13 @@ class RunEditor(QWidget):
         layer_layout = QHBoxLayout()
         self.layer_selection_box = QComboBox()
         if multiseg:
-            self.layer_selection_box.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+            self.layer_selection_box.setSelectionMode(
+                QAbstractItemView.SelectionMode.MultiSelection
+            )
         self.update_labels_layers(layers)
-        self.layer_selection_box.setToolTip("Select the labels layer you want to use for tracking")
+        self.layer_selection_box.setToolTip(
+            "Select the labels layer you want to use for tracking"
+        )
         layer_layout.addWidget(self.layer_selection_box)
         layer_group.setLayout(layer_layout)
         return layer_group
@@ -76,7 +84,9 @@ class RunEditor(QWidget):
         # Generate Tracks button
         generate_tracks_btn = QPushButton("Create Run")
         generate_tracks_btn.clicked.connect(self.emit_run)
-        generate_tracks_btn.setToolTip("Run tracking. Might take minutes or longer for larger samples.")
+        generate_tracks_btn.setToolTip(
+            "Run tracking. Might take minutes or longer for larger samples."
+        )
         run_layout.addWidget(generate_tracks_btn)
 
         # Add running widget
@@ -93,12 +103,16 @@ class RunEditor(QWidget):
         run_name = self.get_run_name()
         input_layer = self.get_labels_layer()
         if input_layer is None:
-            warn("No input labels layer selected")
+            warn("No input labels layer selected", stacklevel=2)
             return None
         input_seg = np.expand_dims(input_layer.data, 1)
         print(f"{input_seg.shape=}")
         params = self.solver_params_widget.solver_params.copy()
-        return MotileRun(run_name=run_name, solver_params=params, input_segmentation=input_seg)
+        return MotileRun(
+            run_name=run_name,
+            solver_params=params,
+            input_segmentation=input_seg,
+        )
 
     def emit_run(self):
         run = self.get_run()

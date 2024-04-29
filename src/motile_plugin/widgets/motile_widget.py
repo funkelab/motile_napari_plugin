@@ -85,7 +85,7 @@ class MotileWidget(QWidget):
             run.output_segmentation[:, 0], name=run.run_name + "_seg"
         )
         if run.tracks is None or run.tracks.number_of_nodes() == 0:
-            warn("No tracks found for run {run.run_name}")
+            warn(f"No tracks found for run {run.run_name}", stacklevel=2)
             self.tracks_layer = None
         else:
             track_data, track_props, track_edges = to_napari_tracks_layer(

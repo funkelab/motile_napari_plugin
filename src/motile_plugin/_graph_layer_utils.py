@@ -17,7 +17,10 @@ def to_napari_graph_layer(graph, name, loc_keys=("t", "z", "y", "x")):
         napari_id += 1
     num_nodes = napari_id
 
-    edges = [[nx_id_to_napari_id[s], nx_id_to_napari_id[t]] for s, t in graph.edges()]
+    edges = [
+        [nx_id_to_napari_id[s], nx_id_to_napari_id[t]]
+        for s, t in graph.edges()
+    ]
     coords = [
         get_location(
             graph.nodes[napari_id_to_nx_id[nap_id]], loc_keys=loc_keys

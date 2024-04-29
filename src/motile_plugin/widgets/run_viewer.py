@@ -1,4 +1,3 @@
-
 import importlib.resources
 import json
 from pathlib import Path
@@ -28,10 +27,14 @@ class RunViewer(QWidget):
         self.run = run
         if run:
             self.run_name_widget = QLabel(self._run_name_view(self.run))
-            self.params_widget = SolverParamsWidget(run.solver_params, editable=False)
+            self.params_widget = SolverParamsWidget(
+                run.solver_params, editable=False
+            )
         else:
             self.run_name_widget = QLabel("temp")
-            self.params_widget = SolverParamsWidget(SolverParams(), editable=False)
+            self.params_widget = SolverParamsWidget(
+                SolverParams(), editable=False
+            )
 
         # Define persistent file dialogs for saving and exporting
         self.save_run_dialog = self._save_dialog()
@@ -58,7 +61,7 @@ class RunViewer(QWidget):
         self.params_widget.new_params.emit(run.solver_params)
 
     def _run_name_view(self, run: MotileRun) -> str:
-        run_time = run.time.strftime('%m/%d/%y, %H:%M:%S')
+        run_time = run.time.strftime("%m/%d/%y, %H:%M:%S")
         return f"Viewing {run.run_name} ({run_time})"
 
     def _save_widget(self):
@@ -102,7 +105,7 @@ class RunViewer(QWidget):
                     print(f"log {strings=}")
                     return strings
 
-                places = max(0, np.ceil(-np.log10(spacing*scale)))
+                places = max(0, np.ceil(-np.log10(spacing * scale)))
                 strings = []
                 for v in values:
                     vs = v * scale
@@ -112,7 +115,9 @@ class RunViewer(QWidget):
 
         gap_plot = pg.PlotWidget()
         gap_plot.setBackground((37, 41, 49))
-        styles = {"color": "white",}
+        styles = {
+            "color": "white",
+        }
         gap_plot.plotItem.setLogMode(x=False, y=True)
         gap_plot.plotItem.setLabel("left", "Gap", **styles)
         gap_plot.plotItem.setLabel("bottom", "Solver round", **styles)
@@ -140,25 +145,29 @@ class RunViewer(QWidget):
             directory = self.save_run_dialog.selectedFiles()[0]
             self.run.save(directory)
         else:
-            warn("Saving aborted")
+            warn("Saving aborted", stacklevel=2)
 
     def export_tracks(self):
-        default_name = MotileRun._make_directory(self.run.time, self.run.run_name)
+        default_name = MotileRun._make_directory(
+            self.run.time, self.run.run_name
+        )
         default_name = f"{default_name}_tracks.json"
         base_path = Path(self.export_tracks_dialog.directory().path())
         self.export_tracks_dialog.selectFile(str(base_path / default_name))
         if self.export_tracks_dialog.exec_():
             outfile = self.export_tracks_dialog.selectedFiles()[0]
-            with open(outfile, 'w') as f:
+            with open(outfile, "w") as f:
                 json.dump(nx.node_link_data(self.run.tracks), f)
         else:
-            warn("Exporting aborted")
+            warn("Exporting aborted", stacklevel=2)
 
     def solver_event_update(self, event_data):
         event_type = event_data["event_type"]
         if event_type in ["PRESOLVE", "PRESOLVEROUND"]:
             self.set_solver_label("presolving")
-            self.run.gaps = []  # try this to remove the weird initial gap for gurobi
+            self.run.gaps = (
+                []
+            )  # try this to remove the weird initial gap for gurobi
         elif event_type in ["MIPSOL", "BESTSOLFOUND"]:
             self.set_solver_label("solving")
             gap = event_data["gap"]
@@ -169,4 +178,3 @@ class RunViewer(QWidget):
     def reset_progress(self):
         self.set_solver_label("not running")
         self.gap_plot.getPlotItem().clear()
-
