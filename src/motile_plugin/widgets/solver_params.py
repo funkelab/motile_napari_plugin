@@ -1,5 +1,6 @@
 from functools import partial
 
+from motile_plugin.backend.solver_params import SolverParams
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -7,33 +8,37 @@ from qtpy.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QSpinBox,
     QVBoxLayout,
     QWidget,
-    QLabel,
 )
-
-from motile_plugin.backend.solver_params import SolverParams
 
 
 class ParamLabel(QLabel):
     send_value = Signal(object)
+
     def __init__(self, param_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.param_name = param_name
-    
+
     def update_from_params(self, params: SolverParams):
         param_val = params.__getattribute__(self.param_name)
         if param_val is not None:
-            text = str(param_val) if isinstance(param_val, int) else f"{param_val:.1f}"
+            text = (
+                str(param_val)
+                if isinstance(param_val, int)
+                else f"{param_val:.1f}"
+            )
             self.setText(text)
-    
+
     def toggle_enable(self, checked: bool):
         self.setEnabled(checked)
-        
+
 
 class ParamSpinBox(QSpinBox):
     send_value = Signal(object)
+
     def __init__(self, param_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.param_name = param_name
@@ -41,12 +46,12 @@ class ParamSpinBox(QSpinBox):
         # necessary to have custom signal that is also emitted when checkboxes are
         # checked, without changing the spinbox value
         self.valueChanged.connect(self.send_value.emit)
-    
+
     def update_from_params(self, params: SolverParams):
         param_val = params.__getattribute__(self.param_name)
         if param_val is not None:
             self.setValue(param_val)
-    
+
     def toggle_enable(self, checked: bool):
         if checked:
             self.enable()
@@ -56,6 +61,7 @@ class ParamSpinBox(QSpinBox):
 
 class ParamDoubleSpinBox(QDoubleSpinBox):
     send_value = Signal(object)
+
     def __init__(self, param_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.param_name = param_name
@@ -68,7 +74,7 @@ class ParamDoubleSpinBox(QDoubleSpinBox):
         param_val = params.__getattribute__(self.param_name)
         if param_val is not None:
             self.setValue(param_val)
-    
+
     def toggle_enable(self, checked: bool):
         if checked:
             self.setEnabled(True)
@@ -77,18 +83,19 @@ class ParamDoubleSpinBox(QDoubleSpinBox):
             self.setEnabled(False)
             self.send_value.emit(None)
 
+
 class ParamCheckBox(QCheckBox):
     def __init__(self, param_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.param_name = param_name
-    
+
     def update_from_params(self, params: SolverParams):
         param_val = params.__getattribute__(self.param_name)
         if param_val is None:
             self.setChecked(False)
         else:
             self.setChecked(True)
-    
+
 
 class ParamCheckGroup(QGroupBox):
     def __init__(self, param_names, *args, **kwargs):
@@ -96,8 +103,10 @@ class ParamCheckGroup(QGroupBox):
         self.param_names = param_names
 
     def update_from_params(self, params: SolverParams):
-        param_vals = [params.__getattribute__(name) for name in self.param_names]
-        if all([v is None for v in param_vals]):
+        param_vals = [
+            params.__getattribute__(name) for name in self.param_names
+        ]
+        if all(v is None for v in param_vals):
             self.setChecked(False)
         else:
             self.setChecked(True)
@@ -105,33 +114,38 @@ class ParamCheckGroup(QGroupBox):
 
 class SolverParamsWidget(QWidget):
     new_params = Signal(SolverParams)
-    """ Widget for viewing and editing SolverParams. 
-    Spinboxes will be created for each parameter in SolverParams and linked such that 
-    editing the value in the spinbox will change the corresponding parameter. 
+    """ Widget for viewing and editing SolverParams.
+    Spinboxes will be created for each parameter in SolverParams and linked such that
+    editing the value in the spinbox will change the corresponding parameter.
     Checkboxes will also  be created for each optional parameter (group) and linked such
-    that unchecking the box will update the parameter value to None, and checking will 
+    that unchecking the box will update the parameter value to None, and checking will
     update the parameter to the current spinbox value.
     If editable is false, the whole widget will be disabled.
     To update for a backend change to SolverParams, emit the new_params signal,
     which the spinboxes and checkboxes will connect to and use to update the
     UI and thus the stored solver params.
     """
+
     def __init__(self, solver_params: SolverParams, editable=False):
         super().__init__()
         self.solver_params = solver_params
         self.editable = editable
         self.param_categories = {
-            "data_params": ["max_edge_distance",  "max_children", "max_parents"],
-            "constant_costs": ["appear_cost", "division_cost", "disappear_cost"],
-            "variable_costs": ["distance", "iou",],
-            "fixed": [("merge_cost", None)]
+            "data_params": ["max_edge_distance", "max_children"],
+            "constant_costs": [
+                "appear_cost",
+                "division_cost",
+                "disappear_cost",
+            ],
+            "variable_costs": [
+                "distance",
+                "iou",
+            ],
         }
-        for fixed_param, val in self.param_categories["fixed"]:
-            solver_params.__setattr__(fixed_param, val)
         main_layout = QVBoxLayout()
         main_layout.addWidget(self._ui_data_specific_hyperparameters())
         main_layout.addWidget(self._ui_constant_costs())
-        main_layout.setContentsMargins(0,0,0,0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
         for group in self._ui_variable_costs():
             main_layout.addWidget(group)
         self.setLayout(main_layout)
@@ -147,7 +161,12 @@ class SolverParamsWidget(QWidget):
                 spinbox = self._param_spinbox(param_name, negative=False)
             else:
                 spinbox = self._param_label(param_name)
-            self._add_form_row(hyperparameters_layout, field.title, spinbox, tooltip=field.description)
+            self._add_form_row(
+                hyperparameters_layout,
+                field.title,
+                spinbox,
+                tooltip=field.description,
+            )
         hyperparameters_group.setLayout(hyperparameters_layout)
         return hyperparameters_group
 
@@ -180,12 +199,14 @@ class SolverParamsWidget(QWidget):
             title = f"{param_type.title()} Cost"
             group_tooltip = f"Use the {param_type.title()} between objects as a linking feature."
             param_names = [f"{param_type}_weight", f"{param_type}_offset"]
-            groups.append(self._create_feature_cost_group(
-                title,
-                param_names=param_names,
-                checked=True,
-                group_tooltip=group_tooltip,
-            ))
+            groups.append(
+                self._create_feature_cost_group(
+                    title,
+                    param_names=param_names,
+                    checked=True,
+                    group_tooltip=group_tooltip,
+                )
+            )
         return groups
 
     def _create_feature_cost_group(
@@ -208,7 +229,9 @@ class SolverParamsWidget(QWidget):
             else:
                 spinbox = self._param_label(param_name)
             feature_cost.toggled.connect(spinbox.toggle_enable)
-            self._add_form_row(layout, field.title, spinbox, tooltip=field.description)
+            self._add_form_row(
+                layout, field.title, spinbox, tooltip=field.description
+            )
         feature_cost.setLayout(layout)
         return feature_cost
 
@@ -233,12 +256,11 @@ class SolverParamsWidget(QWidget):
             spinbox = ParamDoubleSpinBox(param_name)
             spinbox.setDecimals(1)
         else:
-            raise ValueError(f"Expected dtype int or float, got {field.annotation}")
+            raise ValueError(
+                f"Expected dtype int or float, got {field.annotation}"
+            )
         max_val = 10000
-        if negative:
-            min_val = -1 * max_val
-        else:
-            min_val = 0
+        min_val = -1 * max_val if negative else 0
         spinbox.setRange(min_val, max_val)
         curr_val = self.solver_params.__getattribute__(param_name)
         if curr_val is None:
@@ -260,8 +282,9 @@ class SolverParamsWidget(QWidget):
         self.new_params.connect(param_label.update_from_params)
         return param_label
 
-
     def _add_form_row(self, layout: QFormLayout, label, value, tooltip=None):
         layout.addRow(label, value)
-        row_widget = layout.itemAt(layout.rowCount() - 1, QFormLayout.LabelRole).widget()
+        row_widget = layout.itemAt(
+            layout.rowCount() - 1, QFormLayout.LabelRole
+        ).widget()
         row_widget.setToolTip(tooltip)
