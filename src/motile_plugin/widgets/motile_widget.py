@@ -19,13 +19,14 @@ from motile_plugin.backend.solver_params import SolverParams
 from .runs_list import RunsList
 from .run_editor import RunEditor
 from .run_viewer import RunViewer
-from .solver_status import SolverStatus
-from .solver_params import SolverParamsWidget
+from qtpy.QtCore import Signal
 
 logger = logging.getLogger(__name__)
 
 
 class MotileWidget(QWidget):
+    solver_event = Signal(dict)
+
     def __init__(self, viewer, graph_layer=False, multiseg=False):
         super().__init__()
         self.viewer: Viewer = viewer
@@ -42,17 +43,14 @@ class MotileWidget(QWidget):
 
         self.view_run_widget = RunViewer(None)
         self.view_run_widget.hide()
+        self.solver_event.connect(self.view_run_widget.solver_event_update)
 
         self.run_list_widget = RunsList()
         self.run_list_widget.view_run.connect(self.view_run)
         self.run_list_widget.edit_run.connect(self.edit_run)
 
-        self.solver_status_widget = SolverStatus()
-        self.solver_status_widget.hide()
-
         main_layout.addWidget(self.view_run_widget)
         main_layout.addWidget(self.edit_run_widget)
-        main_layout.addWidget(self.solver_status_widget)
         main_layout.addWidget(self.run_list_widget)
         self.setLayout(main_layout)
 
@@ -93,52 +91,48 @@ class MotileWidget(QWidget):
         
 
     def view_run(self, run: MotileRun):
-        # TODO: remove old layers from napari and replace with new
+        self.view_run_widget.reset_progress()
         self.view_run_widget.update_run(run)
         self.edit_run_widget.hide()
         self.view_run_widget.show()
-
         # Add layers to Napari
         self.remove_napari_layers()
         self.update_napari_layers(run)
         self.add_napari_layers()
-        
-
+    
     def edit_run(self, run: MotileRun | None):
         self.view_run_widget.hide()
         self.edit_run_widget.show()
         if run:
             self.edit_run_widget.new_run(run)
-        
         self.remove_napari_layers()
 
 
     def _generate_tracks(self, run):
         # Logic for generating tracks
-        logger.debug("Segmentation shape: %s", run.input_segmentation.shape)
         # do this in a separate thread so we can parse stdout and not block
-        self.solver_status_widget.show()
+        self.view_run_widget.reset_progress()
+        self.edit_run_widget.hide()
+        self.view_run_widget.update_run(run)
+        self.view_run_widget.set_solver_label("initializing")
+        self.view_run_widget.show()
         worker = self.solve_with_motile(run)
         worker.returned.connect(self._on_solve_complete)
         worker.start()
-
-    def on_solver_update(self, event_data):
-        self.solver_status_widget.update(event_data)
             
     @thread_worker
     def solve_with_motile(
         self,
         run: MotileRun
         ):
-        run.tracks = solve(run.solver_params, run.input_segmentation, self.on_solver_update)
+        run.tracks = solve(run.solver_params, run.input_segmentation, self.solver_event.emit)
         run.output_segmentation = relabel_segmentation(run.tracks, run.input_segmentation)
         return run
 
     def _on_solve_complete(self, run: MotileRun):
-        self.solver_status_widget.hide()
         self.run_list_widget.add_run(run.copy(), select=True)
-        self.view_run(run)
-        self.solver_status_widget.reset()
+        self.view_run_widget.set_solver_label("done")
+
 
 
 
