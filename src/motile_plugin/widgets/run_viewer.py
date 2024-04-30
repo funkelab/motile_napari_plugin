@@ -17,35 +17,34 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt import QCollapsible
 
 from .params_viewer import SolverParamsViewer
 
 
 class RunViewer(QWidget):
-    def __init__(self, run: MotileRun):
+    """A widget for viewing in progress or completed runs, including
+    the progress of the solver and the parameters. Can also save the whole
+    run or export the tracks to CSV.
+    Output tracks and segmentation are visualized separately in napari layers.
+    """
+    def __init__(self):
         super().__init__()
-        self.run = run
-        if run:
-            self.run_name_widget = QLabel(self._run_name_view(self.run))
-            self.params_widget = SolverParamsViewer(
-                run.solver_params
-            )
-        else:
-            self.run_name_widget = QLabel("temp")
-            self.params_widget = SolverParamsViewer(
-                SolverParams()
-            )
-
+        # define attributes
+        self.run: MotileRun = None
+        self.run_name_widget = QLabel("No run selected")
+        self.params_widget = SolverParamsViewer()
+        self.solver_label: QLabel
+        self.gap_plot: pg.PlotWidget
         # Define persistent file dialogs for saving and exporting
         self.save_run_dialog = self._save_dialog()
         self.export_tracks_dialog = self._export_tracks_dialog()
 
-        export_tracks_btn = QPushButton("Export tracks")
+        # create button to export tracks
+        export_tracks_btn = QPushButton("Export tracks to CSV")
         export_tracks_btn.clicked.connect(self.export_tracks)
 
-        self.solver_label: QLabel
-        self.gap_plot = pg.PlotWidget
-
+        # Create layout and add subwidgets
         main_layout = QVBoxLayout()
         main_layout.addWidget(self._title_widget())
         main_layout.addWidget(export_tracks_btn)
@@ -85,8 +84,12 @@ class RunViewer(QWidget):
         layout = QVBoxLayout()
         self.solver_label = QLabel("")
         self.gap_plot = self._plot_widget()
+        collapsable_plot = QCollapsible("Graph of solver gap")
+        collapsable_plot.layout().setContentsMargins(0, 0, 0, 0)
+        collapsable_plot.addWidget(self.gap_plot)
+        collapsable_plot.expand(animate=False)
         layout.addWidget(self.solver_label)
-        layout.addWidget(self.gap_plot)
+        layout.addWidget(collapsable_plot)
         layout.setContentsMargins(0, 0, 0, 0)
         progress_widget.setLayout(layout)
         return progress_widget
@@ -96,7 +99,6 @@ class RunViewer(QWidget):
         self.solver_label.setText(message)
 
     def _plot_widget(self) -> pg.PlotWidget:
-
         gap_plot = pg.PlotWidget()
         gap_plot.setBackground((37, 41, 49))
         styles = {
