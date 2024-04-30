@@ -96,22 +96,6 @@ class RunViewer(QWidget):
         self.solver_label.setText(message)
 
     def _plot_widget(self) -> pg.PlotWidget:
-        class CustomAxisItem(pg.AxisItem):
-
-            def tickStrings(self, values, scale, spacing):
-                print(f"{values=}, {scale=}, {spacing=}")
-                if self.logMode:
-                    strings = self.logTickStrings(values, scale, spacing)
-                    print(f"log {strings=}")
-                    return strings
-
-                places = max(0, np.ceil(-np.log10(spacing * scale)))
-                strings = []
-                for v in values:
-                    vs = v * scale
-                    vstr = ("%%0.%df" % places) % vs
-                    strings.append(vstr)
-                return strings
 
         gap_plot = pg.PlotWidget()
         gap_plot.setBackground((37, 41, 49))
