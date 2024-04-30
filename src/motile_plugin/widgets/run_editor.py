@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from warnings import warn
 
 import numpy as np
@@ -5,7 +7,6 @@ from motile_plugin.backend.motile_run import MotileRun
 from napari.layers import Labels, Layer
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QFormLayout,
     QGroupBox,
@@ -19,12 +20,15 @@ from qtpy.QtWidgets import (
 
 from .solver_params import SolverParamsWidget
 
+if TYPE_CHECKING:
+    from motile_plugin.backend.solver_params import SolverParams
+    from napari.layers import Layer
+
 
 class RunEditor(QWidget):
     create_run = Signal(MotileRun)
 
-    def __init__(self, run_name, solver_params, layers, multiseg=False):
-        # TODO: Don't pass static layers
+    def __init__(self, run_name: str, solver_params: SolverParams, layers: list[Layer]):
         super().__init__()
         self.run_name: QLineEdit
         self.layers: list
@@ -34,21 +38,16 @@ class RunEditor(QWidget):
         )
         main_layout = QVBoxLayout()
         main_layout.addWidget(
-            self._ui_select_labels_layer(layers, multiseg=multiseg)
+            self._ui_select_labels_layer(layers)
         )
         main_layout.addWidget(self.solver_params_widget)
         main_layout.addWidget(self._ui_run_motile(run_name))
         self.setLayout(main_layout)
 
-    def _ui_select_labels_layer(self, layers, multiseg=False) -> QGroupBox:
-        # Select Labels layer
+    def _ui_select_labels_layer(self, layers: list[Layer]) -> QGroupBox:
         layer_group = QGroupBox("Select Input Layer")
         layer_layout = QHBoxLayout()
         self.layer_selection_box = QComboBox()
-        if multiseg:
-            self.layer_selection_box.setSelectionMode(
-                QAbstractItemView.SelectionMode.MultiSelection
-            )
         self.update_labels_layers(layers)
         self.layer_selection_box.setToolTip(
             "Select the labels layer you want to use for tracking"
@@ -57,7 +56,7 @@ class RunEditor(QWidget):
         layer_group.setLayout(layer_layout)
         return layer_group
 
-    def update_labels_layers(self, layers):
+    def update_labels_layers(self, layers: list[Layer]) -> None:
         self.layers = layers
         self.layer_selection_box.clear()
         for layer in self.layers:
@@ -72,7 +71,7 @@ class RunEditor(QWidget):
             return None
         return self.layers[layer_name]
 
-    def _ui_run_motile(self, run_name) -> QGroupBox:
+    def _ui_run_motile(self, run_name: str) -> QGroupBox:
         # Specify name text box
         run_group = QGroupBox("Run")
         run_layout = QVBoxLayout()
@@ -96,10 +95,10 @@ class RunEditor(QWidget):
         run_group.setLayout(run_layout)
         return run_group
 
-    def get_run_name(self):
+    def get_run_name(self) -> str:
         return self.run_name.text()
 
-    def get_run(self):
+    def get_run(self) -> MotileRun:
         run_name = self.get_run_name()
         input_layer = self.get_labels_layer()
         if input_layer is None:
@@ -114,11 +113,11 @@ class RunEditor(QWidget):
             input_segmentation=input_seg,
         )
 
-    def emit_run(self):
+    def emit_run(self) -> None:
         run = self.get_run()
         if run is not None:
             self.create_run.emit(run)
 
-    def new_run(self, run):
+    def new_run(self, run) -> None:
         self.run_name.setText(run.run_name)
         self.solver_params_widget.new_params.emit(run.solver_params)
