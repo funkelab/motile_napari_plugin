@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from .solver_params import SolverParamsWidget
+from .params_viewer import SolverParamsViewer
 
 
 class RunViewer(QWidget):
@@ -27,13 +27,13 @@ class RunViewer(QWidget):
         self.run = run
         if run:
             self.run_name_widget = QLabel(self._run_name_view(self.run))
-            self.params_widget = SolverParamsWidget(
-                run.solver_params, editable=False
+            self.params_widget = SolverParamsViewer(
+                run.solver_params
             )
         else:
             self.run_name_widget = QLabel("temp")
-            self.params_widget = SolverParamsWidget(
-                SolverParams(), editable=False
+            self.params_widget = SolverParamsViewer(
+                SolverParams()
             )
 
         # Define persistent file dialogs for saving and exporting
