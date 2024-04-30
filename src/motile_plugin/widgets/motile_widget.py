@@ -10,6 +10,7 @@ from napari import Viewer
 from napari.layers import Labels, Tracks
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
+    QLabel,
     QVBoxLayout,
     QWidget,
 )
@@ -45,7 +46,7 @@ class MotileWidget(QWidget):
         )
         self.edit_run_widget.create_run.connect(self._generate_tracks)
 
-        self.view_run_widget = RunViewer(None)
+        self.view_run_widget = RunViewer()
         self.view_run_widget.hide()
         self.solver_event.connect(self.view_run_widget.solver_event_update)
 
@@ -55,6 +56,7 @@ class MotileWidget(QWidget):
 
         # Create main layout
         main_layout = QVBoxLayout()
+        main_layout.addWidget(self._title_widget())
         main_layout.addWidget(self.view_run_widget)
         main_layout.addWidget(self.edit_run_widget)
         main_layout.addWidget(self.run_list_widget)
@@ -180,3 +182,14 @@ class MotileWidget(QWidget):
         """
         self.run_list_widget.add_run(run.copy(), select=True)
         self.view_run_widget.set_solver_label("done")
+
+    def _title_widget(self) -> QWidget:
+        richtext = r"""<h3>Tracking with Motile</h3>
+        <p>This plugin uses the
+        <a href="https://funkelab.github.io/motile/">motile</a> library to
+        track objects with global optimization. See the
+        <a href="https://funkelab.github.io/motile-napari-plugin/">user guide</a>
+        for a tutorial to the plugin functionality."""
+        label = QLabel(richtext)
+        label.setWordWrap(True)
+        return label
