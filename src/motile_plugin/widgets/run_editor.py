@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from warnings import warn
+import logging
 
 import numpy as np
 from motile_plugin.backend.motile_run import MotileRun
@@ -23,6 +24,8 @@ from .solver_params import SolverParamsWidget
 if TYPE_CHECKING:
     from motile_plugin.backend.solver_params import SolverParams
     from napari.layers import Layer
+
+logger = logging.getLogger(__name__)
 
 
 class RunEditor(QWidget):
@@ -71,6 +74,31 @@ class RunEditor(QWidget):
             return None
         return self.layers[layer_name]
 
+    def reshape_labels(self, segmentation: np.ndarray) -> None:
+        """Expect napari segmentation to have shape t, [z], y, x.
+        Motile toolbox needs a channel dimension between time and space.
+        This also raises an error if the input seg is not the expected shape.
+
+        Args:
+            segmentation (np.ndarray): _description_
+
+        Raises:
+            ValueError if segmentation is not 3D or 4D.
+        """
+        ndim = segmentation.ndim
+        if ndim > 4:
+            raise ValueError(
+                "Expected segmentation to be at most 4D, found %d",
+                ndim
+            )
+        elif ndim < 3:
+            raise ValueError(
+                "Expected segmentation to be at least 3D, found %d",
+                ndim
+            )
+        reshaped = np.expand_dims(segmentation, 1)
+        return reshaped
+
     def _ui_run_motile(self, run_name: str) -> QGroupBox:
         # Specify name text box
         run_group = QGroupBox("Run")
@@ -104,8 +132,7 @@ class RunEditor(QWidget):
         if input_layer is None:
             warn("No input labels layer selected", stacklevel=2)
             return None
-        input_seg = np.expand_dims(input_layer.data, 1)
-        print(f"{input_seg.shape=}")
+        input_seg = self.reshape_labels(input_layer.data)
         params = self.solver_params_widget.solver_params.copy()
         return MotileRun(
             run_name=run_name,
