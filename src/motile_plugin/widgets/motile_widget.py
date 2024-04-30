@@ -45,6 +45,9 @@ class MotileWidget(QWidget):
             "new_run", SolverParams(), self.viewer.layers
         )
         self.edit_run_widget.create_run.connect(self._generate_tracks)
+        self.edit_run_widget.refresh_layer_button.clicked.connect(
+            self._update_editor_layers
+        )
 
         self.view_run_widget = RunViewer()
         self.view_run_widget.hide()
@@ -198,3 +201,6 @@ class MotileWidget(QWidget):
         label = QLabel(richtext)
         label.setWordWrap(True)
         return label
+
+    def _update_editor_layers(self):
+        self.edit_run_widget.update_labels_layers(self.viewer.layers)

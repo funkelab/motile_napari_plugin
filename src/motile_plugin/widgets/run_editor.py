@@ -1,23 +1,26 @@
 from __future__ import annotations
+
+import logging
 from typing import TYPE_CHECKING
 from warnings import warn
-import logging
 
 import numpy as np
+from fonticon_fa6 import FA6S
 from motile_plugin.backend.motile_run import MotileRun
-from napari.layers import Labels, Layer
+from napari.layers import Labels
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QComboBox,
-    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
+from superqt.fonticon import icon
 
 from .solver_params import SolverParamsWidget
 
@@ -28,34 +31,64 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class RunEditor(QWidget):
+class RunEditor(QGroupBox):
     create_run = Signal(MotileRun)
 
-    def __init__(self, run_name: str, solver_params: SolverParams, layers: list[Layer]):
-        super().__init__()
+    def __init__(
+        self, run_name: str, solver_params: SolverParams, layers: list[Layer]
+    ):
+        super().__init__(title="Run Editor")
         self.run_name: QLineEdit
         self.layers: list
+        self.refresh_layer_button: QPushButton
         self.layer_selection_box: QComboBox
         self.solver_params_widget = SolverParamsWidget(
             solver_params, editable=True
         )
         main_layout = QVBoxLayout()
-        main_layout.addWidget(
-            self._ui_select_labels_layer(layers)
-        )
+        main_layout.addWidget(self._run_widget(run_name))
+        main_layout.addWidget(self._labels_layer_widget(layers))
         main_layout.addWidget(self.solver_params_widget)
-        main_layout.addWidget(self._ui_run_motile(run_name))
         self.setLayout(main_layout)
 
-    def _ui_select_labels_layer(self, layers: list[Layer]) -> QGroupBox:
-        layer_group = QGroupBox("Select Input Layer")
+    def _labels_layer_widget(self, layers: list[Layer]) -> QWidget:
+        """Create the widget to select the input layer. It is difficult
+        to keep the list in sync with the napari layers, so there is an
+        explicit refresh button to sync them.
+
+        Args:
+            layers (list[Layer]): The current set of layers in napari
+
+        Returns:
+            QWidget: A dropdown select with all the labels layers in layers
+                and a refresh button to sync with napari (must be connected
+                in main widget)
+        """
+        layer_group = QWidget()
         layer_layout = QHBoxLayout()
+        layer_layout.setContentsMargins(0, 0, 0, 0)
+        layer_layout.addWidget(QLabel("Input Layer:"))
+
+        # Layer selection combo box
         self.layer_selection_box = QComboBox()
         self.update_labels_layers(layers)
         self.layer_selection_box.setToolTip(
             "Select the labels layer you want to use for tracking"
         )
+        size_policy = self.layer_selection_box.sizePolicy()
+        size_policy.setHorizontalPolicy(QSizePolicy.MinimumExpanding)
+        self.layer_selection_box.setSizePolicy(size_policy)
         layer_layout.addWidget(self.layer_selection_box)
+
+        # Refresh button
+        self.refresh_layer_button = QPushButton(
+            icon=icon(FA6S.arrows_rotate, color="white")
+        )
+        self.refresh_layer_button.setToolTip(
+            "Refresh this selection box with current napari layers"
+        )
+        layer_layout.addWidget(self.refresh_layer_button)
+
         layer_group.setLayout(layer_layout)
         return layer_group
 
@@ -88,40 +121,33 @@ class RunEditor(QWidget):
         ndim = segmentation.ndim
         if ndim > 4:
             raise ValueError(
-                "Expected segmentation to be at most 4D, found %d",
-                ndim
+                "Expected segmentation to be at most 4D, found %d", ndim
             )
         elif ndim < 3:
             raise ValueError(
-                "Expected segmentation to be at least 3D, found %d",
-                ndim
+                "Expected segmentation to be at least 3D, found %d", ndim
             )
         reshaped = np.expand_dims(segmentation, 1)
         return reshaped
 
-    def _ui_run_motile(self, run_name: str) -> QGroupBox:
+    def _run_widget(self, run_name: str) -> QWidget:
         # Specify name text box
-        run_group = QGroupBox("Run")
-        run_layout = QVBoxLayout()
-        run_name_layout = QFormLayout()
+        run_widget = QWidget()
+        run_layout = QHBoxLayout()
+        run_layout.setContentsMargins(0, 0, 0, 0)
+        run_layout.addWidget(QLabel("Run Name:"))
         self.run_name = QLineEdit(run_name)
-        run_name_layout.addRow("Run Name:", self.run_name)
-        run_layout.addLayout(run_name_layout)
+        run_layout.addWidget(self.run_name)
 
         # Generate Tracks button
-        generate_tracks_btn = QPushButton("Create Run")
+        generate_tracks_btn = QPushButton("Go!")
         generate_tracks_btn.clicked.connect(self.emit_run)
         generate_tracks_btn.setToolTip(
             "Run tracking. Might take minutes or longer for larger samples."
         )
         run_layout.addWidget(generate_tracks_btn)
-
-        # Add running widget
-        self.running_label = QLabel("Solver is running")
-        self.running_label.hide()
-        run_layout.addWidget(self.running_label)
-        run_group.setLayout(run_layout)
-        return run_group
+        run_widget.setLayout(run_layout)
+        return run_widget
 
     def get_run_name(self) -> str:
         return self.run_name.text()
