@@ -184,6 +184,11 @@ class MotileWidget(QWidget):
         self.view_run_widget.set_solver_label("done")
 
     def _title_widget(self) -> QWidget:
+        """Create the title and intro paragraph widget, with links to docs
+
+        Returns:
+            QWidget: A widget introducing the motile plugin and linking to docs
+        """
         richtext = r"""<h3>Tracking with Motile</h3>
         <p>This plugin uses the
         <a href="https://funkelab.github.io/motile/">motile</a> library to
