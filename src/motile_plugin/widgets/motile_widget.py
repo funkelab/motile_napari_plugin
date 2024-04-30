@@ -100,8 +100,9 @@ class MotileWidget(QWidget):
             )
 
         # Add layers to the viewer
-        self.viewer.add_layer(self.output_seg_layer)
-        self.viewer.add_layer(self.tracks_layer)
+        if self.tracks_layer is not None:
+            self.viewer.add_layer(self.output_seg_layer)
+            self.viewer.add_layer(self.tracks_layer)
 
     def view_run(self, run: MotileRun):
         """View the provided run in the run viewer. Does not include
