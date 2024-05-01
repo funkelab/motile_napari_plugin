@@ -25,7 +25,7 @@ def solve(
     cand_graph, conflict_sets = get_candidate_graph(
         segmentation,
         solver_params.max_edge_distance,
-        iou=solver_params.iou_weight is not None,
+        iou=solver_params.iou is not None,
     )
     logger.debug("Cand graph has %d nodes", cand_graph.number_of_nodes())
     solver = construct_solver(cand_graph, solver_params, conflict_sets)
@@ -55,21 +55,21 @@ def construct_solver(cand_graph, solver_params, exclusive_sets):
     if solver_params.division_cost is not None:
         solver.add_costs(Split(constant=solver_params.division_cost))
 
-    if solver_params.distance_weight is not None:
+    if solver_params.distance is not None:
         solver.add_costs(
             EdgeDistance(
                 position_attribute=NodeAttr.POS.value,
-                weight=solver_params.distance_weight,
-                constant=solver_params.distance_offset,
+                weight=solver_params.distance.weight,
+                constant=solver_params.distance.offset,
             ),
             name="distance",
         )
-    if solver_params.iou_weight is not None:
+    if solver_params.iou is not None:
         solver.add_costs(
             EdgeSelection(
-                weight=solver_params.iou_weight,
+                weight=solver_params.iou.weight,
                 attribute=EdgeAttr.IOU.value,
-                constant=solver_params.iou_offset,
+                constant=solver_params.iou.offset,
             ),
             name="iou",
         )

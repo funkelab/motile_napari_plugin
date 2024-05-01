@@ -31,6 +31,7 @@ class MotileWidget(QWidget):
     # A signal for passing events from the motile solver to the run view widget
     # To provide updates on progress of the solver
     solver_event = Signal(dict)
+    
 
     def __init__(self, viewer: Viewer):
         super().__init__()
@@ -41,13 +42,8 @@ class MotileWidget(QWidget):
         self.tracks_layer: Tracks | None = None
 
         # Create sub-widgets and connect signals
-        self.edit_run_widget = RunEditor(
-            "new_run", SolverParams(), self.viewer.layers
-        )
-        self.edit_run_widget.create_run.connect(self._generate_tracks)
-        self.edit_run_widget.refresh_layer_button.clicked.connect(
-            self._update_editor_layers
-        )
+        self.edit_run_widget = RunEditor(self.viewer)
+        self.edit_run_widget.start_run.connect(self._generate_tracks)
 
         self.view_run_widget = RunViewer()
         self.view_run_widget.hide()
@@ -201,6 +197,3 @@ class MotileWidget(QWidget):
         label = QLabel(richtext)
         label.setWordWrap(True)
         return label
-
-    def _update_editor_layers(self):
-        self.edit_run_widget.update_labels_layers(self.viewer.layers)

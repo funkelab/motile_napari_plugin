@@ -4,10 +4,8 @@ from pathlib import Path
 from warnings import warn
 
 import networkx as nx
-import numpy as np
 import pyqtgraph as pg
 from motile_plugin.backend.motile_run import MotileRun
-from motile_plugin.backend.solver_params import SolverParams
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtWidgets import (
     QFileDialog,
@@ -28,6 +26,7 @@ class RunViewer(QWidget):
     run or export the tracks to CSV.
     Output tracks and segmentation are visualized separately in napari layers.
     """
+
     def __init__(self):
         super().__init__()
         # define attributes

@@ -22,47 +22,49 @@ from qtpy.QtWidgets import (
 )
 from superqt.fonticon import icon
 
-from .solver_params import SolverParamsWidget
+from .params_editor import SolverParamsEditor
 
 if TYPE_CHECKING:
     from motile_plugin.backend.solver_params import SolverParams
-    from napari.layers import Layer
+    import napari
+    import napari.layers
 
 logger = logging.getLogger(__name__)
 
 
 class RunEditor(QGroupBox):
-    create_run = Signal(MotileRun)
+    start_run = Signal(MotileRun)
 
-    def __init__(
-        self, run_name: str, solver_params: SolverParams, layers: list[Layer]
-    ):
+    def __init__(self, viewer: napari.Viewer):
+        """A widget for editing run parameters and starting solving.
+        Has to know about the viewer to get the input segmentation
+        from the current layers.
+
+        Args:
+            viewer (napari.Viewer): The napari viewer that the editor should
+                get the input segmentation from.
+        """
         super().__init__(title="Run Editor")
+        self.viewer = viewer
+        self.solver_params_widget = SolverParamsEditor()
         self.run_name: QLineEdit
-        self.layers: list
         self.refresh_layer_button: QPushButton
         self.layer_selection_box: QComboBox
-        self.solver_params_widget = SolverParamsWidget(
-            solver_params, editable=True
-        )
+
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self._run_widget(run_name))
-        main_layout.addWidget(self._labels_layer_widget(layers))
+        main_layout.addWidget(self._run_widget())
+        main_layout.addWidget(self._labels_layer_widget())
         main_layout.addWidget(self.solver_params_widget)
         self.setLayout(main_layout)
 
-    def _labels_layer_widget(self, layers: list[Layer]) -> QWidget:
+    def _labels_layer_widget(self) -> QWidget:
         """Create the widget to select the input layer. It is difficult
         to keep the list in sync with the napari layers, so there is an
         explicit refresh button to sync them.
 
-        Args:
-            layers (list[Layer]): The current set of layers in napari
-
         Returns:
             QWidget: A dropdown select with all the labels layers in layers
-                and a refresh button to sync with napari (must be connected
-                in main widget)
+                and a refresh button to sync with napari.
         """
         layer_group = QWidget()
         layer_layout = QHBoxLayout()
@@ -71,7 +73,7 @@ class RunEditor(QGroupBox):
 
         # Layer selection combo box
         self.layer_selection_box = QComboBox()
-        self.update_labels_layers(layers)
+        self.update_labels_layers()
         self.layer_selection_box.setToolTip(
             "Select the labels layer you want to use for tracking"
         )
@@ -87,25 +89,41 @@ class RunEditor(QGroupBox):
         self.refresh_layer_button.setToolTip(
             "Refresh this selection box with current napari layers"
         )
+        self.refresh_layer_button.clicked.connect(
+            self.update_labels_layers
+        )
         layer_layout.addWidget(self.refresh_layer_button)
 
         layer_group.setLayout(layer_layout)
         return layer_group
 
-    def update_labels_layers(self, layers: list[Layer]) -> None:
-        self.layers = layers
+    def update_labels_layers(self) -> None:
+        """Update the layer selection box with the  labels layers in the viewer
+        """
         self.layer_selection_box.clear()
-        for layer in self.layers:
+        for layer in self.viewer.layers:
             if isinstance(layer, Labels):
                 self.layer_selection_box.addItem(layer.name)
         if len(self.layer_selection_box) == 0:
             self.layer_selection_box.addItem("None")
 
-    def get_labels_layer(self) -> Layer:
+    def get_labels_data(self) -> np.ndarray | None:
+        """Get the input segmentation given the current selection in the 
+        layer dropdown.
+
+        Returns:
+            np.ndarray | None: The data of the labels layer with the name
+                that is selected, or None if the layer name is not present in 
+                the viewer or is not a labels layer. 
+        """
         layer_name = self.layer_selection_box.currentText()
-        if layer_name == "None":
+        if layer_name == "None" or layer_name not in self.viewer.layers:
             return None
-        return self.layers[layer_name]
+        layer = self.viewer.layers[layer_name]
+        if not isinstance(layer, Labels):
+            warn(f"Layer {layer_name} is not a Labels layer. List refresh needed", stacklevel=2)
+            return None
+        return layer.data
 
     def reshape_labels(self, segmentation: np.ndarray) -> None:
         """Expect napari segmentation to have shape t, [z], y, x.
@@ -130,13 +148,21 @@ class RunEditor(QGroupBox):
         reshaped = np.expand_dims(segmentation, 1)
         return reshaped
 
-    def _run_widget(self, run_name: str) -> QWidget:
+    def _run_widget(self) -> QWidget:
+        """ Construct a widget where you set the run name and start solving.
+        Initializes self.run_name and connects the generate tracks button
+        to emit the new_run signal.
+
+        Returns:
+            QWidget: A row widget with a line edit for run name and a button
+                to create a new run and start solving.
+        """
         # Specify name text box
         run_widget = QWidget()
         run_layout = QHBoxLayout()
         run_layout.setContentsMargins(0, 0, 0, 0)
         run_layout.addWidget(QLabel("Run Name:"))
-        self.run_name = QLineEdit(run_name)
+        self.run_name = QLineEdit("new_run")
         run_layout.addWidget(self.run_name)
 
         # Generate Tracks button
@@ -149,16 +175,20 @@ class RunEditor(QGroupBox):
         run_widget.setLayout(run_layout)
         return run_widget
 
-    def get_run_name(self) -> str:
-        return self.run_name.text()
-
     def get_run(self) -> MotileRun:
-        run_name = self.get_run_name()
-        input_layer = self.get_labels_layer()
-        if input_layer is None:
+        """Construct a motile run from the current state of the run editor
+        widget.
+
+        Returns:
+            MotileRun: A run with name, parameters, and input segmentation.
+                Output segmentation and tracks not yet specified.
+        """
+        run_name = self.run_name.text()
+        input_seg = self.get_labels_data()
+        if input_seg is None:
             warn("No input labels layer selected", stacklevel=2)
             return None
-        input_seg = self.reshape_labels(input_layer.data)
+        input_seg = self.reshape_labels(input_seg)
         params = self.solver_params_widget.solver_params.copy()
         return MotileRun(
             run_name=run_name,
@@ -167,10 +197,17 @@ class RunEditor(QGroupBox):
         )
 
     def emit_run(self) -> None:
+        """Construct a run and start solving by emitting the start run
+        signal for the main widget to connect to. If run is invalid, will
+        not emit the signal.
+        """
         run = self.get_run()
         if run is not None:
-            self.create_run.emit(run)
+            self.start_run.emit(run)
 
     def new_run(self, run) -> None:
+        """Configure the run editor to copy the name and params of the given
+        run.
+        """
         self.run_name.setText(run.run_name)
         self.solver_params_widget.new_params.emit(run.solver_params)

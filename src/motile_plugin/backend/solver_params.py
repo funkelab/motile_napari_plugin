@@ -1,5 +1,21 @@
 from pydantic import BaseModel, Field
 
+class CompoundSolverParam(BaseModel):
+    weight: float = Field(
+        1,
+        title="Weight",
+        description=r"""Value multiplied by attribute to create the cost for selecting an edge.
+The weight should be positive when the attribute is already a cost (higher is worse)
+and negative when a higher value is better.
+The magnitude of the weight helps balance this cost with other costs.""",
+    )
+    offset: float = Field(
+        -20,
+        title="Offset",
+        description=r"""Value added to (attr * weight) to create the cost for selecting an edge.
+A negative offset encourages selecting more edges.
+(If all costs are positive, the optimal solution is selecting nothing.)""",
+    )
 
 class SolverParams(BaseModel):
     """The set of solver parameters supported in the motile plugin.
@@ -33,31 +49,13 @@ Objects further than this cannot be matched, but making this value larger will i
         description=r"""Cost for a track dividing. A higher value means fewer divisions.
 If this cost is higher than the appear cost, tracks will likely never divide.""",
     )
-    distance_weight: float | None = Field(
-        1,
-        title="Distance Weight",
-        description=r"""Value multiplied by distance to create the cost for selecting an edge.
-The weight should generally be positive, because a higher distance should be a higher cost.
-The magnitude of the weight helps balance distance with other costs.""",
+    distance: CompoundSolverParam | None = Field(
+        CompoundSolverParam(weight=1, offset=-20),
+        title="Distance",
+        description=r"""Use the distance between objects as a feature for selecting tracks.""",
     )
-    distance_offset: float | None = Field(
-        -20,
-        title="Distance Offset",
-        description=r"""Value added to (distance * weight) to create the cost for selecting an edge.
-Usually should be negative to encourage anything being selected.
-(If all costs are positive, the optimal solution is selecting nothing.)""",
-    )
-    iou_weight: float | None = Field(
-        -5,
-        title="IOU Weight",
-        description=r"""Value multiplied by IOU to create cost.
-The weight should generally be negative, because a higher IOU should be a lower cost.
-The magnitude of the weight helps balance IOU with other costs.""",
-    )
-    iou_offset: float | None = Field(
-        0,
-        title="IOU Offset",
-        description=r"""Value added to (IOU * weight) to create cost.
-Zero is a sensible default with a negative weight, and will have the cost range from -weight to 0
-(In this case, any IOU will never hurt selection).""",
+    iou: CompoundSolverParam | None = Field(
+        CompoundSolverParam(weight=5, offset=0),
+        title="IOU",
+        description=r"""Use the intersection over union between objects as a feature for selecting tracks.""",
     )
