@@ -16,7 +16,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from .params_helpers import CompoundParamValue, EditableParamValue
+from .param_values import CompoundParamValue, EditableParamValue
 
 
 class EditableParam(QWidget):
@@ -46,7 +46,7 @@ class EditableParam(QWidget):
         self.dtype = field.annotation
         self.title = field.title
         self.negative = negative
-        self.param_label = QLabel(self.title)
+        self.param_label = self._param_label_widget()
         self.param_label.setToolTip(field.description)
         self.param_value: CompoundParamValue | EditableParamValue
         if issubclass(CompoundSolverParam, self.dtype):
@@ -64,6 +64,9 @@ class EditableParam(QWidget):
         self.setLayout(layout)
 
         self.update_from_params(solver_params)
+
+    def _param_label_widget(self) -> QLabel:
+        return QLabel(self.title)
 
     def update_from_params(self, params: SolverParams):
         param_val = params.__getattribute__(self.param_name)
@@ -89,7 +92,6 @@ class OptionalEditableParam(EditableParam):
             negative (bool, optional): _description_. Defaults to False.
         """
         super().__init__(param_name, solver_params, negative)
-        self.param_label = QCheckBox(self.title)
         self.param_label.toggled.connect(self.toggle_enable)
 
     def _param_label_widget(self) -> QCheckBox:
@@ -175,7 +177,7 @@ class SolverParamsEditor(QWidget):
             param_row = param_cls(
                 param_name, self.solver_params, negative=negative
             )
-            param_row.valueChanged.connect(
+            param_row.param_value.valueChanged.connect(
                 partial(self.solver_params.__setattr__, param_name)
             )
             self.new_params.connect(param_row.update_from_params)

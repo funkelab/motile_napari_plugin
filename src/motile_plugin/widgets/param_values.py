@@ -1,18 +1,31 @@
+""" A module for widgets that hold parameter values. Each of these
+widgets implements the following interface:
+
+class ParamValue(QWidget):
+    valueChanged = Signal(object)
+
+    def update_value(self, value: Any) -> None:
+        raise NotImplementedError()
+
+    def get_value(self) -> Any:
+        raise NotImplementedError
+
+This "interface" is only enforced by duck typing, as is the pythonic way.
+"""
+
 from motile_plugin.backend.solver_params import CompoundSolverParam
 from qtpy.QtCore import Signal
-from qtpy.QtWidgets import (
-    QDoubleSpinBox,
-    QGridLayout,
-    QLabel,
-)
+from qtpy.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QWidget
 
 
 class StaticParamValue(QLabel):
     """A widget for holding a parameter value (int or float) that cannot be
-    changed from the UI. It does not implement valueChanged (as the other
-    param value widgets do in my pseudo-interface implementation)
-    because that is intended to be emitted when changes are made from the UI.
+    changed from the UI. The valueChanged signal is just to fit my interface
+    so that the compound widget can treat the static and editable children
+    the same.
     """
+
+    valueChanged = Signal(object)
 
     def update_value(self, value: int | float | None) -> None:
         if value is not None:
@@ -27,9 +40,12 @@ class StaticParamValue(QLabel):
 
 
 class EditableParamValue(QDoubleSpinBox):
+    valueChanged = Signal(object)
+
     def __init__(self, dtype: type, negative: bool = True) -> None:
         """A widget for holding an editable parameter value (int or float).
-        The valueChanged signal is inherited from the QDoubleSpinbox.
+        The valueChanged signal is overriden from the QDoubleSpinbox
+        to allow emitting NoneType.
 
         Args:
             dtype (type): The data type (int or float) of the parameter
@@ -58,8 +74,8 @@ class EditableParamValue(QDoubleSpinBox):
         return self.value()
 
 
-class CompoundParamValue:
-    valueChanged = Signal(CompoundSolverParam)
+class CompoundParamValue(QWidget):
+    valueChanged = Signal(object)
 
     def __init__(
         self,

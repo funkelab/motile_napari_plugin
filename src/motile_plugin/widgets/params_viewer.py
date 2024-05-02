@@ -11,7 +11,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from .params_helpers import CompoundParamValue, StaticParamValue
+from .param_values import CompoundParamValue, StaticParamValue
 
 
 class ParamView(QWidget):
