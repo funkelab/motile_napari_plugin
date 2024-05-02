@@ -1,5 +1,4 @@
 import logging
-from warnings import warn
 
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.backend.solve import solve
@@ -29,7 +28,7 @@ class MotileWidget(QWidget):
 
     # A signal for passing events from the motile solver to the run view widget
     # To provide updates on progress of the solver
-    solver_event = Signal(dict)
+    solver_update = Signal()
 
     def __init__(self, viewer: Viewer):
         super().__init__()
@@ -44,8 +43,9 @@ class MotileWidget(QWidget):
         self.edit_run_widget.start_run.connect(self._generate_tracks)
 
         self.view_run_widget = RunViewer()
+        self.view_run_widget.edit_run.connect(lambda: self.edit_run(None))
         self.view_run_widget.hide()
-        self.solver_event.connect(self.view_run_widget.solver_event_update)
+        self.solver_update.connect(self.view_run_widget.solver_event_update)
 
         self.run_list_widget = RunsList()
         self.run_list_widget.view_run.connect(self.view_run_napari)
@@ -80,11 +80,14 @@ class MotileWidget(QWidget):
         self.remove_napari_layers()
 
         # Create new layers
-        self.output_seg_layer = Labels(
-            run.output_segmentation[:, 0], name=run.run_name + "_seg"
-        )
+        if run.output_segmentation is not None:
+            self.output_seg_layer = Labels(
+                run.output_segmentation[:, 0], name=run.run_name + "_seg"
+            )
+        else:
+            self.output_seg_layer = None
+
         if run.tracks is None or run.tracks.number_of_nodes() == 0:
-            warn(f"No tracks found for run {run.run_name}", stacklevel=2)
             self.tracks_layer = None
         else:
             track_data, track_props, track_edges = to_napari_tracks_layer(
@@ -103,25 +106,16 @@ class MotileWidget(QWidget):
             self.viewer.add_layer(self.output_seg_layer)
             self.viewer.add_layer(self.tracks_layer)
 
-    def view_run(self, run: MotileRun):
-        """View the provided run in the run viewer. Does not include
-        adding the layers to napari.
-        Args:
-            run (MotileRun): The run to view
-        """
-        self.view_run_widget.reset_progress()
-        self.view_run_widget.update_run(run)
-        self.edit_run_widget.hide()
-        self.view_run_widget.show()
-
     def view_run_napari(self, run: MotileRun) -> None:
         """Populates the run viewer and the napari layers with the output
         of the provided run.
-        Note: this needs to be a single function so we can register it with a signal
+
         Args:
             run (MotileRun): The run to view
         """
-        self.view_run(run)
+        self.view_run_widget.update_run(run)
+        self.edit_run_widget.hide()
+        self.view_run_widget.show()
         self.update_napari_layers(run)
 
     def edit_run(self, run: MotileRun | None):
@@ -140,9 +134,12 @@ class MotileWidget(QWidget):
     def _generate_tracks(self, run: MotileRun) -> None:
         """Called when we start solving a new run. Switches from run editor to run viewer
         and starts solving of the new run in a separate thread to avoid blocking
+
+        Args:
+            run (MotileRun): Start solving this motile run.
         """
-        self.view_run(run)
-        self.view_run_widget.set_solver_label("initializing")
+        run.status = "initializing"
+        self.run_list_widget.add_run(run, select=True)
         worker = self.solve_with_motile(run)
         worker.returned.connect(self._on_solve_complete)
         worker.start()
@@ -163,22 +160,51 @@ class MotileWidget(QWidget):
             MotileRun: The provided run with the output graph and segmentation included.
         """
         run.tracks = solve(
-            run.solver_params, run.input_segmentation, self.solver_event.emit
+            run.solver_params,
+            run.input_segmentation,
+            lambda event_data: self._on_solver_event(run, event_data),
         )
         run.output_segmentation = relabel_segmentation(
             run.tracks, run.input_segmentation
         )
         return run
 
+    def _on_solver_event(self, run: MotileRun, event_data: dict) -> None:
+        """Parse the solver event and set the run status and gap accordingly.
+        Also emits a solver_update event to tell the run viewer to update.
+        Note: This will simply tell the run viewer to refresh its plot and
+        status. If the run viewer is not viewing this run, it will refresh
+        anyways, which is pointless but not harmful.
+
+        Args:
+            run (MotileRun): The run that the solver is working on
+            event_data (dict): The solver event data from ilpy.EventData
+        """
+        event_type = event_data["event_type"]
+        if (
+            event_type in ["PRESOLVE", "PRESOLVEROUND"]
+            and run.status != "presolving"
+        ):
+            run.status = "presolving"
+            run.gaps = (
+                []
+            )  # try this to remove the weird initial gap for gurobi
+            self.solver_update.emit()
+        elif event_type in ["MIPSOL", "BESTSOLFOUND"]:
+            run.status = "solving"
+            gap = event_data["gap"]
+            run.gaps.append(gap)
+            self.solver_update.emit()
+
     def _on_solve_complete(self, run: MotileRun) -> None:
-        """Called when the solver thread returns. Adds the completed run
-        to the runs list and selects it. Updates the solver status label to done.
+        """Called when the solver thread returns. Updates the run status to done
+        and tells the run viewer to update.
 
         Args:
             run (MotileRun): The completed run
         """
-        self.run_list_widget.add_run(run.copy(), select=True)
-        self.view_run_widget.set_solver_label("done")
+        run.status = "done"
+        self.solver_update.emit()
 
     def _title_widget(self) -> QWidget:
         """Create the title and intro paragraph widget, with links to docs

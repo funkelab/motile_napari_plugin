@@ -26,6 +26,7 @@ class MotileRun(BaseModel):
     tracks: nx.DiGraph | None = None
     time: datetime = datetime.now()
     gaps: list[float] = []
+    status: str = "done"
 
     class Config:
         allow_mutation = False

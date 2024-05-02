@@ -6,6 +6,7 @@ import pyqtgraph as pg
 from motile_plugin.backend.motile_run import MotileRun
 from motile_toolbox.candidate_graph import NodeAttr
 from napari._qt.qt_resources import QColoredSVGIcon
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QFileDialog,
     QGroupBox,
@@ -27,6 +28,8 @@ class RunViewer(QGroupBox):
     Output tracks and segmentation are visualized separately in napari layers.
     """
 
+    edit_run = Signal()
+
     def __init__(self):
         super().__init__(title="Run Viewer")
         # define attributes
@@ -43,10 +46,15 @@ class RunViewer(QGroupBox):
         export_tracks_btn = QPushButton("Export tracks to CSV")
         export_tracks_btn.clicked.connect(self.export_tracks)
 
+        # create back to editing button
+        edit_run_button = QPushButton("Back to Editing")
+        edit_run_button.clicked.connect(self.edit_run.emit)
+
         # Create layout and add subwidgets
         main_layout = QVBoxLayout()
         main_layout.addWidget(self._title_widget())
         main_layout.addWidget(export_tracks_btn)
+        main_layout.addWidget(edit_run_button)
         main_layout.addWidget(self._progress_widget())
         main_layout.addWidget(self.params_widget)
         self.setLayout(main_layout)
@@ -54,8 +62,9 @@ class RunViewer(QGroupBox):
     def update_run(self, run: MotileRun):
         self.run = run
         self.run_name_widget.setText(self._run_name_view(self.run))
-        self.plot_gaps()
-        self.set_solver_label("done")
+        print("Update from new run")
+        self.gap_plot.getPlotItem().clear()
+        self.solver_event_update()
         self.params_widget.new_params.emit(run.solver_params)
 
     def _run_name_view(self, run: MotileRun) -> str:
@@ -108,9 +117,13 @@ class RunViewer(QGroupBox):
         gap_plot.plotItem.setLabel("bottom", "Solver round", **styles)
         return gap_plot
 
-    def plot_gaps(self):
-        gaps = self.run.gaps
-        self.gap_plot.getPlotItem().plot(range(len(gaps)), gaps)
+    def plot_gaps(self, gaps: list[float]):
+        y = range(len(gaps))
+        print(y, gaps)
+        if len(gaps) > 0:
+            self.gap_plot.getPlotItem().plot(range(len(gaps)), gaps)
+        else:
+            self.gap_plot.getPlotItem().clear()
 
     def _save_dialog(self) -> QFileDialog:
         save_run_dialog = QFileDialog()
@@ -134,7 +147,10 @@ class RunViewer(QGroupBox):
 
     def export_tracks(self):
         """Export the tracks from this run to a csv with the following columns:
-        t, [z], y, x, id, parent_id
+        t,[z],y,x,id,parent_id
+        Cells without a parent_id will have an empty string for the parent_id.
+        Whether or not to include z is inferred from the length of an
+        arbitrary node's position attribute.
         """
         default_name = MotileRun._make_directory(
             self.run.time, self.run.run_name
@@ -166,19 +182,10 @@ class RunViewer(QGroupBox):
         else:
             warn("Exporting aborted", stacklevel=2)
 
-    def solver_event_update(self, event_data):
-        event_type = event_data["event_type"]
-        if event_type in ["PRESOLVE", "PRESOLVEROUND"]:
-            self.set_solver_label("presolving")
-            self.run.gaps = (
-                []
-            )  # try this to remove the weird initial gap for gurobi
-        elif event_type in ["MIPSOL", "BESTSOLFOUND"]:
-            self.set_solver_label("solving")
-            gap = event_data["gap"]
-            print(f"{gap=}")
-            self.run.gaps.append(event_data["gap"])
-            self.plot_gaps()
+    def solver_event_update(self):
+        print("solver event update)")
+        self.set_solver_label(self.run.status)
+        self.plot_gaps(self.run.gaps)
 
     def reset_progress(self):
         self.set_solver_label("not running")

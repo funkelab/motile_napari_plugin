@@ -65,10 +65,6 @@ class RunsList(QWidget):
         self.file_dialog.setFileMode(QFileDialog.Directory)
         self.file_dialog.setOption(QFileDialog.ShowDirsOnly, True)
 
-        self.edit_run_button = QPushButton("Back to Editing")
-        self.edit_run_button.clicked.connect(partial(self.edit_run.emit, None))
-        self.edit_run_button.clicked.connect(self.runs_list.clearSelection)
-        layout.addWidget(self.edit_run_button)
         layout.addWidget(self._load_widget())
         self.setLayout(layout)
 
