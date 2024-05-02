@@ -25,7 +25,6 @@ from superqt.fonticon import icon
 from .params_editor import SolverParamsEditor
 
 if TYPE_CHECKING:
-    from motile_plugin.backend.solver_params import SolverParams
     import napari
     import napari.layers
 
@@ -89,17 +88,14 @@ class RunEditor(QGroupBox):
         self.refresh_layer_button.setToolTip(
             "Refresh this selection box with current napari layers"
         )
-        self.refresh_layer_button.clicked.connect(
-            self.update_labels_layers
-        )
+        self.refresh_layer_button.clicked.connect(self.update_labels_layers)
         layer_layout.addWidget(self.refresh_layer_button)
 
         layer_group.setLayout(layer_layout)
         return layer_group
 
     def update_labels_layers(self) -> None:
-        """Update the layer selection box with the  labels layers in the viewer
-        """
+        """Update the layer selection box with the  labels layers in the viewer"""
         self.layer_selection_box.clear()
         for layer in self.viewer.layers:
             if isinstance(layer, Labels):
@@ -108,20 +104,23 @@ class RunEditor(QGroupBox):
             self.layer_selection_box.addItem("None")
 
     def get_labels_data(self) -> np.ndarray | None:
-        """Get the input segmentation given the current selection in the 
+        """Get the input segmentation given the current selection in the
         layer dropdown.
 
         Returns:
             np.ndarray | None: The data of the labels layer with the name
-                that is selected, or None if the layer name is not present in 
-                the viewer or is not a labels layer. 
+                that is selected, or None if the layer name is not present in
+                the viewer or is not a labels layer.
         """
         layer_name = self.layer_selection_box.currentText()
         if layer_name == "None" or layer_name not in self.viewer.layers:
             return None
         layer = self.viewer.layers[layer_name]
         if not isinstance(layer, Labels):
-            warn(f"Layer {layer_name} is not a Labels layer. List refresh needed", stacklevel=2)
+            warn(
+                f"Layer {layer_name} is not a Labels layer. List refresh needed",
+                stacklevel=2,
+            )
             return None
         return layer.data
 
@@ -149,7 +148,7 @@ class RunEditor(QGroupBox):
         return reshaped
 
     def _run_widget(self) -> QWidget:
-        """ Construct a widget where you set the run name and start solving.
+        """Construct a widget where you set the run name and start solving.
         Initializes self.run_name and connects the generate tracks button
         to emit the new_run signal.
 

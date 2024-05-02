@@ -3,7 +3,6 @@ from warnings import warn
 
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.backend.solve import solve
-from motile_plugin.backend.solver_params import SolverParams
 from motile_toolbox.utils import relabel_segmentation
 from motile_toolbox.visualization import to_napari_tracks_layer
 from napari import Viewer
@@ -31,7 +30,6 @@ class MotileWidget(QWidget):
     # A signal for passing events from the motile solver to the run view widget
     # To provide updates on progress of the solver
     solver_event = Signal(dict)
-    
 
     def __init__(self, viewer: Viewer):
         super().__init__()

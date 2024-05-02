@@ -1,4 +1,7 @@
-from motile_plugin.backend.solver_params import CompoundSolverParam, SolverParams
+from motile_plugin.backend.solver_params import (
+    CompoundSolverParam,
+    SolverParams,
+)
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QGroupBox,
@@ -7,9 +10,8 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from abc import ABC
-from typing import Any
-from .params_helpers import ParamValueLabel, CompoundParamValue, ParamValueWidget
+
+from .params_helpers import CompoundParamValue, StaticParamValue
 
 
 class ParamView(QWidget):
@@ -30,9 +32,15 @@ class ParamView(QWidget):
         field = solver_params.model_fields[param_name]
         self.dtype = field.annotation
         self.title = field.title
-        self.param_label = self._param_label_widget()
+        self.param_label = QLabel(self.title)
         self.param_label.setToolTip(field.description)
-        self.param_value: ParamValueWidget = self._param_value_widget()
+        self.param_value: CompoundParamValue | StaticParamValue
+        if issubclass(CompoundSolverParam, self.dtype):
+            self.param_value = CompoundParamValue(
+                StaticParamValue(), StaticParamValue()
+            )
+        else:
+            self.param_value = StaticParamValue()
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -41,15 +49,6 @@ class ParamView(QWidget):
         self.setLayout(layout)
 
         self.update_from_params(solver_params)
-    
-    def _param_value_widget(self) -> ParamValueWidget:
-        if issubclass(CompoundSolverParam, self.dtype):
-            return CompoundParamValue(ParamValueLabel(), ParamValueLabel())
-        else:
-            return ParamValueLabel()
-
-    def _param_label_widget(self) -> QWidget:
-        return QLabel(self.title)
 
     def update_from_params(self, params: SolverParams):
         """Updates the current parameter value displayed in self.param_value,
@@ -73,6 +72,7 @@ class SolverParamsViewer(QWidget):
     SolverParams, emit the new_params signal, which each parameter label
     will connect to and use to update the UI.
     """
+
     new_params = Signal(SolverParams)
 
     def __init__(self):
