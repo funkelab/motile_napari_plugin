@@ -9,6 +9,7 @@ from motile_plugin.backend.motile_run import MotileRun
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtWidgets import (
     QFileDialog,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -20,7 +21,7 @@ from superqt import QCollapsible
 from .params_viewer import SolverParamsViewer
 
 
-class RunViewer(QWidget):
+class RunViewer(QGroupBox):
     """A widget for viewing in progress or completed runs, including
     the progress of the solver and the parameters. Can also save the whole
     run or export the tracks to CSV.
@@ -28,7 +29,7 @@ class RunViewer(QWidget):
     """
 
     def __init__(self):
-        super().__init__()
+        super().__init__(title="Run Viewer")
         # define attributes
         self.run: MotileRun = None
         self.run_name_widget = QLabel("No run selected")

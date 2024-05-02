@@ -60,7 +60,7 @@ def construct_solver(cand_graph, solver_params, exclusive_sets):
             EdgeDistance(
                 position_attribute=NodeAttr.POS.value,
                 weight=solver_params.distance.weight,
-                constant=solver_params.distance.offset,
+                constant=solver_params.distance.constant,
             ),
             name="distance",
         )
@@ -69,7 +69,7 @@ def construct_solver(cand_graph, solver_params, exclusive_sets):
             EdgeSelection(
                 weight=solver_params.iou.weight,
                 attribute=EdgeAttr.IOU.value,
-                constant=solver_params.iou.offset,
+                constant=solver_params.iou.constant,
             ),
             name="iou",
         )
