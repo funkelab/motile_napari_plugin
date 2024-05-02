@@ -1,11 +1,10 @@
 import importlib.resources
-import json
 from pathlib import Path
 from warnings import warn
 
-import networkx as nx
 import pyqtgraph as pg
 from motile_plugin.backend.motile_run import MotileRun
+from motile_toolbox.candidate_graph import NodeAttr
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtWidgets import (
     QFileDialog,
@@ -123,7 +122,7 @@ class RunViewer(QGroupBox):
         export_tracks_dialog = QFileDialog()
         export_tracks_dialog.setFileMode(QFileDialog.AnyFile)
         export_tracks_dialog.setAcceptMode(QFileDialog.AcceptSave)
-        export_tracks_dialog.setDefaultSuffix("json")
+        export_tracks_dialog.setDefaultSuffix("csv")
         return export_tracks_dialog
 
     def save_run(self):
@@ -134,16 +133,36 @@ class RunViewer(QGroupBox):
             warn("Saving aborted", stacklevel=2)
 
     def export_tracks(self):
+        """Export the tracks from this run to a csv with the following columns:
+        t, [z], y, x, id, parent_id
+        """
         default_name = MotileRun._make_directory(
             self.run.time, self.run.run_name
         )
-        default_name = f"{default_name}_tracks.json"
+        default_name = f"{default_name}_tracks.csv"
         base_path = Path(self.export_tracks_dialog.directory().path())
         self.export_tracks_dialog.selectFile(str(base_path / default_name))
         if self.export_tracks_dialog.exec_():
             outfile = self.export_tracks_dialog.selectedFiles()[0]
+            header = ["t", "z", "y", "x", "id", "parent_id"]
+            tracks = self.run.tracks
+            _, sample_data = next(iter(tracks.nodes(data=True)))
+            ndim = len(sample_data[NodeAttr.POS.value])
+            if ndim == 2:
+                header = [header[0]] + header[2:]  # remove z
             with open(outfile, "w") as f:
-                json.dump(nx.node_link_data(self.run.tracks), f)
+                f.write(",".join(header))
+                for node_id, data in tracks.nodes(data=True):
+                    parents = list(tracks.predecessors(node_id))
+                    parent_id = "" if len(parents) == 0 else parents[0]
+                    row = [
+                        data[NodeAttr.TIME.value],
+                        *data[NodeAttr.POS.value],
+                        node_id,
+                        parent_id,
+                    ]
+                    f.write("\n")
+                    f.write(",".join(map(str, row)))
         else:
             warn("Exporting aborted", stacklevel=2)
 
