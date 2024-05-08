@@ -1,9 +1,10 @@
-from urllib.request import urlretrieve
 import zipfile
 from pathlib import Path
+from urllib.request import urlretrieve
+
 import tifffile
 import zarr
-from cellpose import models
+
 
 def download_hela_dataset(data_dir: Path):
     """Download the Fluo-N2DL-HeLa dataset from the Cell Tracking Challenge
@@ -12,9 +13,10 @@ def download_hela_dataset(data_dir: Path):
     path = "http://data.celltrackingchallenge.net/training-datasets/Fluo-N2DL-HeLa.zip"
     zip_filename = data_dir / "Fluo-N2DL-HeLa.zip"
     urlretrieve(path, filename=zip_filename)
-    with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
+    with zipfile.ZipFile(zip_filename, "r") as zip_ref:
         zip_ref.extractall(data_dir)
     zip_filename.unlink()
+
 
 def convert_to_zarr(tif_path: Path, zarr_path: Path, zarr_group: str):
     """Convert tiff file image data to zarr"""
@@ -27,13 +29,17 @@ def convert_to_zarr(tif_path: Path, zarr_path: Path, zarr_group: str):
     # prepare zarr
     zarr_path.mkdir(parents=True, exist_ok=True)
     store = zarr.NestedDirectoryStore(zarr_path)
-    zarr_array = zarr.open(store=store, mode='w', path=zarr_group, shape=data_shape, dtype=data_dtype)
+    zarr_array = zarr.open(
+        store=store,
+        mode="w",
+        path=zarr_group,
+        shape=data_shape,
+        dtype=data_dtype,
+    )
     # load and save data in zarr
     for t, file in enumerate(files):
         image = tifffile.imread(file)
         zarr_array[t] = image
-        
-
 
 
 if __name__ == "__main__":
