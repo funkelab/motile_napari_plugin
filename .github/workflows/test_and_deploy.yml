@@ -43,32 +43,25 @@ jobs:
           git clone --depth 1 https://github.com/pyvista/gl-ci-helpers.git
           powershell gl-ci-helpers/appveyor/install_opengl.ps1
 
-      # install required conda dependencies
+      # note: if you need dependencies from conda, considering using
       # setup-miniconda: https://github.com/conda-incubator/setup-miniconda
-      - name: Install conda dependencies
-        uses: conda-incubator/setup-miniconda@v3
+      # and
+      # tox-conda: https://github.com/tox-dev/tox-conda
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install setuptools tox tox-gh-actions
+
+      # this runs the platform-specific tests declared in tox.ini
+      - name: Test with tox
+        uses: aganders3/headless-gui@v1
         with:
-            python-version: ${{ matrix.python-version }}
-            environment-file: conda_config.yml
-            channel-priority: true
+          run: python -m tox
+        env:
+          PLATFORM: ${{ matrix.platform }}
 
-        
-    - name: Install dependencies
-      shell: bash -el {0}  # this is necessary to activate the conda env
-      run: |
-        pip install ".[dev]"
-
-    - name: Test with pytest
-      shell: bash -el {0}
-      run: |
-        pytest -v --color=yes --cov=motile_plugin --cov-report=xml --cov-report=term-missing
-    # Coverage should work out of the box for public repos. For private repos, more setup is likely required.
-    - name: Coverage
-      uses: codecov/codecov-action@v4
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        slug: funkelab/motile_napari_plugin
-
+      - name: Coverage
+        uses: codecov/codecov-action@v3
 
   deploy:
     # this will run when you have tagged a commit, starting with "v*"
