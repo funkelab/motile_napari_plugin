@@ -6,6 +6,10 @@ visibility: public
 categories: ["Annotation", "Segmentation", "Acquisition"]
 contributions:
   commands:
+    - id: motile-plugin.make_qwidget
+      python_name: motile_plugin.widgets.motile_widget:MotileWidget
+      title: "Start the motile widget"
   widgets:
     - command: motile-plugin.make_qwidget
       display_name: Example QWidget
+
