@@ -57,16 +57,16 @@ jobs:
         run: |
           pip install ".[dev]"
 
-      # this runs the platform-specific tests declared in tox.ini
-      - name: Test with tox
-        uses: aganders3/headless-gui@v1
-        with:
-          run: python -m tox
-        env:
-          PLATFORM: ${{ matrix.platform }}
+      - name: Test with pytest
+        shell: bash -el {0}
+        run: |
+          pytest --color=yes --cov=motile_toolbox --cov-report=xml --cov-report=term-missing tests
 
       - name: Coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: funkelab/motile_napari_plugin
 
   deploy:
     # this will run when you have tagged a commit, starting with "v*"
