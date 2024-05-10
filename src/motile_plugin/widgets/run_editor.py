@@ -4,13 +4,12 @@ import logging
 from typing import TYPE_CHECKING
 from warnings import warn
 
+import magicgui.widgets
+import napari.layers
 import numpy as np
-from fonticon_fa6 import FA6S
 from motile_plugin.backend.motile_run import MotileRun
-from napari.layers import Labels
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
-    QComboBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -20,13 +19,11 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt.fonticon import icon
 
 from .params_editor import SolverParamsEditor
 
 if TYPE_CHECKING:
     import napari
-    import napari.layers
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +45,7 @@ class RunEditor(QGroupBox):
         self.solver_params_widget = SolverParamsEditor()
         self.run_name: QLineEdit
         self.refresh_layer_button: QPushButton
-        self.layer_selection_box: QComboBox
+        self.layer_selection_box: magicgui.widgets.Widget
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self._run_widget())
@@ -68,30 +65,30 @@ class RunEditor(QGroupBox):
         layer_group = QWidget()
         layer_layout = QHBoxLayout()
         layer_layout.setContentsMargins(0, 0, 0, 0)
-        layer_layout.addWidget(QLabel("Input Layer:"))
-
-        # Layer selection combo box
-        self.layer_selection_box = QComboBox()
-        self.update_labels_layers()
-        self.layer_selection_box.setToolTip(
+        label = QLabel("Input Layer:")
+        layer_layout.addWidget(label)
+        label.setToolTip(
             "Select the labels layer you want to use for tracking"
         )
-        size_policy = self.layer_selection_box.sizePolicy()
+
+        # # Layer selection combo box
+        self.layer_selection_box = magicgui.widgets.create_widget(
+            annotation=napari.layers.Labels
+        )
+        layers_events = self.viewer.layers.events
+        layers_events.inserted.connect(self.layer_selection_box.reset_choices)
+        layers_events.removed.connect(self.layer_selection_box.reset_choices)
+        layers_events.reordered.connect(self.layer_selection_box.reset_choices)
+
+        qlayer_select = self.layer_selection_box.native
+
+        size_policy = qlayer_select.sizePolicy()
         size_policy.setHorizontalPolicy(QSizePolicy.MinimumExpanding)
-        self.layer_selection_box.setSizePolicy(size_policy)
-        layer_layout.addWidget(self.layer_selection_box)
+        qlayer_select.setSizePolicy(size_policy)
+        layer_layout.addWidget(qlayer_select)
 
         layer_group.setLayout(layer_layout)
         return layer_group
-
-    def update_labels_layers(self) -> None:
-        """Update the layer selection box with the  labels layers in the viewer"""
-        self.layer_selection_box.clear()
-        for layer in self.viewer.layers:
-            if isinstance(layer, Labels):
-                self.layer_selection_box.addItem(layer.name)
-        if len(self.layer_selection_box) == 0:
-            self.layer_selection_box.addItem("None")
 
     def get_labels_data(self) -> np.ndarray | None:
         """Get the input segmentation given the current selection in the
@@ -99,18 +96,10 @@ class RunEditor(QGroupBox):
 
         Returns:
             np.ndarray | None: The data of the labels layer with the name
-                that is selected, or None if the layer name is not present in
-                the viewer or is not a labels layer.
+                that is selected, or None if no layer is selected.
         """
-        layer_name = self.layer_selection_box.currentText()
-        if layer_name == "None" or layer_name not in self.viewer.layers:
-            return None
-        layer = self.viewer.layers[layer_name]
-        if not isinstance(layer, Labels):
-            warn(
-                f"Layer {layer_name} is not a Labels layer. List refresh needed",
-                stacklevel=2,
-            )
+        layer = self.layer_selection_box.value
+        if layer is None:
             return None
         return layer.data
 
