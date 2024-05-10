@@ -81,16 +81,6 @@ class RunEditor(QGroupBox):
         self.layer_selection_box.setSizePolicy(size_policy)
         layer_layout.addWidget(self.layer_selection_box)
 
-        # Refresh button
-        self.refresh_layer_button = QPushButton(
-            icon=icon(FA6S.arrows_rotate, color="white")
-        )
-        self.refresh_layer_button.setToolTip(
-            "Refresh this selection box with current napari layers"
-        )
-        self.refresh_layer_button.clicked.connect(self.update_labels_layers)
-        layer_layout.addWidget(self.refresh_layer_button)
-
         layer_group.setLayout(layer_layout)
         return layer_group
 
