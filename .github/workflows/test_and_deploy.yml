@@ -51,12 +51,12 @@ jobs:
             channel-priority: true
 
         
-      - name: Install dependencies
-        shell: bash -el {0}  # this is necessary to activate the conda env
-        run: |
-          pip install ".[dev]"
+    - name: Install dependencies
+      shell: bash -el {0}  # this is necessary to activate the conda env
+      run: |
+        pip install ".[dev]"
 
-      - name: Test with pytest
+    - name: Test with pytest
       shell: bash -el {0}
       run: |
         pytest -v --color=yes --cov=motile_plugin --cov-report=xml --cov-report=term-missing
