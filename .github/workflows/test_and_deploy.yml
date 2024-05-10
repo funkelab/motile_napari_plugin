@@ -55,7 +55,7 @@ jobs:
       - name: Install pip dependencies
         shell: bash -el {0}  # this is necessary to activate the conda env
         run: |
-          pip install ".[dev]"
+          pip install ".[testing]"
 
       - name: Test with pytest
         shell: bash -el {0}
