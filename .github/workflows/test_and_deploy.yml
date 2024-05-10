@@ -45,8 +45,13 @@ jobs:
 
       # note: if you need dependencies from conda, considering using
       # setup-miniconda: https://github.com/conda-incubator/setup-miniconda
-      # and
-      # tox-conda: https://github.com/tox-dev/tox-conda
+      - name: Install conda dependencies
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+            python-version: ${{ matrix.python-version }}
+            environment-file: conda_config.yml
+            channel-priority: true
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
