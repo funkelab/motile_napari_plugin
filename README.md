@@ -1,9 +1,5 @@
 # Motile Napari Plugin
 
-[![License BSD-3](https://img.shields.io/pypi/l/motile-plugin.svg?color=green)](https://github.com/funkelab/motile-napari-plugin/raw/main/LICENSE)
-<!--[![PyPI](https://img.shields.io/pypi/v/motile-plugin.svg?color=green)](https://pypi.org/project/motile-plugin)
-[![Python Version](https://img.shields.io/pypi/pyversions/motile-plugin.svg?color=green)](https://python.org)
--->
 [![tests](https://github.com/funkelab/motile-napari-plugin/workflows/tests/badge.svg)](https://github.com/funkelab/motile-napari-plugin/actions)
 [![codecov](https://codecov.io/gh/funkelab/motile-napari-plugin/branch/main/graph/badge.svg)](https://codecov.io/gh/funkelab/motile-napari-plugin)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/motile-plugin)](https://napari-hub.org/plugins/motile-plugin)
@@ -20,7 +16,7 @@ for more details on the concepts and method.
 
 This plugin depends on [motile](https://github.com/funkelab/motile), which in 
 turn depends on gurobi and ilpy. These dependencies must be installed with 
-conda before installing motile toolbox with pip.
+conda before installing the plugin with pip.
 
     conda create -n motile-plugin python>=3.10
     conda activate motile-plugin
