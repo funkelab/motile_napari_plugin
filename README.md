@@ -21,6 +21,7 @@ for more details on the concepts and method.
 This plugin depends on [motile](https://github.com/funkelab/motile), which in 
 turn depends on gurobi and ilpy. These dependencies must be installed with 
 conda before installing motile toolbox with pip.
+
     conda create -n motile-plugin python>=3.10
     conda activate motile-plugin
     conda install -c conda-forge -c funkelab -c gurobi ilpy
