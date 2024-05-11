@@ -3,13 +3,25 @@ display_name: Motile
 # use 'hidden' to remove plugin from napari hub search results
 visibility: public
 # see https://napari.org/stable/plugins/manifest.html for valid categories
-categories: ["Annotation", "Segmentation", "Acquisition"]
+categories: ["Utilities"]
 contributions:
   commands:
     - id: motile-plugin.motile_widget
       python_name: motile_plugin.widgets.motile_widget:MotileWidget
       title: "Start the motile widget"
+      short_title: "motile widget"
+    - id: motile-plugin.solve
+      python_name: motile_plugin.backend.solve:solve
+      title: "Run motile tracking (backend only)"
+      short_title: "Run motile tracking"
+    - id: motile-plugin.Fluo_N2DL_HeLa
+      python_name: motile_plugin.example_data:Fluo_N2DL_HeLa
+      title: "Run motile tracking (backend only)"
+      short_title: "Run motile tracking"
   widgets:
     - command: motile-plugin.motile_widget
       display_name: Motile Plugin
-
+  sample_data:
+    - command: motile-plugin.Fluo_N2DL_HeLa
+      key: "Fluo-N2DL-HeLa"
+      display_name: "Fluo-N2DL-HeLa"
