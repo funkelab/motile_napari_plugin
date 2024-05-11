@@ -7,7 +7,7 @@
 A plugin for tracking with [motile](https://github.com/funkelab/motile) in napari. 
 Motile is a library that makes it easy to solve tracking problems using optimization 
 by framing the task as an Integer Linear Program (ILP).
-See the motile [documentation](https://funkelab.github.io/motile_toolbox) 
+See the motile [documentation](https://funkelab.github.io/motile) 
 for more details on the concepts and method.
 
 ----------------------------------
