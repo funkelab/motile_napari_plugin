@@ -97,12 +97,12 @@ def graph_2d():
         (
             "0_1",
             "1_1",
-            {EdgeAttr.DISTANCE.value: 42.43, EdgeAttr.IOU.value: 0.0},
+            {EdgeAttr.IOU.value: 0.0},
         ),
         (
             "0_1",
             "1_2",
-            {EdgeAttr.DISTANCE.value: 11.18, EdgeAttr.IOU.value: 0.395},
+            {EdgeAttr.IOU.value: 0.395},
         ),
     ]
     graph.add_nodes_from(nodes)
@@ -174,42 +174,42 @@ def multi_hypothesis_graph_2d():
         (
             "0_0_1",
             "1_0_1",
-            {EdgeAttr.DISTANCE.value: 42.426, EdgeAttr.IOU.value: 0.0},
+            {EdgeAttr.IOU.value: 0.0},
         ),
         (
             "0_0_1",
             "1_1_1",
-            {EdgeAttr.DISTANCE.value: 43.011, EdgeAttr.IOU.value: 0.0},
+            {EdgeAttr.IOU.value: 0.0},
         ),
         (
             "0_0_1",
             "1_0_2",
-            {EdgeAttr.DISTANCE.value: 11.180, EdgeAttr.IOU.value: 0.3931},
+            {EdgeAttr.IOU.value: 0.3931},
         ),
         (
             "0_0_1",
             "1_1_2",
-            {EdgeAttr.DISTANCE.value: 11.180, EdgeAttr.IOU.value: 0.4768},
+            {EdgeAttr.IOU.value: 0.4768},
         ),
         (
             "0_1_1",
             "1_0_1",
-            {EdgeAttr.DISTANCE.value: 43.011, EdgeAttr.IOU.value: 0.0},
+            {EdgeAttr.IOU.value: 0.0},
         ),
         (
             "0_1_1",
             "1_1_1",
-            {EdgeAttr.DISTANCE.value: 42.426, EdgeAttr.IOU.value: 0.0},
+            {EdgeAttr.IOU.value: 0.0},
         ),
         (
             "0_1_1",
             "1_0_2",
-            {EdgeAttr.DISTANCE.value: 15.0, EdgeAttr.IOU.value: 0.2402},
+            {EdgeAttr.IOU.value: 0.2402},
         ),
         (
             "0_1_1",
             "1_1_2",
-            {EdgeAttr.DISTANCE.value: 11.180, EdgeAttr.IOU.value: 0.3931},
+            {EdgeAttr.IOU.value: 0.3931},
         ),
     ]
     graph.add_nodes_from(nodes)
@@ -309,10 +309,8 @@ def graph_3d():
         ),
     ]
     edges = [
-        # math.dist([50, 50], [20, 80])
-        ("0_1", "1_1", {EdgeAttr.DISTANCE.value: 42.43}),
-        # math.dist([50, 50], [60, 45])
-        ("0_1", "1_2", {EdgeAttr.DISTANCE.value: 11.18}),
+        ("0_1", "1_1"),
+        ("0_1", "1_2"),
     ]
     graph.add_nodes_from(nodes)
     graph.add_edges_from(edges)
@@ -370,12 +368,12 @@ def multi_hypothesis_graph_3d():
         ),
     ]
     edges = [
-        ("0_0_1", "1_0_1", {EdgeAttr.DISTANCE.value: 42.4264}),
-        ("0_0_1", "1_0_2", {EdgeAttr.DISTANCE.value: 11.1803}),
-        ("0_1_1", "1_0_1", {EdgeAttr.DISTANCE.value: 35.3553}),
-        ("0_1_1", "1_0_2", {EdgeAttr.DISTANCE.value: 18.0277}),
-        ("0_0_1", "1_1_1", {EdgeAttr.DISTANCE.value: 40.3112}),
-        ("0_1_1", "1_1_1", {EdgeAttr.DISTANCE.value: 33.5410}),
+        ("0_0_1", "1_0_1"),
+        ("0_0_1", "1_0_2"),
+        ("0_1_1", "1_0_1"),
+        ("0_1_1", "1_0_2"),
+        ("0_0_1", "1_1_1"),
+        ("0_1_1", "1_1_1"),
     ]
     graph.add_nodes_from(nodes)
     graph.add_edges_from(edges)
