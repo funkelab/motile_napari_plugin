@@ -27,10 +27,8 @@ class MotileRun(BaseModel):
     time: datetime = datetime.now()
     gaps: list[float] = []
     status: str = "done"
-
-    class Config:
-        allow_mutation = False
-        arbitrary_types_allowed = True
+    # pydantic does not check numpy arrays
+    model_config = {"arbitrary_types_allowed": True}
 
     @staticmethod
     def _make_directory(time, run_name):
