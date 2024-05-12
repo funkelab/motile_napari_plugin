@@ -60,7 +60,7 @@ jobs:
       - name: Test with pytest
         shell: bash -el {0}
         run: |
-          pytest --color=yes --cov=motile_toolbox --cov-report=xml --cov-report=term-missing tests
+          pytest --color=yes --cov=motile-napari-plugin --cov-report=xml --cov-report=term-missing tests
 
       - name: Coverage
         uses: codecov/codecov-action@v4
