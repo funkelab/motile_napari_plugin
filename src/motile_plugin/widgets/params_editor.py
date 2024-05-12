@@ -1,19 +1,19 @@
 from functools import partial
 from types import NoneType
 
-from motile_plugin.backend.solver_params import (
-    CompoundSolverParam,
-    SolverParams,
-)
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QCheckBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QVBoxLayout,
     QWidget,
+)
+
+from motile_plugin.backend.solver_params import (
+    CompoundSolverParam,
+    SolverParams,
 )
 
 from .param_values import CompoundParamValue, EditableParamValue
@@ -144,10 +144,6 @@ class SolverParamsEditor(QWidget):
 
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
-
-        debug_button = QPushButton("Print params")
-        debug_button.clicked.connect(lambda: print(self.solver_params))
-        main_layout.addWidget(debug_button)
         main_layout.addWidget(
             self._params_group(
                 "Hyperparameters", "hyperparams", negative=False
@@ -156,8 +152,6 @@ class SolverParamsEditor(QWidget):
         main_layout.addWidget(
             self._params_group("Costs", "costs", negative=True)
         )
-        # for group in self._ui_variable_costs():
-        # main_layout.addWidget(group)
         self.setLayout(main_layout)
 
     def _params_group(

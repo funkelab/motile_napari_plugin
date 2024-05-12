@@ -1,7 +1,3 @@
-from motile_plugin.backend.solver_params import (
-    CompoundSolverParam,
-    SolverParams,
-)
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QGroupBox,
@@ -9,6 +5,11 @@ from qtpy.QtWidgets import (
     QLabel,
     QVBoxLayout,
     QWidget,
+)
+
+from motile_plugin.backend.solver_params import (
+    CompoundSolverParam,
+    SolverParams,
 )
 
 from .param_values import CompoundParamValue, StaticParamValue

@@ -27,10 +27,8 @@ class MotileRun(BaseModel):
     time: datetime = datetime.now()
     gaps: list[float] = []
     status: str = "done"
-
-    class Config:
-        allow_mutation = False
-        arbitrary_types_allowed = True
+    # pydantic does not check numpy arrays
+    model_config = {"arbitrary_types_allowed": True}
 
     @staticmethod
     def _make_directory(time, run_name):
@@ -152,7 +150,6 @@ class MotileRun(BaseModel):
     def delete(self, base_path: str | Path):
         base_path = Path(base_path)
         run_dir = base_path / self._make_directory(self.time, self.run_name)
-        print(f"Deleting run in directory {run_dir}")
         # Lets be safe and remove the expected files and then the directory
         (run_dir / PARAMS_FILENAME).unlink()
         (run_dir / IN_SEG_FILEANME).unlink()

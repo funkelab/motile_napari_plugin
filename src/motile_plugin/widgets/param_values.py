@@ -13,9 +13,10 @@ class ParamValue(QWidget):
 This "interface" is only enforced by duck typing, as is the pythonic way.
 """
 
-from motile_plugin.backend.solver_params import CompoundSolverParam
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QWidget
+
+from motile_plugin.backend.solver_params import CompoundSolverParam
 
 
 class StaticParamValue(QLabel):

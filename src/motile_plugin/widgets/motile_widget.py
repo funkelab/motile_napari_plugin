@@ -1,7 +1,5 @@
 import logging
 
-from motile_plugin.backend.motile_run import MotileRun
-from motile_plugin.backend.solve import solve
 from motile_toolbox.utils import relabel_segmentation
 from motile_toolbox.visualization import to_napari_tracks_layer
 from napari import Viewer
@@ -13,6 +11,9 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import thread_worker
+
+from motile_plugin.backend.motile_run import MotileRun
+from motile_plugin.backend.solve import solve
 
 from .run_editor import RunEditor
 from .run_viewer import RunViewer

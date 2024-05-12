@@ -1,7 +1,6 @@
 from functools import partial
 from warnings import warn
 
-from motile_plugin.backend.motile_run import MotileRun
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
@@ -15,6 +14,8 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from motile_plugin.backend.motile_run import MotileRun
 
 
 class RunButton(QWidget):
@@ -113,7 +114,6 @@ class RunsList(QWidget):
     def load_run(self):
         if self.file_dialog.exec_():
             directory = self.file_dialog.selectedFiles()[0]
-            print(directory)
             try:
                 run = MotileRun.load(directory)
                 self.add_run(run, select=True)
