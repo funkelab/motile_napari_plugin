@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 # security: restrict permissions for CI jobs.
 permissions:
@@ -28,7 +29,7 @@ jobs:
       - name: Install pip dependencies
         shell: bash -el {0}  # this is necessary to activate the conda env
         run: |
-          pip install ".[dev]"
+          pip install ".[docs]"
       - name: Build docs
         shell: bash -el {0}
         run: |
