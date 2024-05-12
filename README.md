@@ -1,67 +1,30 @@
-# motile-plugin
+# Motile Napari Plugin
 
-[![License BSD-3](https://img.shields.io/pypi/l/motile-plugin.svg?color=green)](https://github.com/cmalinmayor/motile-plugin/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/motile-plugin.svg?color=green)](https://pypi.org/project/motile-plugin)
-[![Python Version](https://img.shields.io/pypi/pyversions/motile-plugin.svg?color=green)](https://python.org)
-[![tests](https://github.com/cmalinmayor/motile-plugin/workflows/tests/badge.svg)](https://github.com/cmalinmayor/motile-plugin/actions)
-[![codecov](https://codecov.io/gh/cmalinmayor/motile-plugin/branch/main/graph/badge.svg)](https://codecov.io/gh/cmalinmayor/motile-plugin)
+[![tests](https://github.com/funkelab/motile-napari-plugin/workflows/tests/badge.svg)](https://github.com/funkelab/motile-napari-plugin/actions)
+[![codecov](https://codecov.io/gh/funkelab/motile-napari-plugin/branch/main/graph/badge.svg)](https://codecov.io/gh/funkelab/motile-napari-plugin)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/motile-plugin)](https://napari-hub.org/plugins/motile-plugin)
 
-Tracking with Motile and the Graph layer
+A plugin for tracking with [motile](https://github.com/funkelab/motile) in napari. 
+Motile is a library that makes it easy to solve tracking problems using optimization 
+by framing the task as an Integer Linear Program (ILP).
+See the motile [documentation](https://funkelab.github.io/motile) 
+for more details on the concepts and method.
 
 ----------------------------------
 
-This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
-
-<!--
-Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/cookiecutter-napari-plugin#getting-started
-
-and review the napari docs for plugin developers:
-https://napari.org/stable/plugins/index.html
--->
-
 ## Installation
 
-You can install `motile-plugin` via [pip]:
+This plugin depends on [motile](https://github.com/funkelab/motile), which in 
+turn depends on gurobi and ilpy. These dependencies must be installed with 
+conda before installing the plugin with pip.
 
-    pip install motile-plugin
-
-
-
-To install latest development version :
-
-    pip install git+https://github.com/cmalinmayor/motile-plugin.git
-
-
-## Contributing
-
-Contributions are very welcome. Tests can be run with [tox], please ensure
-the coverage at least stays the same before you submit a pull request.
-
-## License
-
-Distributed under the terms of the [BSD-3] license,
-"motile-plugin" is free and open source software
+    conda create -n motile-plugin python>=3.10
+    conda activate motile-plugin
+    conda install -c conda-forge -c funkelab -c gurobi ilpy
+    pip install git+https://github.com/funkelab/motile-napari-plugin.git
 
 ## Issues
 
-If you encounter any problems, please [file an issue] along with a detailed description.
-
-[napari]: https://github.com/napari/napari
-[Cookiecutter]: https://github.com/audreyr/cookiecutter
-[@napari]: https://github.com/napari
-[MIT]: http://opensource.org/licenses/MIT
-[BSD-3]: http://opensource.org/licenses/BSD-3-Clause
-[GNU GPL v3.0]: http://www.gnu.org/licenses/gpl-3.0.txt
-[GNU LGPL v3.0]: http://www.gnu.org/licenses/lgpl-3.0.txt
-[Apache Software License 2.0]: http://www.apache.org/licenses/LICENSE-2.0
-[Mozilla Public License 2.0]: https://www.mozilla.org/media/MPL/2.0/index.txt
-[cookiecutter-napari-plugin]: https://github.com/napari/cookiecutter-napari-plugin
-
-[file an issue]: https://github.com/cmalinmayor/motile-plugin/issues
-
-[napari]: https://github.com/napari/napari
-[tox]: https://tox.readthedocs.io/en/latest/
-[pip]: https://pypi.org/project/pip/
-[PyPI]: https://pypi.org/
+If you encounter any problems, please 
+[file an issue](https://github.com/funkelab/motile-napari-plugin/issues) 
+along with a detailed description.
