@@ -3,7 +3,6 @@ from pathlib import Path
 from warnings import warn
 
 import pyqtgraph as pg
-from motile_plugin.backend.motile_run import MotileRun
 from motile_toolbox.candidate_graph import NodeAttr
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtCore import Signal
@@ -17,6 +16,8 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QCollapsible
+
+from motile_plugin.backend.motile_run import MotileRun
 
 from .params_viewer import SolverParamsViewer
 
@@ -117,7 +118,6 @@ class RunViewer(QGroupBox):
         return gap_plot
 
     def plot_gaps(self, gaps: list[float]):
-        y = range(len(gaps))
         if len(gaps) > 0:
             self.gap_plot.getPlotItem().plot(range(len(gaps)), gaps)
         else:

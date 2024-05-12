@@ -7,7 +7,6 @@ from warnings import warn
 import magicgui.widgets
 import napari.layers
 import numpy as np
-from motile_plugin.backend.motile_run import MotileRun
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QGroupBox,
@@ -19,6 +18,8 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from motile_plugin.backend.motile_run import MotileRun
 
 from .params_editor import SolverParamsEditor
 

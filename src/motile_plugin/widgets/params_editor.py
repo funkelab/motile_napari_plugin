@@ -1,19 +1,19 @@
 from functools import partial
 from types import NoneType
 
-from motile_plugin.backend.solver_params import (
-    CompoundSolverParam,
-    SolverParams,
-)
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QCheckBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QVBoxLayout,
     QWidget,
+)
+
+from motile_plugin.backend.solver_params import (
+    CompoundSolverParam,
+    SolverParams,
 )
 
 from .param_values import CompoundParamValue, EditableParamValue

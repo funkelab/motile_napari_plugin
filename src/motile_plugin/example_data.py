@@ -1,3 +1,4 @@
+import logging
 import shutil
 import zipfile
 from pathlib import Path
@@ -7,7 +8,6 @@ import tifffile
 import zarr
 from appdirs import AppDirs
 from napari.types import LayerData
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def read_ctc_dataset(ds_name: str, data_dir: Path) -> list[LayerData]:
     """
     ds_zarr = data_dir / (ds_name + ".zarr")
     if not ds_zarr.exists():
-        logger.info(f"Downloading {ds_name} data")
+        logger.info("Downloading %s", ds_name)
         download_ctc_dataset(ds_name, data_dir)
 
     store = zarr.NestedDirectoryStore(ds_zarr)
@@ -88,7 +88,7 @@ def convert_to_zarr(tiff_path: Path, zarr_path: Path, zarr_group: str):
     """
     # get data dimensions
     files = sorted(tiff_path.glob("*.tif"))
-    logger.info(f"{len(files)} time points found.")
+    logger.info("%s time points found.", len(files))
     example_image = tifffile.imread(files[0])
     data_shape = (len(files), *example_image.shape)
     data_dtype = example_image.dtype
