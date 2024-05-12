@@ -1,5 +1,5 @@
 project = 'Motile Plugin'
-copyright = '2024, Caroline Malin-Mayor'
+copyright = '2024, Howard Hughes Medical Institute'
 author = 'Caroline Malin-Mayor'
 
 extensions = ['sphinx.ext.autodoc', 'myst_parser', 'autoapi.extension', 'sphinx_rtd_theme']

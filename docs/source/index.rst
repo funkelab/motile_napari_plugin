@@ -4,6 +4,8 @@
 .. toctree::
    :maxdepth: 3
 
+   getting_started
+
 Indices and tables
 ==================
 
