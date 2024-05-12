@@ -152,7 +152,6 @@ class MotileRun(BaseModel):
     def delete(self, base_path: str | Path):
         base_path = Path(base_path)
         run_dir = base_path / self._make_directory(self.time, self.run_name)
-        print(f"Deleting run in directory {run_dir}")
         # Lets be safe and remove the expected files and then the directory
         (run_dir / PARAMS_FILENAME).unlink()
         (run_dir / IN_SEG_FILEANME).unlink()

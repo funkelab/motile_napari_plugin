@@ -113,7 +113,6 @@ class RunsList(QWidget):
     def load_run(self):
         if self.file_dialog.exec_():
             directory = self.file_dialog.selectedFiles()[0]
-            print(directory)
             try:
                 run = MotileRun.load(directory)
                 self.add_run(run, select=True)
