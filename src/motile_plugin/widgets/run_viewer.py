@@ -1,6 +1,8 @@
 import importlib.resources
 from pathlib import Path
 from warnings import warn
+from fonticon_fa6 import FA6S
+from superqt.fonticon import icon as qticon
 
 import pyqtgraph as pg
 from motile_toolbox.candidate_graph import NodeAttr
@@ -72,9 +74,8 @@ class RunViewer(QGroupBox):
         return f"Viewing {run.run_name} ({run_time})"
 
     def _save_widget(self):
-        resources = importlib.resources.files("motile_plugin.resources")
-        icon = QColoredSVGIcon(resources / "save.svg")
-        save_run_button = QPushButton(icon=icon.colored("white"))
+        icon = qticon(FA6S.floppy_disk, color="white")
+        save_run_button = QPushButton(icon=icon)
         save_run_button.clicked.connect(self.save_run)
         return save_run_button
 
