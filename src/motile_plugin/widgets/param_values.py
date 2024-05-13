@@ -66,6 +66,7 @@ class EditableParamValue(QDoubleSpinBox):
         max_val = 10000
         min_val = -1 * max_val if negative else 0
         self.setRange(min_val, max_val)
+        super().valueChanged.connect(self.valueChanged.emit)
 
     def update_value(self, value: int | float | None) -> None:
         if value is not None:
