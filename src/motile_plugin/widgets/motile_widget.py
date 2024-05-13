@@ -130,6 +130,7 @@ class MotileWidget(QWidget):
         self.edit_run_widget.show()
         if run:
             self.edit_run_widget.new_run(run)
+        self.run_list_widget.runs_list.clearSelection()
         self.remove_napari_layers()
 
     def _generate_tracks(self, run: MotileRun) -> None:
