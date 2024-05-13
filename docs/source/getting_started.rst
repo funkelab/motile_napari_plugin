@@ -5,7 +5,7 @@ Installation
 ------------
 This plugin depends on ``ilpy``, which must be installed via conda.::
 
-    conda create -n motile-plugin python>=3.10
+    conda create -n motile-plugin python=3.10
     conda activate motile-plugin
     conda install -c conda-forge -c funkelab -c gurobi ilpy
     pip install git+https://github.com/funkelab/motile-napari-plugin.git
