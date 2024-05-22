@@ -165,9 +165,7 @@ class RunViewer(QGroupBox):
         Whether or not to include z is inferred from the length of an
         arbitrary node's position attribute.
         """
-        default_name = MotileRun._make_directory(
-            self.run.time, self.run.run_name
-        )
+        default_name = self.run._make_id()
         default_name = f"{default_name}_tracks.csv"
         base_path = Path(self.export_tracks_dialog.directory().path())
         self.export_tracks_dialog.selectFile(str(base_path / default_name))
