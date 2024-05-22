@@ -45,19 +45,25 @@ class RunEditor(QGroupBox):
         self.viewer = viewer
         self.solver_params_widget = SolverParamsEditor()
         self.run_name: QLineEdit
-        self.refresh_layer_button: QPushButton
         self.layer_selection_box: magicgui.widgets.Widget
+
+        # Generate Tracks button
+        generate_tracks_btn = QPushButton("Run Tracking")
+        generate_tracks_btn.clicked.connect(self.emit_run)
+        generate_tracks_btn.setToolTip(
+            "Might take minutes or longer for larger samples."
+        )
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self._run_widget())
         main_layout.addWidget(self._labels_layer_widget())
         main_layout.addWidget(self.solver_params_widget)
+        main_layout.addWidget(generate_tracks_btn)
         self.setLayout(main_layout)
 
     def _labels_layer_widget(self) -> QWidget:
-        """Create the widget to select the input layer. It is difficult
-        to keep the list in sync with the napari layers, so there is an
-        explicit refresh button to sync them.
+        """Create the widget to select the input layer. Uses magicgui,
+        but explicitly connects to the viewer layers events to keep it synced.
 
         Returns:
             QWidget: A dropdown select with all the labels layers in layers
@@ -144,17 +150,10 @@ class RunEditor(QGroupBox):
         self.run_name = QLineEdit("new_run")
         run_layout.addWidget(self.run_name)
 
-        # Generate Tracks button
-        generate_tracks_btn = QPushButton("Go!")
-        generate_tracks_btn.clicked.connect(self.emit_run)
-        generate_tracks_btn.setToolTip(
-            "Run tracking. Might take minutes or longer for larger samples."
-        )
-        run_layout.addWidget(generate_tracks_btn)
         run_widget.setLayout(run_layout)
         return run_widget
 
-    def get_run(self) -> MotileRun:
+    def get_run(self) -> MotileRun | None:
         """Construct a motile run from the current state of the run editor
         widget.
 
@@ -184,7 +183,7 @@ class RunEditor(QGroupBox):
         if run is not None:
             self.start_run.emit(run)
 
-    def new_run(self, run) -> None:
+    def new_run(self, run: MotileRun) -> None:
         """Configure the run editor to copy the name and params of the given
         run.
         """
