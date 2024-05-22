@@ -23,16 +23,14 @@ class RunButton(QWidget):
     # I think this means if we want static buttons we can just make the row here
     # but if we want to change the buttons we need to do something more complex
     # Lets start with static then!
-    # Columns: Run name, Date/time, new edit config btn, delete btn
-    def __init__(self, run):
+    # Columns: Run name, Date/time, delete btn
+    def __init__(self, run: MotileRun):
         super().__init__()
-        self.run: MotileRun = run
+        self.run = run
         self.run_name = QLabel(self.run.run_name)
         self.run_name.setFixedHeight(20)
         self.datetime = QLabel(self.run.time.strftime("%m/%d/%y, %H:%M:%S"))
         self.datetime.setFixedHeight(20)
-        self.new_config = QPushButton("+")
-        self.new_config.setFixedSize(20, 20)
         icon = QColoredSVGIcon.from_resources("delete")
         self.delete = QPushButton(icon=icon.colored("white"))
         self.delete.setFixedSize(20, 20)
@@ -40,7 +38,6 @@ class RunButton(QWidget):
         layout.setSpacing(1)
         layout.addWidget(self.run_name)
         layout.addWidget(self.datetime)
-        layout.addWidget(self.new_config)
         layout.addWidget(self.delete)
         self.setLayout(layout)
 
@@ -54,19 +51,17 @@ class RunsList(QWidget):
     """Widget for holding in-memory Runs"""
 
     view_run = Signal(MotileRun)
-    edit_run = Signal(object)
 
     def __init__(self):
         super().__init__()
         self.runs_list: QListWidget
-
-        layout = QVBoxLayout()
-        layout.addWidget(self._ui_save_load())
         self.file_dialog = QFileDialog()
         self.file_dialog.setFileMode(QFileDialog.Directory)
         self.file_dialog.setOption(QFileDialog.ShowDirsOnly, True)
 
-        layout.addWidget(self._load_widget())
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._tracking_runs_widget())
         self.setLayout(layout)
 
     def _selection_changed(self):
@@ -74,14 +69,14 @@ class RunsList(QWidget):
         if selected:
             self.view_run.emit(self.runs_list.itemWidget(selected[0]).run)
 
-    def _ui_save_load(self):
+    def _tracking_runs_widget(self):
         save_load_group = QGroupBox("Tracking Runs")
         save_load_layout = QVBoxLayout()
         self.runs_list = QListWidget()
-        # self.runs_list.setSpacing(0)
         self.runs_list.setSelectionMode(1)  # single selection
         self.runs_list.itemSelectionChanged.connect(self._selection_changed)
         save_load_layout.addWidget(self.runs_list)
+        save_load_layout.addWidget(self._load_widget())
         save_load_group.setLayout(save_load_layout)
         return save_load_group
 
@@ -97,13 +92,6 @@ class RunsList(QWidget):
         item.setSizeHint(run_row.minimumSizeHint())
         self.runs_list.addItem(item)
         run_row.delete.clicked.connect(partial(self.remove_run, item))
-        run_row.new_config.clicked.connect(
-            partial(
-                self.edit_run.emit, run
-            )  # Note: this may cause memory leak
-            # Can use weakref if that happens
-            # https://github.com/Carreau/napari/commit/cd079e9dcb62de115833ea1b6bb1b7a0ab4b78d1
-        )
         if select:
             self.runs_list.setCurrentRow(len(self.runs_list) - 1)
 
