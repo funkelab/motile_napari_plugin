@@ -37,7 +37,6 @@ class RunViewer(QGroupBox):
         super().__init__(title="Run Viewer")
         # define attributes
         self.run: MotileRun = None
-        self.run_name_widget = QLabel("No run selected")
         self.params_widget = SolverParamsViewer()
         self.solver_label: QLabel
         self.gap_plot: pg.PlotWidget
@@ -64,14 +63,14 @@ class RunViewer(QGroupBox):
 
     def update_run(self, run: MotileRun):
         self.run = run
-        self.run_name_widget.setText(self._run_name_view(self.run))
+        self.setTitle("Run Viewer: "+ self._run_name_view(self.run))
         self.gap_plot.getPlotItem().clear()
         self.solver_event_update()
         self.params_widget.new_params.emit(run.solver_params)
 
     def _run_name_view(self, run: MotileRun) -> str:
         run_time = run.time.strftime("%m/%d/%y, %H:%M:%S")
-        return f"Viewing {run.run_name} ({run_time})"
+        return f"{run.run_name} ({run_time})"
 
     def _save_widget(self):
         icon = qticon(FA6S.floppy_disk, color="white")
@@ -82,7 +81,6 @@ class RunViewer(QGroupBox):
     def _title_widget(self):
         title_widget = QWidget()
         title_layout = QHBoxLayout()
-        title_layout.addWidget(self.run_name_widget)
         title_layout.addWidget(self._save_widget())
         title_layout.setContentsMargins(0, 0, 0, 0)
         title_widget.setLayout(title_layout)
