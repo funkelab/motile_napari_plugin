@@ -44,13 +44,12 @@ class MotileWidget(QWidget):
         self.edit_run_widget.start_run.connect(self._generate_tracks)
 
         self.view_run_widget = RunViewer()
-        self.view_run_widget.edit_run.connect(lambda: self.edit_run(None))
+        self.view_run_widget.edit_run.connect(self.edit_run)
         self.view_run_widget.hide()
         self.solver_update.connect(self.view_run_widget.solver_event_update)
 
         self.run_list_widget = RunsList()
         self.run_list_widget.view_run.connect(self.view_run_napari)
-        # self.run_list_widget.edit_run.connect(self.edit_run)
 
         # Create main layout
         main_layout = QVBoxLayout()

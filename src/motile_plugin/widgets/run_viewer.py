@@ -1,12 +1,10 @@
-import importlib.resources
+from functools import partial
 from pathlib import Path
 from warnings import warn
-from fonticon_fa6 import FA6S
-from superqt.fonticon import icon as qticon
 
 import pyqtgraph as pg
+from fonticon_fa6 import FA6S
 from motile_toolbox.candidate_graph import NodeAttr
-from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QFileDialog,
@@ -18,6 +16,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QCollapsible
+from superqt.fonticon import icon as qticon
 
 from motile_plugin.backend.motile_run import MotileRun
 
@@ -31,7 +30,7 @@ class RunViewer(QGroupBox):
     Output tracks and segmentation are visualized separately in napari layers.
     """
 
-    edit_run = Signal()
+    edit_run = Signal(object)
 
     def __init__(self):
         super().__init__(title="Run Viewer")
@@ -44,26 +43,17 @@ class RunViewer(QGroupBox):
         self.save_run_dialog = self._save_dialog()
         self.export_tracks_dialog = self._export_tracks_dialog()
 
-        # create button to export tracks
-        export_tracks_btn = QPushButton("Export tracks to CSV")
-        export_tracks_btn.clicked.connect(self.export_tracks)
-
-        # create back to editing button
-        edit_run_button = QPushButton("Back to Editing")
-        edit_run_button.clicked.connect(self.edit_run.emit)
-
         # Create layout and add subwidgets
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self._title_widget())
-        main_layout.addWidget(export_tracks_btn)
-        main_layout.addWidget(edit_run_button)
         main_layout.addWidget(self._progress_widget())
         main_layout.addWidget(self.params_widget)
+        main_layout.addWidget(self._save_and_export_widget())
+        main_layout.addWidget(self._back_to_edit_widget())
         self.setLayout(main_layout)
 
     def update_run(self, run: MotileRun):
         self.run = run
-        self.setTitle("Run Viewer: "+ self._run_name_view(self.run))
+        self.setTitle("Run Viewer: " + self._run_name_view(self.run))
         self.gap_plot.getPlotItem().clear()
         self.solver_event_update()
         self.params_widget.new_params.emit(run.solver_params)
@@ -72,19 +62,45 @@ class RunViewer(QGroupBox):
         run_time = run.time.strftime("%m/%d/%y, %H:%M:%S")
         return f"{run.run_name} ({run_time})"
 
-    def _save_widget(self):
+    def _save_and_export_widget(self):
+        widget = QWidget()
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        # Save button
         icon = qticon(FA6S.floppy_disk, color="white")
-        save_run_button = QPushButton(icon=icon)
+        save_run_button = QPushButton(icon=icon, text="Save run")
         save_run_button.clicked.connect(self.save_run)
-        return save_run_button
+        layout.addWidget(save_run_button)
 
-    def _title_widget(self):
-        title_widget = QWidget()
-        title_layout = QHBoxLayout()
-        title_layout.addWidget(self._save_widget())
-        title_layout.setContentsMargins(0, 0, 0, 0)
-        title_widget.setLayout(title_layout)
-        return title_widget
+        # create button to export tracks
+        export_tracks_btn = QPushButton("Export tracks to CSV")
+        export_tracks_btn.clicked.connect(self.export_tracks)
+        layout.addWidget(export_tracks_btn)
+
+        widget.setLayout(layout)
+        return widget
+
+    def _back_to_edit_widget(self):
+        widget = QWidget()
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        # create back to editing button
+        edit_run_button = QPushButton("Edit from previous state")
+        edit_run_button.clicked.connect(partial(self.edit_run.emit, None))
+        layout.addWidget(edit_run_button)
+
+        # new run from this config button
+
+        run_from_config_button = QPushButton("Edit from this state")
+        run_from_config_button.clicked.connect(self._emit_run)
+        layout.addWidget(run_from_config_button)
+        widget.setLayout(layout)
+        return widget
+
+    def _emit_run(self):
+        self.edit_run.emit(self.run)  # Note: this may cause memory leak
+        # Can use weakref if that happens
+        # https://github.com/Carreau/napari/commit/cd079e9dcb62de115833ea1b6bb1b7a0ab4b78d1
 
     def _progress_widget(self):
         progress_widget = QWidget()
