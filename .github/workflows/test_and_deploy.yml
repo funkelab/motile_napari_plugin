@@ -68,28 +68,25 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: funkelab/motile-napari-plugin
 
-  deploy:
-    # this will run when you have tagged a commit, starting with "v*"
-    # and requires that you have put your twine API key in your
-    # github secrets (see readme for details)
+  build-n-publish:
+    name: Build and publish Python 🐍 distributions 📦 to PyPI
     needs: [test]
     runs-on: ubuntu-latest
     if: contains(github.ref, 'tags')
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Install dependencies
+      - name: Build a binary wheel and a source tarball
         run: |
-          python -m pip install --upgrade pip
-          pip install -U setuptools setuptools_scm wheel twine build
-      - name: Build and publish
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TWINE_API_KEY }}
-        run: |
-          git tag
-          python -m build .
-          twine upload dist/*
+          python -m pip install -U pip
+          python -m pip install -U setuptools setuptools_scm build 
+          python -m build --sdist --wheel --outdir dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
