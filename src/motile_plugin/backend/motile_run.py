@@ -17,8 +17,12 @@ GAPS_FILENAME = "gaps.txt"
 
 
 class MotileRun(BaseModel):
-    """An object representing a motile tracking run."""
-
+    """An object representing a motile tracking run. Contains a name,
+    parameters, time of creation, information about the solving process
+    (status and list of solver gaps), and optionally the input and output
+    segmentations and tracks. Mostly used for passing around the set of 
+    attributes needed to specify a run, as well as saving and loading.
+    """
     run_name: str
     solver_params: SolverParams
     input_segmentation: np.ndarray | None = None
