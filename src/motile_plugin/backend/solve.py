@@ -2,8 +2,8 @@ import logging
 import time
 from typing import Callable
 
-import numpy as np
 import networkx as nx
+import numpy as np
 from motile import Solver, TrackGraph
 from motile.constraints import MaxChildren, MaxParents
 from motile.costs import Appear, Disappear, EdgeDistance, EdgeSelection, Split
@@ -37,11 +37,11 @@ def solve(
         segmentation (np.ndarray): The input segmentation to run tracking on
         on_solver_update (Callable, optional): A function that is called
             whenever the motile solver emits an event. The function should take
-            a dictionary of event data, and can be used to track progress of 
+            a dictionary of event data, and can be used to track progress of
             the solver. Defaults to None.
 
     Returns:
-        nx.DiGraph: A solution graph where the ids of the nodes correspond to 
+        nx.DiGraph: A solution graph where the ids of the nodes correspond to
             the time and ids of the passed in segmentation labels. See the
             motile_toolbox for exact implementation details.
     """
@@ -62,8 +62,10 @@ def solve(
     return solution_nx_graph
 
 
-def construct_solver(cand_graph: nx.DiGraph, solver_params: SolverParams) -> Solver:
-    """Construct a motile solver with the parameters specified in the solver 
+def construct_solver(
+    cand_graph: nx.DiGraph, solver_params: SolverParams
+) -> Solver:
+    """Construct a motile solver with the parameters specified in the solver
     params object.
 
     Args:

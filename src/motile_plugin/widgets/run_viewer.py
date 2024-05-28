@@ -98,7 +98,7 @@ class RunViewer(QGroupBox):
 
         Returns:
             QWidget: A widget with two buttons: one for navigating back to the
-                previous run editor state, and one for populating the run 
+                previous run editor state, and one for populating the run
                 editor with the currently viewed run's parameters.
         """
         widget = QWidget()
@@ -147,7 +147,6 @@ class RunViewer(QGroupBox):
         layout.setContentsMargins(0, 0, 0, 0)
         widget.setLayout(layout)
         return widget
-
 
     def _plot_widget(self) -> pg.PlotWidget:
         """
@@ -220,7 +219,7 @@ class RunViewer(QGroupBox):
     def _set_solver_label(self, status: str):
         message = "Solver status: " + status
         self.solver_label.setText(message)
-    
+
     def solver_event_update(self):
         self._set_solver_label(self.run.status)
         self.gap_plot.getPlotItem().clear()

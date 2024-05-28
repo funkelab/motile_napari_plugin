@@ -51,6 +51,7 @@ class RunsList(QGroupBox):
     a run is selected in the list, useful for telling the widget to display the
     selected run.
     """
+
     view_run = Signal(MotileRun)
 
     def __init__(self):
@@ -77,9 +78,9 @@ class RunsList(QGroupBox):
             self.view_run.emit(self.runs_list.itemWidget(selected[0]).run)
 
     def add_run(self, run: MotileRun, select=True):
-        """Add a run to the list and optionally select it. Will make a new 
-        row in the list UI representing the given run. 
-        
+        """Add a run to the list and optionally select it. Will make a new
+        row in the list UI representing the given run.
+
         Note: selecting the run will also emit the selection changed event on
         the list.
 

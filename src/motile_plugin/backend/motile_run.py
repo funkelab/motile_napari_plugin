@@ -20,9 +20,10 @@ class MotileRun(BaseModel):
     """An object representing a motile tracking run. Contains a name,
     parameters, time of creation, information about the solving process
     (status and list of solver gaps), and optionally the input and output
-    segmentations and tracks. Mostly used for passing around the set of 
+    segmentations and tracks. Mostly used for passing around the set of
     attributes needed to specify a run, as well as saving and loading.
     """
+
     run_name: str
     solver_params: SolverParams
     input_segmentation: np.ndarray | None = None
@@ -69,7 +70,7 @@ class MotileRun(BaseModel):
 
     def save(self, base_path: str | Path):
         """Save the run in the provided directory. Creates a subdirectory from
-        the timestamp and run name and stores one file for each element of the 
+        the timestamp and run name and stores one file for each element of the
         run in that subdirectory.
 
         Args:
@@ -93,7 +94,7 @@ class MotileRun(BaseModel):
 
     @classmethod
     def load(cls, run_dir: Path | str, all_required: bool = True):
-        """Load a run from disk into memory. 
+        """Load a run from disk into memory.
 
         Args:
             run_dir (Path | str): A directory containing the saved run.
@@ -110,8 +111,12 @@ class MotileRun(BaseModel):
             run_dir = Path(run_dir)
         time, run_name = cls._unpack_id(run_dir.stem)
         params = cls._load_params(run_dir)
-        input_segmentation = cls._load_segmentation(run_dir, IN_SEG_FILEANME, required=all_required)
-        output_segmentation = cls._load_segmentation(run_dir, OUT_SEG_FILEANME, required=all_required)
+        input_segmentation = cls._load_segmentation(
+            run_dir, IN_SEG_FILEANME, required=all_required
+        )
+        output_segmentation = cls._load_segmentation(
+            run_dir, OUT_SEG_FILEANME, required=all_required
+        )
         tracks = cls._load_tracks(run_dir, required=all_required)
         gaps = cls._load_gaps(run_dir)
         return cls(
@@ -157,7 +162,9 @@ class MotileRun(BaseModel):
             params_dict = json.load(f)
         return SolverParams(**params_dict)
 
-    def _save_segmentation(self, run_dir: Path, seg_file: str, segmentation: np.array):
+    def _save_segmentation(
+        self, run_dir: Path, seg_file: str, segmentation: np.array
+    ):
         """Save a segmentation as a numpy array using np.save. In the future,
         could be changed to use zarr or other file types.
 
@@ -211,7 +218,9 @@ class MotileRun(BaseModel):
             json.dump(nx.node_link_data(self.tracks), f)
 
     @staticmethod
-    def _load_tracks(run_dir: Path, required: bool = True) -> nx.DiGraph | None:
+    def _load_tracks(
+        run_dir: Path, required: bool = True
+    ) -> nx.DiGraph | None:
         """Load tracks from file. Currently uses networkx node link data
         format.
 
