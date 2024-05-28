@@ -34,11 +34,13 @@ class RunViewer(QGroupBox):
 
     def __init__(self):
         super().__init__(title="Run Viewer")
+
         # define attributes
-        self.run: MotileRun = None
+        self.run: MotileRun | None = None
         self.params_widget = SolverParamsViewer()
         self.solver_label: QLabel
         self.gap_plot: pg.PlotWidget
+
         # Define persistent file dialogs for saving and exporting
         self.save_run_dialog = self._save_dialog()
         self.export_tracks_dialog = self._export_tracks_dialog()
@@ -52,20 +54,30 @@ class RunViewer(QGroupBox):
         self.setLayout(main_layout)
 
     def update_run(self, run: MotileRun):
+        """Update the run being viewed. Changes the title, solver status and
+        gap plot, and parameters being displayed.
+
+        Args:
+            run (MotileRun): The new run to display
+        """
         self.run = run
-        self.setTitle("Run Viewer: " + self._run_name_view(self.run))
-        self.gap_plot.getPlotItem().clear()
+        run_time = run.time.strftime("%m/%d/%y, %H:%M:%S")
+        run_name_view = f"{run.run_name} ({run_time})"
+        self.setTitle("Run Viewer: " + run_name_view)
         self.solver_event_update()
         self.params_widget.new_params.emit(run.solver_params)
 
-    def _run_name_view(self, run: MotileRun) -> str:
-        run_time = run.time.strftime("%m/%d/%y, %H:%M:%S")
-        return f"{run.run_name} ({run_time})"
+    def _save_and_export_widget(self) -> QWidget:
+        """Create a widget for saving and exporting tracking results.
 
-    def _save_and_export_widget(self):
+        Returns:
+            QWidget: A widget containing a save button and an export tracks
+                button.
+        """
         widget = QWidget()
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
+
         # Save button
         icon = qticon(FA6S.floppy_disk, color="white")
         save_run_button = QPushButton(icon=icon, text="Save run")
@@ -80,7 +92,15 @@ class RunViewer(QGroupBox):
         widget.setLayout(layout)
         return widget
 
-    def _back_to_edit_widget(self):
+    def _back_to_edit_widget(self) -> QWidget:
+        """Create a widget for navigating back to the run editor with different
+        parameters.
+
+        Returns:
+            QWidget: A widget with two buttons: one for navigating back to the
+                previous run editor state, and one for populating the run 
+                editor with the currently viewed run's parameters.
+        """
         widget = QWidget()
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -90,38 +110,50 @@ class RunViewer(QGroupBox):
         layout.addWidget(edit_run_button)
 
         # new run from this config button
-
         run_from_config_button = QPushButton("Edit from this state")
         run_from_config_button.clicked.connect(self._emit_run)
         layout.addWidget(run_from_config_button)
+
         widget.setLayout(layout)
         return widget
 
     def _emit_run(self):
+        """Emit the edit_run signal with the current run. Used to populate
+        the run editor with the current run's parameters.
+        """
         self.edit_run.emit(self.run)  # Note: this may cause memory leak
         # Can use weakref if that happens
         # https://github.com/Carreau/napari/commit/cd079e9dcb62de115833ea1b6bb1b7a0ab4b78d1
 
-    def _progress_widget(self):
-        progress_widget = QWidget()
+    def _progress_widget(self) -> QWidget:
+        """Create a widget containing solver progress and status.
+
+        Returns:
+            QWidget: A widget with a label indicating solver status and
+                a collapsible graph of the solver gap.
+        """
+        widget = QWidget()
         layout = QVBoxLayout()
+
         self.solver_label = QLabel("")
         self.gap_plot = self._plot_widget()
         collapsable_plot = QCollapsible("Graph of solver gap")
         collapsable_plot.layout().setContentsMargins(0, 0, 0, 0)
         collapsable_plot.addWidget(self.gap_plot)
         collapsable_plot.expand(animate=False)
+
         layout.addWidget(self.solver_label)
         layout.addWidget(collapsable_plot)
         layout.setContentsMargins(0, 0, 0, 0)
-        progress_widget.setLayout(layout)
-        return progress_widget
+        widget.setLayout(layout)
+        return widget
 
-    def set_solver_label(self, status: str):
-        message = "Solver status: " + status
-        self.solver_label.setText(message)
 
     def _plot_widget(self) -> pg.PlotWidget:
+        """
+        Returns:
+            pg.PlotWidget: a widget containg an (empty) plot of the solver gap
+        """
         gap_plot = pg.PlotWidget()
         gap_plot.setBackground((37, 41, 49))
         styles = {
@@ -131,12 +163,6 @@ class RunViewer(QGroupBox):
         gap_plot.plotItem.setLabel("left", "Gap", **styles)
         gap_plot.plotItem.setLabel("bottom", "Solver round", **styles)
         return gap_plot
-
-    def plot_gaps(self, gaps: list[float]):
-        if len(gaps) > 0:
-            self.gap_plot.getPlotItem().plot(range(len(gaps)), gaps)
-        else:
-            self.gap_plot.getPlotItem().clear()
 
     def _save_dialog(self) -> QFileDialog:
         save_run_dialog = QFileDialog()
@@ -155,8 +181,6 @@ class RunViewer(QGroupBox):
         if self.save_run_dialog.exec_():
             directory = self.save_run_dialog.selectedFiles()[0]
             self.run.save(directory)
-        else:
-            warn("Saving aborted", stacklevel=2)
 
     def export_tracks(self):
         """Export the tracks from this run to a csv with the following columns:
@@ -193,10 +217,17 @@ class RunViewer(QGroupBox):
         else:
             warn("Exporting aborted", stacklevel=2)
 
+    def _set_solver_label(self, status: str):
+        message = "Solver status: " + status
+        self.solver_label.setText(message)
+    
     def solver_event_update(self):
-        self.set_solver_label(self.run.status)
-        self.plot_gaps(self.run.gaps)
+        self._set_solver_label(self.run.status)
+        self.gap_plot.getPlotItem().clear()
+        gaps = self.run.gaps
+        if len(gaps) > 0:
+            self.gap_plot.getPlotItem().plot(range(len(gaps)), gaps)
 
     def reset_progress(self):
-        self.set_solver_label("not running")
+        self._set_solver_label("not running")
         self.gap_plot.getPlotItem().clear()
