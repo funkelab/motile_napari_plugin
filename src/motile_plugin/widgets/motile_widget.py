@@ -216,10 +216,11 @@ class MotileWidget(QWidget):
         """
         richtext = r"""<h3>Tracking with Motile</h3>
         <p>This plugin uses the
-        <a href="https://funkelab.github.io/motile/">motile</a> library to
+        <a href="https://funkelab.github.io/motile/"><font color=yellow>motile</font></a> library to
         track objects with global optimization. See the
-        <a href="https://funkelab.github.io/motile-napari-plugin/">user guide</a>
+        <a href="https://funkelab.github.io/motile_napari_plugin/"><font color=yellow>user guide</font></a>
         for a tutorial to the plugin functionality."""
         label = QLabel(richtext)
         label.setWordWrap(True)
+        label.setOpenExternalLinks(True)
         return label
