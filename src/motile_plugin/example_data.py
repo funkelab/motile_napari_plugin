@@ -44,13 +44,9 @@ def read_ctc_dataset(ds_name: str, data_dir: Path) -> list[LayerData]:
         logger.info("Downloading %s", ds_name)
         download_ctc_dataset(ds_name, data_dir)
 
-    store = zarr.NestedDirectoryStore(ds_zarr)
-    raw_data = zarr.open(
-        store=store,
-        path="01",
-    )[:]
+    raw_data = zarr.open(store=ds_zarr, path="01", dimension_separator="/")[:]
     raw_layer_data = (raw_data, {"name": "01_raw"}, "image")
-    seg_data = zarr.open(store=store, path="01_ST")[:]
+    seg_data = zarr.open(ds_zarr, path="01_ST", dimension_separator="/")[:]
     seg_layer_data = (seg_data, {"name": "01_ST"}, "labels")
     return [raw_layer_data, seg_layer_data]
 
