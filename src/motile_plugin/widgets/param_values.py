@@ -14,9 +14,7 @@ This "interface" is only enforced by duck typing, as is the pythonic way.
 """
 
 from qtpy.QtCore import Signal
-from qtpy.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QWidget
-
-from motile_plugin.backend.solver_params import CompoundSolverParam
+from qtpy.QtWidgets import QDoubleSpinBox, QLabel
 
 
 class StaticParamValue(QLabel):
@@ -74,57 +72,3 @@ class EditableParamValue(QDoubleSpinBox):
 
     def get_value(self) -> int | float:
         return self.value()
-
-
-class CompoundParamValue(QWidget):
-    valueChanged = Signal(object)
-
-    def __init__(
-        self,
-        weight_widget: StaticParamValue | EditableParamValue,
-        const_widget: StaticParamValue | EditableParamValue,
-    ):
-        """A widget to hold the value of a compound solver parameter (one that
-        has weight and offset). This also implements the same interface as
-        its component widgets for easy interchangability.
-
-        Args:
-            weight_widget (StaticParamValue | EditableParamValue): a widget
-                holding the weight of the compound parameter
-            offset_widget (StaticParamValue | EditableParamValue): a widget
-                holding the offset of the compound parameter
-        """
-        super().__init__()
-        self.weight = weight_widget
-        self.constant = const_widget
-        self.weight.valueChanged.connect(
-            lambda: self.valueChanged.emit(self.get_value())
-        )
-        self.constant.valueChanged.connect(
-            lambda: self.valueChanged.emit(self.get_value())
-        )
-
-        layout = QGridLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        weight_label = QLabel("weight:")
-        weight_label.setToolTip(
-            CompoundSolverParam.model_fields["weight"].description
-        )
-        layout.addWidget(weight_label, 0, 0)
-        layout.addWidget(self.weight, 0, 1)
-        constant_label = QLabel("constant:")
-        layout.addWidget(constant_label, 1, 0)
-        constant_label.setToolTip(
-            CompoundSolverParam.model_fields["constant"].description
-        )
-        layout.addWidget(self.constant, 1, 1)
-        self.setLayout(layout)
-
-    def update_value(self, value: CompoundSolverParam) -> None:
-        self.weight.update_value(value.weight)
-        self.constant.update_value(value.constant)
-
-    def get_value(self) -> CompoundSolverParam:
-        return CompoundSolverParam(
-            weight=self.weight.get_value(), constant=self.constant.get_value()
-        )
