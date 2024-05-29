@@ -48,7 +48,7 @@ def solve(
     cand_graph, _ = get_candidate_graph(
         segmentation,
         solver_params.max_edge_distance,
-        iou=solver_params.iou is not None,
+        iou=solver_params.iou_cost is not None,
     )
     logger.debug("Cand graph has %d nodes", cand_graph.number_of_nodes())
     solver = construct_solver(cand_graph, solver_params)
@@ -83,6 +83,17 @@ def construct_solver(
     solver.add_constraints(MaxChildren(solver_params.max_children))
     solver.add_constraints(MaxParents(1))
 
+    # Using EdgeDistance instead of EdgeSelection for the constant cost because
+    # the attribute is not optional for EdgeSelection (yet)
+    if solver_params.edge_selection_cost is not None:
+        solver.add_costs(
+            EdgeDistance(
+                weight=0,
+                position_attribute=NodeAttr.POS.value,
+                constant=solver_params.edge_selection_cost,
+            ),
+            name="edge_const",
+        )
     if solver_params.appear_cost is not None:
         solver.add_costs(Appear(solver_params.appear_cost))
     if solver_params.disappear_cost is not None:
@@ -90,21 +101,19 @@ def construct_solver(
     if solver_params.division_cost is not None:
         solver.add_costs(Split(constant=solver_params.division_cost))
 
-    if solver_params.distance is not None:
+    if solver_params.distance_cost is not None:
         solver.add_costs(
             EdgeDistance(
                 position_attribute=NodeAttr.POS.value,
-                weight=solver_params.distance.weight,
-                constant=solver_params.distance.constant,
+                weight=solver_params.distance_cost,
             ),
             name="distance",
         )
-    if solver_params.iou is not None:
+    if solver_params.iou_cost is not None:
         solver.add_costs(
             EdgeSelection(
-                weight=solver_params.iou.weight,
+                weight=solver_params.iou_cost,
                 attribute=EdgeAttr.IOU.value,
-                constant=solver_params.iou.constant,
             ),
             name="iou",
         )

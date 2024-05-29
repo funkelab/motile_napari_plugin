@@ -11,12 +11,9 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from motile_plugin.backend.solver_params import (
-    CompoundSolverParam,
-    SolverParams,
-)
+from motile_plugin.backend.solver_params import SolverParams
 
-from .param_values import CompoundParamValue, EditableParamValue
+from .param_values import EditableParamValue
 
 
 class EditableParam(QWidget):
@@ -48,14 +45,7 @@ class EditableParam(QWidget):
         self.negative = negative
         self.param_label = self._param_label_widget()
         self.param_label.setToolTip(field.description)
-        self.param_value: CompoundParamValue | EditableParamValue
-        if issubclass(CompoundSolverParam, self.dtype):
-            self.param_value = CompoundParamValue(
-                EditableParamValue(float, self.negative),
-                EditableParamValue(float, self.negative),
-            )
-        else:
-            self.param_value = EditableParamValue(float, self.negative)
+        self.param_value = EditableParamValue(float, self.negative)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -134,11 +124,12 @@ class SolverParamsEditor(QWidget):
         self.param_categories = {
             "hyperparams": ["max_edge_distance", "max_children"],
             "costs": [
+                "edge_selection_cost",
                 "appear_cost",
                 "division_cost",
                 "disappear_cost",
-                "distance",
-                "iou",
+                "distance_cost",
+                "iou_cost",
             ],
         }
 
