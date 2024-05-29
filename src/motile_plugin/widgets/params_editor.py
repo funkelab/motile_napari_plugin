@@ -124,6 +124,7 @@ class SolverParamsEditor(QWidget):
         self.param_categories = {
             "hyperparams": ["max_edge_distance", "max_children"],
             "costs": [
+                "edge_selection_cost",
                 "appear_cost",
                 "division_cost",
                 "disappear_cost",

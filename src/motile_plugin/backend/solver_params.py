@@ -17,7 +17,7 @@ Objects further than this cannot be matched, but making this value larger will i
         title="Max Children",
         description="The maximum number of object in time t+1 that can be linked to an item in time t.\nIf no division, set to 1.",
     )
-    edge_selection_cost: float = Field(
+    edge_selection_cost: float | None = Field(
         -20.0,
         title="Edge Selection",
         description=r"""Cost for selecting an edge. The more negative the value, the more edges will be selected.""",

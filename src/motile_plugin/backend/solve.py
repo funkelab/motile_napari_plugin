@@ -85,14 +85,15 @@ def construct_solver(
 
     # Using EdgeDistance instead of EdgeSelection for the constant cost because
     # the attribute is not optional for EdgeSelection (yet)
-    solver.add_costs(
-        EdgeDistance(
-            weight=0,
-            position_attribute=NodeAttr.POS.value,
-            constant=solver_params.edge_selection_cost,
-        ),
-        name="edge_const",
-    )
+    if solver_params.edge_selection_cost is not None:
+        solver.add_costs(
+            EdgeDistance(
+                weight=0,
+                position_attribute=NodeAttr.POS.value,
+                constant=solver_params.edge_selection_cost,
+            ),
+            name="edge_const",
+        )
     if solver_params.appear_cost is not None:
         solver.add_costs(Appear(solver_params.appear_cost))
     if solver_params.disappear_cost is not None:
