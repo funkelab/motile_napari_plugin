@@ -77,7 +77,7 @@ class MotileRun(BaseModel):
             base_path (str | Path): The directory to save the run in.
         """
         base_path = Path(base_path)
-        run_dir = base_path / self._make_id(self.time, self.run_name)
+        run_dir = base_path / self._make_id()
         Path.mkdir(run_dir)
         self._save_params(run_dir)
         if self.input_segmentation is not None:
@@ -163,7 +163,7 @@ class MotileRun(BaseModel):
         return SolverParams(**params_dict)
 
     def _save_segmentation(
-        self, run_dir: Path, seg_file: str, segmentation: np.array
+        self, run_dir: Path, seg_filename: str, segmentation: np.ndarray
     ):
         """Save a segmentation as a numpy array using np.save. In the future,
         could be changed to use zarr or other file types.
@@ -173,12 +173,12 @@ class MotileRun(BaseModel):
             seg_file (str): The filename to use
             segmentation (np.array): The segmentation to save
         """
-        seg_file = run_dir / seg_file
+        seg_file = run_dir / seg_filename
         np.save(seg_file, segmentation)
 
     @staticmethod
     def _load_segmentation(
-        run_dir: Path, seg_file: str, required: bool = True
+        run_dir: Path, seg_filename: str, required: bool = True
     ) -> np.ndarray | None:
         """Load a segmentation from file using np.load. In the future,
         could be lazy loading from a zarr.
@@ -198,7 +198,7 @@ class MotileRun(BaseModel):
             np.ndarray | None: The segmentation, or None if the file was
                 not found and not required.
         """
-        seg_file = run_dir / seg_file
+        seg_file = run_dir / seg_filename
         if seg_file.is_file():
             return np.load(seg_file)
         elif required:
@@ -262,7 +262,7 @@ class MotileRun(BaseModel):
         elif required:
             raise FileNotFoundError(f"No gaps found at {gaps_file}")
         else:
-            return None
+            return []
 
     def delete(self, base_path: str | Path):
         """Delete this run from the file system. Will look inside base_path
@@ -273,7 +273,7 @@ class MotileRun(BaseModel):
                 (not the one created by self.save).
         """
         base_path = Path(base_path)
-        run_dir = base_path / self._make_id(self.time, self.run_name)
+        run_dir = base_path / self._make_id()
         # Lets be safe and remove the expected files and then the directory
         (run_dir / PARAMS_FILENAME).unlink()
         (run_dir / IN_SEG_FILEANME).unlink()

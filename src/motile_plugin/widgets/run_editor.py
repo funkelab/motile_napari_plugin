@@ -45,7 +45,7 @@ class RunEditor(QGroupBox):
         self.viewer = viewer
         self.solver_params_widget = SolverParamsEditor()
         self.run_name: QLineEdit
-        self.layer_selection_box: magicgui.widgets.Widget
+        self.layer_selection_box: magicgui.widgets.ComboBox
 
         # Generate Tracks button
         generate_tracks_btn = QPushButton("Run Tracking")
@@ -110,7 +110,7 @@ class RunEditor(QGroupBox):
             return None
         return layer.data
 
-    def reshape_labels(self, segmentation: np.ndarray) -> None:
+    def reshape_labels(self, segmentation: np.ndarray) -> np.ndarray:
         """Expect napari segmentation to have shape t, [z], y, x.
         Motile toolbox needs a channel dimension between time and space.
         This also raises an error if the input seg is not the expected shape.
