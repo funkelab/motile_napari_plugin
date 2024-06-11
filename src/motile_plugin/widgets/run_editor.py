@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 from warnings import warn
 
@@ -172,6 +173,7 @@ class RunEditor(QGroupBox):
             run_name=run_name,
             solver_params=params,
             input_segmentation=input_seg,
+            time=datetime.now(),
         )
 
     def emit_run(self) -> None:
