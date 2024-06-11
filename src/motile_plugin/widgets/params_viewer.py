@@ -76,7 +76,6 @@ class SolverParamsViewer(QWidget):
                 "edge_selection_cost",
                 "appear_cost",
                 "division_cost",
-                "disappear_cost",
             ],
             "attribute_costs": [
                 "distance_cost",

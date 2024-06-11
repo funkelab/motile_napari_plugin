@@ -25,12 +25,7 @@ Objects further than this cannot be matched, but making this value larger will i
     appear_cost: float | None = Field(
         30,
         title="Appear",
-        description=r"""Cost for starting a new track. A higher value means fewer selected tracks and fewer merges.""",
-    )
-    disappear_cost: float | None = Field(
-        30,
-        title="Disappear",
-        description=r"""Cost for ending a track. A higher value means fewer selected tracks and fewer divisions.""",
+        description=r"""Cost for starting a new track. A higher value means fewer and longer selected tracks.""",
     )
     division_cost: float | None = Field(
         20,

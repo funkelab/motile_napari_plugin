@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 from motile import Solver, TrackGraph
 from motile.constraints import MaxChildren, MaxParents
-from motile.costs import Appear, Disappear, EdgeDistance, EdgeSelection, Split
+from motile.costs import Appear, EdgeDistance, EdgeSelection, Split
 from motile_toolbox.candidate_graph import (
     EdgeAttr,
     NodeAttr,
@@ -96,8 +96,6 @@ def construct_solver(
         )
     if solver_params.appear_cost is not None:
         solver.add_costs(Appear(solver_params.appear_cost))
-    if solver_params.disappear_cost is not None:
-        solver.add_costs(Disappear(solver_params.disappear_cost))
     if solver_params.division_cost is not None:
         solver.add_costs(Split(constant=solver_params.division_cost))
 
