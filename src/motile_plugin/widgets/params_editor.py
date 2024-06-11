@@ -123,11 +123,13 @@ class SolverParamsEditor(QWidget):
         self.solver_params = SolverParams()
         self.param_categories = {
             "hyperparams": ["max_edge_distance", "max_children"],
-            "costs": [
+            "constant_costs": [
                 "edge_selection_cost",
                 "appear_cost",
                 "division_cost",
                 "disappear_cost",
+            ],
+            "attribute_costs": [
                 "distance_cost",
                 "iou_cost",
             ],
@@ -141,7 +143,14 @@ class SolverParamsEditor(QWidget):
             )
         )
         main_layout.addWidget(
-            self._params_group("Costs", "costs", negative=True)
+            self._params_group(
+                "Constant Costs", "constant_costs", negative=True
+            )
+        )
+        main_layout.addWidget(
+            self._params_group(
+                "Attribute Weights", "attribute_costs", negative=True
+            )
         )
         self.setLayout(main_layout)
 
