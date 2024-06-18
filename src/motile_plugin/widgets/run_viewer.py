@@ -105,12 +105,12 @@ class RunViewer(QGroupBox):
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         # create back to editing button
-        edit_run_button = QPushButton("Edit from previous state")
+        edit_run_button = QPushButton("Back to editing")
         edit_run_button.clicked.connect(partial(self.edit_run.emit, None))
         layout.addWidget(edit_run_button)
 
         # new run from this config button
-        run_from_config_button = QPushButton("Edit from this state")
+        run_from_config_button = QPushButton("Edit this run")
         run_from_config_button.clicked.connect(self._emit_run)
         layout.addWidget(run_from_config_button)
 
