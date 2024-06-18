@@ -11,6 +11,7 @@ from .solver_params import SolverParams
 STAMP_FORMAT = "%m%d%Y_%H%M%S"
 PARAMS_FILENAME = "solver_params.json"
 IN_SEG_FILEANME = "input_segmentation.npy"
+IN_POINTS_FILEANME = "input_points.npy"
 OUT_SEG_FILEANME = "output_segmentation.npy"
 TRACKS_FILENAME = "tracks.json"
 GAPS_FILENAME = "gaps.txt"
@@ -27,6 +28,7 @@ class MotileRun(BaseModel):
     run_name: str
     solver_params: SolverParams
     input_segmentation: np.ndarray | None = None
+    input_points: np.ndarray | None = None
     output_segmentation: np.ndarray | None = None
     tracks: nx.DiGraph | None = None
     time: datetime = datetime.now()
@@ -81,11 +83,11 @@ class MotileRun(BaseModel):
         Path.mkdir(run_dir)
         self._save_params(run_dir)
         if self.input_segmentation is not None:
-            self._save_segmentation(
-                run_dir, IN_SEG_FILEANME, self.input_segmentation
-            )
+            self._save_array(run_dir, IN_SEG_FILEANME, self.input_segmentation)
+        if self.input_points is not None:
+            self._save_array(run_dir, IN_POINTS_FILEANME, self.input_points)
         if self.output_segmentation is not None:
-            self._save_segmentation(
+            self._save_array(
                 run_dir, OUT_SEG_FILEANME, self.output_segmentation
             )
         if self.tracks is not None:
@@ -111,10 +113,21 @@ class MotileRun(BaseModel):
             run_dir = Path(run_dir)
         time, run_name = cls._unpack_id(run_dir.stem)
         params = cls._load_params(run_dir)
-        input_segmentation = cls._load_segmentation(
-            run_dir, IN_SEG_FILEANME, required=all_required
+        input_segmentation = cls._load_array(
+            run_dir, IN_SEG_FILEANME, required=False
         )
-        output_segmentation = cls._load_segmentation(
+        input_points = cls._load_array(
+            run_dir, IN_POINTS_FILEANME, required=False
+        )
+        if (
+            input_segmentation is None
+            and input_points is None
+            and all_required
+        ):
+            raise FileNotFoundError(
+                f"Must have either input segmentation or points: neither found in {run_dir}"
+            )
+        output_segmentation = cls._load_array(
             run_dir, OUT_SEG_FILEANME, required=all_required
         )
         tracks = cls._load_tracks(run_dir, required=all_required)
@@ -123,6 +136,7 @@ class MotileRun(BaseModel):
             run_name=run_name,
             solver_params=params,
             input_segmentation=input_segmentation,
+            input_points=input_points,
             output_segmentation=output_segmentation,
             tracks=tracks,
             time=time,
@@ -162,47 +176,45 @@ class MotileRun(BaseModel):
             params_dict = json.load(f)
         return SolverParams(**params_dict)
 
-    def _save_segmentation(
-        self, run_dir: Path, seg_filename: str, segmentation: np.ndarray
-    ):
+    def _save_array(self, run_dir: Path, filename: str, array: np.ndarray):
         """Save a segmentation as a numpy array using np.save. In the future,
         could be changed to use zarr or other file types.
 
         Args:
             run_dir (Path): The directory in which to save the segmentation
-            seg_file (str): The filename to use
-            segmentation (np.array): The segmentation to save
+            filename (str): The filename to use
+            array (np.array): The array to save
         """
-        seg_file = run_dir / seg_filename
-        np.save(seg_file, segmentation)
+        out_path = run_dir / filename
+        np.save(out_path, array)
 
     @staticmethod
-    def _load_segmentation(
-        run_dir: Path, seg_filename: str, required: bool = True
+    def _load_array(
+        run_dir: Path, filename: str, required: bool = True
     ) -> np.ndarray | None:
-        """Load a segmentation from file using np.load. In the future,
+        """Load an array from file using np.load. In the future,
         could be lazy loading from a zarr.
 
         Args:
-            run_dir (Path): The base run directory containing the segmentation
-            seg_file (str): The name of the segmentation file to load
-            required (bool, optional): If true, will fail if the segmentation
+            run_dir (Path): The base run directory containing the array
+            filename (str): The name of the file to load
+            required (bool, optional): If true, will fail if the array
                 file is not present. If false, will return None if the file
                 is not present. Defaults to True.
 
         Raises:
-            FileNotFoundError: If the segmentation file is not found, and
+            FileNotFoundError: If the array file is not found, and
                 it was required.
 
         Returns:
-            np.ndarray | None: The segmentation, or None if the file was
+            np.ndarray | None: The array, or None if the file was
                 not found and not required.
         """
-        seg_file = run_dir / seg_filename
-        if seg_file.is_file():
-            return np.load(seg_file)
+        array_path = run_dir / filename
+        if array_path.is_file():
+            return np.load(array_path)
         elif required:
-            raise FileNotFoundError(f"No segmentation at {seg_file}")
+            raise FileNotFoundError(f"No segmentation at {array_path}")
         else:
             return None
 

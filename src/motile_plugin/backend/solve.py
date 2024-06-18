@@ -11,6 +11,7 @@ from motile_toolbox.candidate_graph import (
     EdgeAttr,
     NodeAttr,
     get_candidate_graph,
+    get_candidate_graph_from_points_list,
     graph_to_nx,
 )
 
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def solve(
     solver_params: SolverParams,
-    segmentation: np.ndarray,
+    input_data: np.ndarray,
     on_solver_update: Callable | None = None,
 ) -> nx.DiGraph:
     """Get a tracking solution for the given segmentation and parameters.
@@ -34,7 +35,9 @@ def solve(
     Args:
         solver_params (SolverParams): The solver parameters to use when
             initializing the solver
-        segmentation (np.ndarray): The input segmentation to run tracking on
+        input_data (np.ndarray): The input segmentation or points list to run
+            tracking on. If 2D, assumed to be a list of points, otherwise a
+            segmentation.
         on_solver_update (Callable, optional): A function that is called
             whenever the motile solver emits an event. The function should take
             a dictionary of event data, and can be used to track progress of
@@ -45,11 +48,16 @@ def solve(
             the time and ids of the passed in segmentation labels. See the
             motile_toolbox for exact implementation details.
     """
-    cand_graph, _ = get_candidate_graph(
-        segmentation,
-        solver_params.max_edge_distance,
-        iou=solver_params.iou_cost is not None,
-    )
+    if input_data.ndim == 2:
+        cand_graph = get_candidate_graph_from_points_list(
+            input_data, solver_params.max_edge_distance
+        )
+    else:
+        cand_graph, _ = get_candidate_graph(
+            input_data,
+            solver_params.max_edge_distance,
+            iou=solver_params.iou_cost is not None,
+        )
     logger.debug("Cand graph has %d nodes", cand_graph.number_of_nodes())
     solver = construct_solver(cand_graph, solver_params)
     start_time = time.time()

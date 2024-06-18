@@ -103,6 +103,14 @@ class OptionalEditableParam(EditableParam):
         # force the parameter to say that the value has changed when we toggle
         self.param_value.valueChanged.emit(value)
 
+    def toggle_visible(self, visible: bool):
+        self.setVisible(visible)
+        if visible and self.param_label.isChecked():
+            value = self.param_value.get_value()
+        else:
+            value = None
+        self.param_value.valueChanged.emit(value)
+
 
 class SolverParamsEditor(QWidget):
     """Widget for editing SolverParams.
@@ -133,6 +141,7 @@ class SolverParamsEditor(QWidget):
                 "iou_cost",
             ],
         }
+        self.iou_row: OptionalEditableParam
 
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -174,6 +183,8 @@ class SolverParamsEditor(QWidget):
                 partial(self.solver_params.__setattr__, param_name)
             )
             self.new_params.connect(param_row.update_from_params)
+            if param_name == "iou_cost":
+                self.iou_row = param_row
             layout.addWidget(param_row)
         widget.setLayout(layout)
         return widget
