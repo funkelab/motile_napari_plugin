@@ -64,10 +64,12 @@ class RunEditor(QGroupBox):
 
     def update_labels_layers(self) -> None:
         """Update the layer selection box with the input layers in the viewer"""
+        prev_selection = self.layer_selection_box.currentText()
         self.layer_selection_box.clear()
         for layer in self.viewer.layers:
             if isinstance(layer, (napari.layers.Labels, napari.layers.Points)):
                 self.layer_selection_box.addItem(layer.name)
+        self.layer_selection_box.setCurrentText(prev_selection)
 
     def update_layer_selection(self) -> None:
         """Update the rest of the UI when the selected layer is updated"""
