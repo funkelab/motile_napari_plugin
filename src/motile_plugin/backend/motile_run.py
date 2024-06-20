@@ -95,15 +95,15 @@ class MotileRun(BaseModel):
         self._save_gaps(run_dir)
 
     @classmethod
-    def load(cls, run_dir: Path | str, all_required: bool = True):
+    def load(cls, run_dir: Path | str, output_required: bool = True):
         """Load a run from disk into memory.
 
         Args:
             run_dir (Path | str): A directory containing the saved run.
                 Should be the subdirectory created by MotileRun.save that
                 includes the timestamp and run name.
-            all_required (bool): If the segmentations and tracks are required.
-                If true, will raise an error if the files are not found.
+            output_required (bool): If the model outputs are required.
+                If true, will raise an error if the output files are not found.
                 Defualts to True.
 
         Returns:
@@ -119,18 +119,18 @@ class MotileRun(BaseModel):
         input_points = cls._load_array(
             run_dir, IN_POINTS_FILEANME, required=False
         )
-        if (
-            input_segmentation is None
-            and input_points is None
-            and all_required
-        ):
+        if input_segmentation is None and input_points is None:
             raise FileNotFoundError(
                 f"Must have either input segmentation or points: neither found in {run_dir}"
             )
+        if output_required and input_segmentation is not None:
+            output_seg_required = True
+        else:
+            output_seg_required = False
         output_segmentation = cls._load_array(
-            run_dir, OUT_SEG_FILEANME, required=all_required
+            run_dir, OUT_SEG_FILEANME, required=output_seg_required
         )
-        tracks = cls._load_tracks(run_dir, required=all_required)
+        tracks = cls._load_tracks(run_dir, required=output_required)
         gaps = cls._load_gaps(run_dir)
         return cls(
             run_name=run_name,
