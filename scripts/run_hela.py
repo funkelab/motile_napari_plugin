@@ -1,7 +1,9 @@
 import logging
+from pathlib import Path
 
 import napari
 import zarr
+from appdirs import AppDirs
 from motile_plugin import MotileWidget
 from napari.utils.theme import _themes
 
@@ -15,7 +17,11 @@ _themes["dark"].font_size = "18pt"
 
 
 # Load Zarr datasets
-zarr_directory = "../data/Fluo-N2DL-HeLa.zarr"
+
+ds_name = "Fluo-N2DL-HeLa"
+appdir = AppDirs("motile-plugin")
+data_dir = Path(appdir.user_data_dir)
+zarr_directory = data_dir / f"{ds_name}.zarr"
 zarr_group = zarr.open_group(zarr_directory, mode="r")
 
 # Initialize Napari viewer
