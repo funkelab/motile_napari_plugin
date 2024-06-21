@@ -84,6 +84,7 @@ class MotileWidget(QWidget):
             self.output_seg_layer = Labels(
                 run.output_segmentation[:, 0], name=run.run_name + "_seg"
             )
+            self.viewer.add_layer(self.output_seg_layer)
         else:
             self.output_seg_layer = None
 
@@ -100,10 +101,6 @@ class MotileWidget(QWidget):
                 name=run.run_name + "_tracks",
                 tail_length=3,
             )
-
-        # Add layers to the viewer
-        if self.tracks_layer is not None:
-            self.viewer.add_layer(self.output_seg_layer)
             self.viewer.add_layer(self.tracks_layer)
 
     def view_run_napari(self, run: MotileRun) -> None:
@@ -160,14 +157,21 @@ class MotileWidget(QWidget):
         Returns:
             MotileRun: The provided run with the output graph and segmentation included.
         """
+        if run.input_segmentation is not None:
+            input_data = run.input_segmentation
+        elif run.input_points is not None:
+            input_data = run.input_points
+        else:
+            raise ValueError("Must have one of input segmentation or points")
         run.tracks = solve(
             run.solver_params,
-            run.input_segmentation,
+            input_data,
             lambda event_data: self._on_solver_event(run, event_data),
         )
-        run.output_segmentation = relabel_segmentation(
-            run.tracks, run.input_segmentation
-        )
+        if run.input_segmentation is not None:
+            run.output_segmentation = relabel_segmentation(
+                run.tracks, run.input_segmentation
+            )
         return run
 
     def _on_solver_event(self, run: MotileRun, event_data: dict) -> None:
@@ -216,10 +220,11 @@ class MotileWidget(QWidget):
         """
         richtext = r"""<h3>Tracking with Motile</h3>
         <p>This plugin uses the
-        <a href="https://funkelab.github.io/motile/">motile</a> library to
+        <a href="https://funkelab.github.io/motile/"><font color=yellow>motile</font></a> library to
         track objects with global optimization. See the
-        <a href="https://funkelab.github.io/motile-napari-plugin/">user guide</a>
+        <a href="https://funkelab.github.io/motile_napari_plugin/"><font color=yellow>user guide</font></a>
         for a tutorial to the plugin functionality."""
         label = QLabel(richtext)
         label.setWordWrap(True)
+        label.setOpenExternalLinks(True)
         return label

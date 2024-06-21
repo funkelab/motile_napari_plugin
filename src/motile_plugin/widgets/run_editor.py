@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 from warnings import warn
 
-import magicgui.widgets
 import napari.layers
 import numpy as np
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
+    QComboBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -45,7 +46,7 @@ class RunEditor(QGroupBox):
         self.viewer = viewer
         self.solver_params_widget = SolverParamsEditor()
         self.run_name: QLineEdit
-        self.layer_selection_box: magicgui.widgets.Widget
+        self.layer_selection_box: QComboBox
 
         # Generate Tracks button
         generate_tracks_btn = QPushButton("Run Tracking")
@@ -60,6 +61,26 @@ class RunEditor(QGroupBox):
         main_layout.addWidget(self.solver_params_widget)
         main_layout.addWidget(generate_tracks_btn)
         self.setLayout(main_layout)
+
+    def update_labels_layers(self) -> None:
+        """Update the layer selection box with the input layers in the viewer"""
+        prev_selection = self.layer_selection_box.currentText()
+        self.layer_selection_box.clear()
+        for layer in self.viewer.layers:
+            if isinstance(layer, (napari.layers.Labels, napari.layers.Points)):
+                self.layer_selection_box.addItem(layer.name)
+        self.layer_selection_box.setCurrentText(prev_selection)
+
+    def update_layer_selection(self) -> None:
+        """Update the rest of the UI when the selected layer is updated"""
+        layer = self.get_input_layer()
+        if layer is None:
+            return
+        if isinstance(layer, napari.layers.Labels):
+            enable_iou = True
+        elif isinstance(layer, napari.layers.Points):
+            enable_iou = False
+        self.solver_params_widget.iou_row.toggle_visible(enable_iou)
 
     def _labels_layer_widget(self) -> QWidget:
         """Create the widget to select the input layer. Uses magicgui,
@@ -79,38 +100,38 @@ class RunEditor(QGroupBox):
         )
 
         # # Layer selection combo box
-        self.layer_selection_box = magicgui.widgets.create_widget(
-            annotation=napari.layers.Labels
-        )
+        self.layer_selection_box = QComboBox()
+        self.update_labels_layers()
         layers_events = self.viewer.layers.events
-        layers_events.inserted.connect(self.layer_selection_box.reset_choices)
-        layers_events.removed.connect(self.layer_selection_box.reset_choices)
-        layers_events.reordered.connect(self.layer_selection_box.reset_choices)
+        layers_events.inserted.connect(self.update_labels_layers)
+        layers_events.removed.connect(self.update_labels_layers)
+        layers_events.reordered.connect(self.update_labels_layers)
+        self.layer_selection_box.currentTextChanged.connect(
+            self.update_layer_selection
+        )
 
-        qlayer_select = self.layer_selection_box.native
-
-        size_policy = qlayer_select.sizePolicy()
+        size_policy = self.layer_selection_box.sizePolicy()
         size_policy.setHorizontalPolicy(QSizePolicy.MinimumExpanding)
-        qlayer_select.setSizePolicy(size_policy)
-        layer_layout.addWidget(qlayer_select)
+        self.layer_selection_box.setSizePolicy(size_policy)
+        layer_layout.addWidget(self.layer_selection_box)
 
         layer_group.setLayout(layer_layout)
         return layer_group
 
-    def get_labels_data(self) -> np.ndarray | None:
-        """Get the input segmentation given the current selection in the
+    def get_input_layer(self) -> napari.layers.Layer | None:
+        """Get the input segmentation or points in current selection in the
         layer dropdown.
 
         Returns:
-            np.ndarray | None: The data of the labels layer with the name
+            napari.layers.Layer | None: The points or labels layer with the name
                 that is selected, or None if no layer is selected.
         """
-        layer = self.layer_selection_box.value
-        if layer is None:
+        layer_name = self.layer_selection_box.currentText()
+        if layer_name is None or layer_name not in self.viewer.layers:
             return None
-        return layer.data
+        return self.viewer.layers[layer_name]
 
-    def reshape_labels(self, segmentation: np.ndarray) -> None:
+    def reshape_labels(self, segmentation: np.ndarray) -> np.ndarray:
         """Expect napari segmentation to have shape t, [z], y, x.
         Motile toolbox needs a channel dimension between time and space.
         This also raises an error if the input seg is not the expected shape.
@@ -162,16 +183,23 @@ class RunEditor(QGroupBox):
                 Output segmentation and tracks not yet specified.
         """
         run_name = self.run_name.text()
-        input_seg = self.get_labels_data()
-        if input_seg is None:
-            warn("No input labels layer selected", stacklevel=2)
+        input_layer = self.get_input_layer()
+        if input_layer is None:
+            warn("No input layer selected", stacklevel=2)
             return None
-        input_seg = self.reshape_labels(input_seg)
+        if isinstance(input_layer, napari.layers.Labels):
+            input_seg = self.reshape_labels(input_layer.data)
+            input_points = None
+        elif isinstance(input_layer, napari.layers.Points):
+            input_seg = None
+            input_points = input_layer.data
         params = self.solver_params_widget.solver_params.copy()
         return MotileRun(
             run_name=run_name,
             solver_params=params,
             input_segmentation=input_seg,
+            input_points=input_points,
+            time=datetime.now(),
         )
 
     def emit_run(self) -> None:

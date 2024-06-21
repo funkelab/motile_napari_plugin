@@ -7,12 +7,9 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from motile_plugin.backend.solver_params import (
-    CompoundSolverParam,
-    SolverParams,
-)
+from motile_plugin.backend.solver_params import SolverParams
 
-from .param_values import CompoundParamValue, StaticParamValue
+from .param_values import StaticParamValue
 
 
 class ParamView(QWidget):
@@ -35,13 +32,7 @@ class ParamView(QWidget):
         self.title = field.title
         self.param_label = QLabel(self.title)
         self.param_label.setToolTip(field.description)
-        self.param_value: CompoundParamValue | StaticParamValue
-        if issubclass(CompoundSolverParam, self.dtype):
-            self.param_value = CompoundParamValue(
-                StaticParamValue(), StaticParamValue()
-            )
-        else:
-            self.param_value = StaticParamValue()
+        self.param_value = StaticParamValue()
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -78,15 +69,17 @@ class SolverParamsViewer(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.solver_params: SolverParams = SolverParams()
+        self.solver_params = SolverParams()
         self.param_categories = {
             "hyperparams": ["max_edge_distance", "max_children"],
-            "costs": [
+            "constant_costs": [
+                "edge_selection_cost",
                 "appear_cost",
                 "division_cost",
-                "disappear_cost",
-                "distance",
-                "iou",
+            ],
+            "attribute_costs": [
+                "distance_cost",
+                "iou_cost",
             ],
         }
         main_layout = QVBoxLayout()
@@ -96,7 +89,14 @@ class SolverParamsViewer(QWidget):
             )
         )
         main_layout.addWidget(
-            self._params_group(title="Costs", param_category="costs")
+            self._params_group(
+                title="Constant Costs", param_category="constant_costs"
+            )
+        )
+        main_layout.addWidget(
+            self._params_group(
+                title="Attribute Weights", param_category="attribute_costs"
+            )
         )
         main_layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(main_layout)

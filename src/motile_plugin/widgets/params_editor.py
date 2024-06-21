@@ -11,12 +11,9 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from motile_plugin.backend.solver_params import (
-    CompoundSolverParam,
-    SolverParams,
-)
+from motile_plugin.backend.solver_params import SolverParams
 
-from .param_values import CompoundParamValue, EditableParamValue
+from .param_values import EditableParamValue
 
 
 class EditableParam(QWidget):
@@ -48,14 +45,7 @@ class EditableParam(QWidget):
         self.negative = negative
         self.param_label = self._param_label_widget()
         self.param_label.setToolTip(field.description)
-        self.param_value: CompoundParamValue | EditableParamValue
-        if issubclass(CompoundSolverParam, self.dtype):
-            self.param_value = CompoundParamValue(
-                EditableParamValue(float, self.negative),
-                EditableParamValue(float, self.negative),
-            )
-        else:
-            self.param_value = EditableParamValue(float, self.negative)
+        self.param_value = EditableParamValue(float, self.negative)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -113,6 +103,14 @@ class OptionalEditableParam(EditableParam):
         # force the parameter to say that the value has changed when we toggle
         self.param_value.valueChanged.emit(value)
 
+    def toggle_visible(self, visible: bool):
+        self.setVisible(visible)
+        if visible and self.param_label.isChecked():
+            value = self.param_value.get_value()
+        else:
+            value = None
+        self.param_value.valueChanged.emit(value)
+
 
 class SolverParamsEditor(QWidget):
     """Widget for editing SolverParams.
@@ -133,14 +131,17 @@ class SolverParamsEditor(QWidget):
         self.solver_params = SolverParams()
         self.param_categories = {
             "hyperparams": ["max_edge_distance", "max_children"],
-            "costs": [
+            "constant_costs": [
+                "edge_selection_cost",
                 "appear_cost",
                 "division_cost",
-                "disappear_cost",
-                "distance",
-                "iou",
+            ],
+            "attribute_costs": [
+                "distance_cost",
+                "iou_cost",
             ],
         }
+        self.iou_row: OptionalEditableParam
 
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -150,7 +151,14 @@ class SolverParamsEditor(QWidget):
             )
         )
         main_layout.addWidget(
-            self._params_group("Costs", "costs", negative=True)
+            self._params_group(
+                "Constant Costs", "constant_costs", negative=True
+            )
+        )
+        main_layout.addWidget(
+            self._params_group(
+                "Attribute Weights", "attribute_costs", negative=True
+            )
         )
         self.setLayout(main_layout)
 
@@ -175,6 +183,8 @@ class SolverParamsEditor(QWidget):
                 partial(self.solver_params.__setattr__, param_name)
             )
             self.new_params.connect(param_row.update_from_params)
+            if param_name == "iou_cost":
+                self.iou_row = param_row
             layout.addWidget(param_row)
         widget.setLayout(layout)
         return widget
