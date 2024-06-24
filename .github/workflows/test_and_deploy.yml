@@ -51,7 +51,7 @@ jobs:
             python-version: ${{ matrix.python-version }}
             environment-file: conda_config.yml
             channel-priority: true
-      
+
       - name: Install pip dependencies
         shell: bash -el {0}  # this is necessary to activate the conda env
         run: |
@@ -70,7 +70,6 @@ jobs:
 
   build-n-publish:
     name: Build and publish Python 🐍 distributions 📦 to PyPI
-    needs: [test]
     runs-on: ubuntu-latest
     if: contains(github.ref, 'tags')
     steps:
@@ -81,7 +80,7 @@ jobs:
       - name: Build a binary wheel and a source tarball
         run: |
           python -m pip install -U pip
-          python -m pip install -U setuptools setuptools_scm build 
+          python -m pip install -U setuptools setuptools_scm build
           python -m build --sdist --wheel --outdir dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
