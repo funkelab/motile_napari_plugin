@@ -84,14 +84,10 @@ class SolverParamsViewer(QWidget):
         }
         main_layout = QVBoxLayout()
         main_layout.addWidget(
-            self._params_group(
-                title="Hyperparameters", param_category="hyperparams"
-            )
+            self._params_group(title="Hyperparameters", param_category="hyperparams")
         )
         main_layout.addWidget(
-            self._params_group(
-                title="Constant Costs", param_category="constant_costs"
-            )
+            self._params_group(title="Constant Costs", param_category="constant_costs")
         )
         main_layout.addWidget(
             self._params_group(

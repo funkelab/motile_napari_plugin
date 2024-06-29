@@ -220,9 +220,7 @@ def multi_hypothesis_graph_2d():
 def sphere(center, radius, shape):
     assert len(center) == len(shape)
     indices = np.moveaxis(np.indices(shape), 0, -1)  # last dim is the index
-    distance = np.linalg.norm(
-        np.subtract(indices, np.asarray(center)), axis=-1
-    )
+    distance = np.linalg.norm(np.subtract(indices, np.asarray(center)), axis=-1)
     mask = distance <= radius
     return mask
 

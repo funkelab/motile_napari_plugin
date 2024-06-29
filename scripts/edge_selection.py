@@ -25,9 +25,7 @@ def build_tree(cylinders):
 
         axis_vector /= axis_length  # Normalize the axis vector
         orthogonal_vector = (
-            np.array([1, 0, 0])
-            if axis_vector[0] < 0.9
-            else np.array([0, 1, 0])
+            np.array([1, 0, 0]) if axis_vector[0] < 0.9 else np.array([0, 1, 0])
         )
         ortho1 = np.cross(axis_vector, orthogonal_vector)
         ortho2 = np.cross(axis_vector, ortho1)
@@ -70,9 +68,7 @@ for edge in graph.get_edges():
 tree, bboxes = build_tree(cylinders)
 
 
-def ray_intersects_cylinder(
-    ray_origin, ray_direction, cylinder, tolerance=1e-6
-):
+def ray_intersects_cylinder(ray_origin, ray_direction, cylinder, tolerance=1e-6):
     """
     Check if a ray intersects with a cylinder.
 
@@ -126,9 +122,7 @@ def distance_to_bbox(ray_origin, bbox):
     return np.linalg.norm(ray_origin - closest_point)
 
 
-def query_ray_intersection(
-    ray_origin, ray_direction, cylinders, rtree_index, bboxes
-):
+def query_ray_intersection(ray_origin, ray_direction, cylinders, rtree_index, bboxes):
     """
     Query the R-tree for a ray intersection with cylinders.
 
@@ -160,8 +154,6 @@ def query_ray_intersection(
 # Example usage:
 ray_origin = (2, 367, 514)
 ray_direction = (0, 1, 0)
-result = query_ray_intersection(
-    ray_origin, ray_direction, cylinders, tree, bboxes
-)
+result = query_ray_intersection(ray_origin, ray_direction, cylinders, tree, bboxes)
 
 (result, cylinders[result])

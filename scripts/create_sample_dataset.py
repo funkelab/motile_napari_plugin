@@ -7,18 +7,12 @@ from scipy.ndimage import label
 from skimage.filters import threshold_otsu
 
 # Step 1: Read the TIFF files
-directory = (
-    "/Users/kharrington/git/cmalinmayor/motile-plugin/data/Fluo-N2DL-HeLa/01"
-)
-zarr_directory = (
-    "/Users/kharrington/git/cmalinmayor/motile-plugin/data/zarr_data.zarr"
-)
+directory = "/Users/kharrington/git/cmalinmayor/motile-plugin/data/Fluo-N2DL-HeLa/01"
+zarr_directory = "/Users/kharrington/git/cmalinmayor/motile-plugin/data/zarr_data.zarr"
 file_names = sorted([f for f in os.listdir(directory) if f.endswith(".tif")])
 
 # Step 2: Combine them into a 3D array
-images = [
-    tifffile.imread(os.path.join(directory, fname)) for fname in file_names
-]
+images = [tifffile.imread(os.path.join(directory, fname)) for fname in file_names]
 stack = np.stack(images, axis=0)
 
 # Step 3: Create a Zarr group and save the combined array

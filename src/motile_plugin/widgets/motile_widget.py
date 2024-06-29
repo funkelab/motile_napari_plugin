@@ -61,10 +61,7 @@ class MotileWidget(QWidget):
 
     def remove_napari_layers(self) -> None:
         """Remove the currently stored layers from the napari viewer, if present"""
-        if (
-            self.output_seg_layer
-            and self.output_seg_layer in self.viewer.layers
-        ):
+        if self.output_seg_layer and self.output_seg_layer in self.viewer.layers:
             self.viewer.layers.remove(self.output_seg_layer)
         if self.tracks_layer and self.tracks_layer in self.viewer.layers:
             self.viewer.layers.remove(self.tracks_layer)
@@ -91,9 +88,7 @@ class MotileWidget(QWidget):
         if run.tracks is None or run.tracks.number_of_nodes() == 0:
             self.tracks_layer = None
         else:
-            track_data, track_props, track_edges = to_napari_tracks_layer(
-                run.tracks
-            )
+            track_data, track_props, track_edges = to_napari_tracks_layer(run.tracks)
             self.tracks_layer = Tracks(
                 track_data,
                 properties=track_props,
@@ -186,10 +181,7 @@ class MotileWidget(QWidget):
             event_data (dict): The solver event data from ilpy.EventData
         """
         event_type = event_data["event_type"]
-        if (
-            event_type in ["PRESOLVE", "PRESOLVEROUND"]
-            and run.status != "presolving"
-        ):
+        if event_type in ["PRESOLVE", "PRESOLVEROUND"] and run.status != "presolving":
             run.status = "presolving"
             run.gaps = []  # try this to remove the weird initial gap for gurobi
             self.solver_update.emit()

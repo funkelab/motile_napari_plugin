@@ -59,7 +59,7 @@ Homepage = "https://github.com/funkelab/motile-napari-plugin"
 
 
 [tool.ruff]
-line-length = 79
+line-length = 88
 target-version = "py310"
 fix = true
 
@@ -82,6 +82,7 @@ ignore = [
     "E501",   # line too long. let black handle this
     "UP006",
     "UP007",  # type annotation. As using magicgui require runtime type annotation then we disable this.
+    "ISC001", # implicit string concatenation
 ]
 
 [tool.ruff.lint.per-file-ignores]

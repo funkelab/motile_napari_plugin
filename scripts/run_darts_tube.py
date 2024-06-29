@@ -81,9 +81,7 @@ if __name__ == "__main__":
                 seg_zarr.set_result_name(result)
                 labeled_mask = seg_zarr.get_data(fov, channel)
                 labeled_mask = labeled_mask[seg_zarr.roi_to_slices(roi)]
-                viewer.add_labels(
-                    labeled_mask[:, 0], name=f"{channel}_{result}"
-                )
+                viewer.add_labels(labeled_mask[:, 0], name=f"{channel}_{result}")
 
     print("Done adding images")
     # Add your custom widget

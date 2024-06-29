@@ -70,9 +70,7 @@ def solve(
     return solution_nx_graph
 
 
-def construct_solver(
-    cand_graph: nx.DiGraph, solver_params: SolverParams
-) -> Solver:
+def construct_solver(cand_graph: nx.DiGraph, solver_params: SolverParams) -> Solver:
     """Construct a motile solver with the parameters specified in the solver
     params object.
 
@@ -85,9 +83,7 @@ def construct_solver(
         Solver: A motile solver with the specified graph, costs, and
             constraints.
     """
-    solver = Solver(
-        TrackGraph(cand_graph, frame_attribute=NodeAttr.TIME.value)
-    )
+    solver = Solver(TrackGraph(cand_graph, frame_attribute=NodeAttr.TIME.value))
     solver.add_constraints(MaxChildren(solver_params.max_children))
     solver.add_constraints(MaxParents(1))
 
