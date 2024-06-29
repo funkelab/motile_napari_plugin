@@ -1,4 +1,4 @@
-""" A module for widgets that hold parameter values. Each of these
+"""A module for widgets that hold parameter values. Each of these
 widgets implements the following interface:
 
 class ParamValue(QWidget):

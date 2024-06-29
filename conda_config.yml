@@ -7,4 +7,3 @@ channels:
 dependencies:
   - ilpy
   - scip=9.0.0
-

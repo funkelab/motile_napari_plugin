@@ -191,9 +191,7 @@ class MotileWidget(QWidget):
             and run.status != "presolving"
         ):
             run.status = "presolving"
-            run.gaps = (
-                []
-            )  # try this to remove the weird initial gap for gurobi
+            run.gaps = []  # try this to remove the weird initial gap for gurobi
             self.solver_update.emit()
         elif event_type in ["MIPSOL", "BESTSOLFOUND"]:
             run.status = "solving"

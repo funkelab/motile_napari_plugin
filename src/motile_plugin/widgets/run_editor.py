@@ -67,7 +67,7 @@ class RunEditor(QGroupBox):
         prev_selection = self.layer_selection_box.currentText()
         self.layer_selection_box.clear()
         for layer in self.viewer.layers:
-            if isinstance(layer, (napari.layers.Labels, napari.layers.Points)):
+            if isinstance(layer, napari.layers.Labels | napari.layers.Points):
                 self.layer_selection_box.addItem(layer.name)
         self.layer_selection_box.setCurrentText(prev_selection)
 

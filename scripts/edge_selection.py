@@ -1,6 +1,6 @@
-from rtree import index
-from scipy.spatial import KDTree
 import numpy as np
+from rtree import index
+
 
 def build_tree(cylinders):
     """
@@ -13,7 +13,7 @@ def build_tree(cylinders):
     p.dimension = 3
     idx = index.Index(properties=p)
     bboxes = []
-    
+
     for i, cylinder in enumerate(cylinders):
         p1, p2, radius = cylinder
         # Calculate the bounding box of the cylinder
@@ -24,7 +24,11 @@ def build_tree(cylinders):
             continue  # Skip degenerate cylinders
 
         axis_vector /= axis_length  # Normalize the axis vector
-        orthogonal_vector = np.array([1, 0, 0]) if axis_vector[0] < 0.9 else np.array([0, 1, 0])
+        orthogonal_vector = (
+            np.array([1, 0, 0])
+            if axis_vector[0] < 0.9
+            else np.array([0, 1, 0])
+        )
         ortho1 = np.cross(axis_vector, orthogonal_vector)
         ortho2 = np.cross(axis_vector, ortho1)
 
@@ -45,6 +49,7 @@ def build_tree(cylinders):
     # Build and return the KD-Tree
     return idx, bboxes
 
+
 # Example usage:
 # cylinders = [((0,0,0), (1,1,1), 0.5), ((2,2,2), (3,3,3), 0.3)]
 # tree = build_kdtree(cylinders)
@@ -59,15 +64,15 @@ for edge in graph.get_edges():
     (start_node, end_node) = edge[0]
     # cylinders += [(graph.get_coordinates()[start_node], graph.get_coordinates()[end_node], cylinder_radius)]
     coords = graph.get_coordinates(edge[0])
-    
-    cylinders += [(coords[0,:], coords[1,:],  cylinder_radius)]
+
+    cylinders += [(coords[0, :], coords[1, :], cylinder_radius)]
 
 tree, bboxes = build_tree(cylinders)
 
 
-
-
-def ray_intersects_cylinder(ray_origin, ray_direction, cylinder, tolerance=1e-6):
+def ray_intersects_cylinder(
+    ray_origin, ray_direction, cylinder, tolerance=1e-6
+):
     """
     Check if a ray intersects with a cylinder.
 
@@ -105,6 +110,7 @@ def ray_intersects_cylinder(ray_origin, ray_direction, cylinder, tolerance=1e-6)
     # Ray intersects cylinder
     return True
 
+
 def distance_to_bbox(ray_origin, bbox):
     """
     Calculate the distance from a point to the closest point on a bounding box.
@@ -114,11 +120,15 @@ def distance_to_bbox(ray_origin, bbox):
     :return: Distance from the ray origin to the closest point on the bounding box.
     """
     xmin, ymin, zmin, xmax, ymax, zmax = bbox
-    closest_point = np.maximum(np.minimum(ray_origin, [xmax, ymax, zmax]), [xmin, ymin, zmin])
+    closest_point = np.maximum(
+        np.minimum(ray_origin, [xmax, ymax, zmax]), [xmin, ymin, zmin]
+    )
     return np.linalg.norm(ray_origin - closest_point)
 
 
-def query_ray_intersection(ray_origin, ray_direction, cylinders, rtree_index, bboxes):
+def query_ray_intersection(
+    ray_origin, ray_direction, cylinders, rtree_index, bboxes
+):
     """
     Query the R-tree for a ray intersection with cylinders.
 
@@ -129,24 +139,29 @@ def query_ray_intersection(ray_origin, ray_direction, cylinders, rtree_index, bb
     :return: Index of the intersecting cylinder or None.
     """
     # Define a large bounding box along the ray for querying the R-tree
-    ray_point_far = np.array(ray_origin) + np.array(ray_direction) * 10000  # Arbitrary large number
-    bbox = tuple(np.minimum(ray_origin, ray_point_far)) + tuple(np.maximum(ray_origin, ray_point_far))
+    ray_point_far = (
+        np.array(ray_origin) + np.array(ray_direction) * 10000
+    )  # Arbitrary large number
+    bbox = tuple(np.minimum(ray_origin, ray_point_far)) + tuple(
+        np.maximum(ray_origin, ray_point_far)
+    )
 
     # Query the R-tree for intersecting bounding boxes
     candidates = list(rtree_index.intersection(bbox))
     candidates.sort(key=lambda idx: distance_to_bbox(ray_origin, bboxes[idx]))
-    
+
     for idx in candidates:
         if ray_intersects_cylinder(ray_origin, ray_direction, cylinders[idx]):
             return idx  # Return the first intersecting cylinder's index
 
     return None  # No intersection found
 
+
 # Example usage:
 ray_origin = (2, 367, 514)
 ray_direction = (0, 1, 0)
-result = query_ray_intersection(ray_origin, ray_direction, cylinders, tree, bboxes)
+result = query_ray_intersection(
+    ray_origin, ray_direction, cylinders, tree, bboxes
+)
 
 (result, cylinders[result])
-
-
