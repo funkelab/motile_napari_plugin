@@ -5,6 +5,7 @@ import napari
 import zarr
 from appdirs import AppDirs
 from motile_plugin import MotileWidget
+from motile_plugin.widgets.thickness_slider import ThicknessSlider
 from napari.utils.theme import _themes
 
 logging.basicConfig(
@@ -34,6 +35,9 @@ viewer.add_labels(zarr_group["01_ST"][:], name="01 ST")
 # Add your custom widget
 widget = MotileWidget(viewer)
 viewer.window.add_dock_widget(widget, name="Motile")
+viewer.window.add_dock_widget(
+    ThicknessSlider(viewer), name="Tail Length", area="left"
+)
 
 # Start the Napari GUI event loop
 napari.run()

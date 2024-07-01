@@ -1,9 +1,8 @@
 import logging
 
 from motile_toolbox.utils import relabel_segmentation
-from motile_toolbox.visualization import to_napari_tracks_layer
 from napari import Viewer
-from napari.layers import Labels, Tracks
+from napari.layers import Graph, Labels
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QLabel,
@@ -14,6 +13,7 @@ from superqt.utils import thread_worker
 
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.backend.solve import solve
+from motile_plugin.graph_layer_utils import to_napari_graph_layer
 
 from .run_editor import RunEditor
 from .run_viewer import RunViewer
@@ -37,7 +37,7 @@ class MotileWidget(QWidget):
 
         # Declare napari layers for displaying outputs (managed by the widget)
         self.output_seg_layer: Labels | None = None
-        self.tracks_layer: Tracks | None = None
+        self.tracks_layer: Graph | None = None
 
         # Create sub-widgets and connect signals
         self.edit_run_widget = RunEditor(self.viewer)
@@ -91,16 +91,8 @@ class MotileWidget(QWidget):
         if run.tracks is None or run.tracks.number_of_nodes() == 0:
             self.tracks_layer = None
         else:
-            track_data, track_props, track_edges = to_napari_tracks_layer(
-                run.tracks
-            )
-            self.tracks_layer = Tracks(
-                track_data,
-                properties=track_props,
-                graph=track_edges,
-                name=run.run_name + "_tracks",
-                tail_length=3,
-            )
+            graph_layer = to_napari_graph_layer(run.tracks, "tracks")
+            self.tracks_layer = graph_layer
             self.viewer.add_layer(self.tracks_layer)
 
     def view_run_napari(self, run: MotileRun) -> None:
