@@ -1,10 +1,8 @@
 import logging
 
 from motile_toolbox.utils import relabel_segmentation
-from motile_toolbox.visualization import to_napari_tracks_layer
 from napari import Viewer
-from napari.layers import Labels, Tracks
-from qtpy.QtCore import Signal
+from psygnal import Signal
 from qtpy.QtWidgets import (
     QLabel,
     QVBoxLayout,
@@ -14,6 +12,9 @@ from superqt.utils import thread_worker
 
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.backend.solve import solve
+from motile_plugin.widgets.tracking_view_controller import (
+    TrackingViewController,
+)
 
 from .run_editor import RunEditor
 from .run_viewer import RunViewer
@@ -30,14 +31,15 @@ class MotileWidget(QWidget):
     # A signal for passing events from the motile solver to the run view widget
     # To provide updates on progress of the solver
     solver_update = Signal()
+    update_layers = Signal(MotileRun)
+    remove_layers = Signal()
 
     def __init__(self, viewer: Viewer):
         super().__init__()
         self.viewer: Viewer = viewer
-
-        # Declare napari layers for displaying outputs (managed by the widget)
-        self.output_seg_layer: Labels | None = None
-        self.tracks_layer: Tracks | None = None
+        view_controller = TrackingViewController.get_instance(self.viewer)
+        self.update_layers.connect(view_controller.update_napari_layers)
+        self.remove_layers.connect(view_controller.remove_napari_layers)
 
         # Create sub-widgets and connect signals
         self.edit_run_widget = RunEditor(self.viewer)
@@ -49,7 +51,7 @@ class MotileWidget(QWidget):
         self.solver_update.connect(self.view_run_widget.solver_event_update)
 
         self.run_list_widget = RunsList()
-        self.run_list_widget.view_run.connect(self.view_run_napari)
+        self.run_list_widget.view_run.connect(self.view_run)
 
         # Create main layout
         main_layout = QVBoxLayout()
@@ -59,51 +61,7 @@ class MotileWidget(QWidget):
         main_layout.addWidget(self.run_list_widget)
         self.setLayout(main_layout)
 
-    def remove_napari_layers(self) -> None:
-        """Remove the currently stored layers from the napari viewer, if present"""
-        if (
-            self.output_seg_layer
-            and self.output_seg_layer in self.viewer.layers
-        ):
-            self.viewer.layers.remove(self.output_seg_layer)
-        if self.tracks_layer and self.tracks_layer in self.viewer.layers:
-            self.viewer.layers.remove(self.tracks_layer)
-
-    def update_napari_layers(self, run: MotileRun) -> None:
-        """Remove the old napari layers and update them according to the run output.
-        Will create new segmentation and tracks layers and add them to the viewer.
-
-        Args:
-            run (MotileRun): The run outputs to visualize in napari.
-        """
-        # Remove old layers if necessary
-        self.remove_napari_layers()
-
-        # Create new layers
-        if run.output_segmentation is not None:
-            self.output_seg_layer = Labels(
-                run.output_segmentation[:, 0], name=run.run_name + "_seg"
-            )
-            self.viewer.add_layer(self.output_seg_layer)
-        else:
-            self.output_seg_layer = None
-
-        if run.tracks is None or run.tracks.number_of_nodes() == 0:
-            self.tracks_layer = None
-        else:
-            track_data, track_props, track_edges = to_napari_tracks_layer(
-                run.tracks
-            )
-            self.tracks_layer = Tracks(
-                track_data,
-                properties=track_props,
-                graph=track_edges,
-                name=run.run_name + "_tracks",
-                tail_length=3,
-            )
-            self.viewer.add_layer(self.tracks_layer)
-
-    def view_run_napari(self, run: MotileRun) -> None:
+    def view_run(self, run: MotileRun) -> None:
         """Populates the run viewer and the napari layers with the output
         of the provided run.
 
@@ -113,7 +71,7 @@ class MotileWidget(QWidget):
         self.view_run_widget.update_run(run)
         self.edit_run_widget.hide()
         self.view_run_widget.show()
-        self.update_napari_layers(run)
+        self.update_layers.emit(run)
 
     def edit_run(self, run: MotileRun | None):
         """Create or edit a new run in the run editor. Also removes solution layers
@@ -127,7 +85,7 @@ class MotileWidget(QWidget):
         if run:
             self.edit_run_widget.new_run(run)
         self.run_list_widget.runs_list.clearSelection()
-        self.remove_napari_layers()
+        self.remove_layers.emit()
 
     def _generate_tracks(self, run: MotileRun) -> None:
         """Called when we start solving a new run. Switches from run editor to run viewer
@@ -210,7 +168,7 @@ class MotileWidget(QWidget):
         """
         run.status = "done"
         self.solver_update.emit()
-        self.view_run_napari(run)
+        self.view_run(run)
 
     def _title_widget(self) -> QWidget:
         """Create the title and intro paragraph widget, with links to docs
