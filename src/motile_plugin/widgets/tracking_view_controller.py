@@ -99,7 +99,7 @@ class TrackingViewController:
                 for _, data in run.tracks.nodes(data=True)
             ]
             self.tracking_layers.points_layer = Points(
-                name=run.run_name + "_tracks",
+                name=run.run_name + "_points",
                 data=points,
                 features={"node_id": node_ids},
                 face_colormap=self.colormap,
