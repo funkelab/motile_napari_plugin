@@ -143,6 +143,8 @@ class TrackingViewController:
         self.add_napari_layers()
 
     def select_node(self, node: Dict, add_to_existing=False):
+        """Updates the list of selected nodes and triggers visualization updates in other components"""
+
         if add_to_existing and len(self.selected_nodes) == 1:
             self.selected_nodes.append(node)
         else:
@@ -183,10 +185,10 @@ class TrackingViewController:
 
             # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
             if self.viewer.dims.ndisplay == 2:  # no 3D solution yet
-                camera_pos = self.viewer.window._qt_window._qt_viewer.view.camera.get_state()[
+                camera_pos = self.viewer.window._qt_window._qt_viewer.canvas.view.camera.get_state()[
                     "rect"
                 ]._pos  # top left corner
-                camera_size = self.viewer.window._qt_window._qt_viewer.view.camera.get_state()[
+                camera_size = self.viewer.window._qt_window._qt_viewer.canvas.view.camera.get_state()[
                     "rect"
                 ].size
 
