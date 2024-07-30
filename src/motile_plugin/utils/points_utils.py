@@ -7,7 +7,7 @@ import pandas as pd
 def construct_points_layer(data: pd.DataFrame, name) -> napari.layers.Points:
     """Create a point layer for the nodes in the table"""
 
-    edge_color = [1, 1, 1, 1]
+    border_color = [1, 1, 1, 1]
 
     # Collect point data, colors and symbols directly from the track_data dataframe
     colors = np.array(data["color"].tolist()) / 255
@@ -34,7 +34,7 @@ def construct_points_layer(data: pd.DataFrame, name) -> napari.layers.Points:
     return napari.layers.Points(
         points,
         name=name,
-        edge_color=edge_color,
+        border_color=border_color,
         properties=properties,
         face_color=colors,
         size=5,
