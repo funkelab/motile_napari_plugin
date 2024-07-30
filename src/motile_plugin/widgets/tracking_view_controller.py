@@ -35,7 +35,7 @@ class TrackingViewController:
         self.viewer = viewer
         self.selected_nodes = []
         self.tracking_layers: TrackingLayerGroup = TrackingLayerGroup()
-        self.colormap = napari.utils.colormaps.label_colormap()
+        self.colormap = napari.utils.colormaps.label_colormap(49, seed=0.5, background_value=0,)
 
     def remove_napari_layer(self, layer: napari.layers.Layer | None) -> None:
         """Remove a layer from the napari viewer, if present"""

@@ -9,6 +9,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QVBoxLayout,
     QWidget,
+    QScrollArea,
 )
 from superqt.utils import thread_worker
 
@@ -25,7 +26,7 @@ from .runs_list import RunsList
 logger = logging.getLogger(__name__)
 
 
-class MotileWidget(QWidget):
+class MotileWidget(QScrollArea):
     """The main widget for the motile napari plugin. Coordinates sub-widgets
     and calls the back-end motile solver.
     """
@@ -61,7 +62,10 @@ class MotileWidget(QWidget):
         main_layout.addWidget(self.view_run_widget)
         main_layout.addWidget(self.edit_run_widget)
         main_layout.addWidget(self.run_list_widget)
-        self.setLayout(main_layout)
+        main_widget = QWidget()
+        main_widget.setLayout(main_layout)
+        self.setWidget(main_widget)
+        self.setWidgetResizable(True)
 
     def view_run(self, run: MotileRun) -> None:
         """Populates the run viewer and the napari layers with the output
