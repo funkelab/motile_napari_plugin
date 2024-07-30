@@ -1,19 +1,13 @@
 import napari
 import napari.layers
 import numpy as np
-from motile_plugin.backend.motile_run import MotileRun
-
-from .tree_widget_utils import extract_sorted_tracks
+import pandas as pd
 
 
-def construct_points_layer(
-    run: MotileRun, colormap: napari.utils.CyclicLabelColormap
-) -> napari.layers.Points:
+def construct_points_layer(data: pd.DataFrame, name) -> napari.layers.Points:
     """Create a point layer for the nodes in the table"""
 
     edge_color = [1, 1, 1, 1]
-
-    data = extract_sorted_tracks(run.tracks, colormap)
 
     # Collect point data, colors and symbols directly from the track_data dataframe
     colors = np.array(data["color"].tolist()) / 255
@@ -39,7 +33,7 @@ def construct_points_layer(
     # Add points layer (single time point) to the Napari viewer
     return napari.layers.Points(
         points,
-        name=run.run_name + "_points",
+        name=name,
         edge_color=edge_color,
         properties=properties,
         face_color=colors,

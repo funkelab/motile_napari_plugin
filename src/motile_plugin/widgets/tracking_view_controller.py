@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Dict
 
 import napari
+import numpy as np
 from motile_toolbox.visualization import to_napari_tracks_layer
 from napari.layers import Labels, Tracks
 from psygnal import Signal
@@ -9,9 +10,12 @@ from psygnal import Signal
 from motile_plugin.backend.motile_run import MotileRun
 
 from ..utils.colormaps import (
+    create_label_color_dict,
+    create_selection_label_cmap,
     create_track_layer_colormap,
 )
 from ..utils.points_utils import construct_points_layer
+from ..utils.tree_widget_utils import extract_sorted_tracks
 
 
 @dataclass
@@ -71,6 +75,13 @@ class TrackingViewController:
         """
         # Remove old layers if necessary
         self.remove_napari_layers()
+        for layer in self.viewer.layers:
+            layer.visible = False  # deactivate the input layer
+
+        track_df = extract_sorted_tracks(run.tracks, self.colormap)
+        self.base_label_color_dict = create_label_color_dict(
+            track_df["track_id"].unique(), colormap=self.colormap
+        )
 
         # Create new layers
         if run.output_segmentation is not None:
@@ -79,7 +90,35 @@ class TrackingViewController:
                 run.output_segmentation[:, 0],
                 name=run.run_name + "_seg",
                 colormap=self.colormap,
+                properties=track_df,
+                opacity=0.9,
             )
+
+            # add callback for selecting nodes on the labels layer
+            @self.tracking_layers.seg_layer.mouse_drag_callbacks.append
+            def click(layer, event):
+                if event.type == "mouse_press":
+                    position = event.position
+                    value = layer.get_value(
+                        position,
+                        view_direction=event.view_direction,
+                        dims_displayed=event.dims_displayed,
+                        world=True,
+                    )
+                    if value is not None and value != 0:
+
+                        index = np.where(
+                            (layer.properties["t"] == position[0])
+                            & (layer.properties["track_id"] == value)
+                        )[0]
+                        node = {
+                            key: value[index][0]
+                            for key, value in layer.properties.items()
+                        }
+                        if len(node) > 0:
+                            append = "Shift" in event.modifiers
+                            self.select_node(node, add_to_existing=append)
+
         else:
             self.tracking_layers.seg_layer = None
 
@@ -108,8 +147,10 @@ class TrackingViewController:
                 name=colormap_name,
             )
             self.tracking_layers.tracks_layer.colormap = colormap_name
+
+            # construct points layer and add click callback
             self.tracking_layers.points_layer = construct_points_layer(
-                run, self.colormap
+                data=track_df, name=run.run_name + "_points"
             )
 
             @self.tracking_layers.points_layer.mouse_drag_callbacks.append
@@ -151,8 +192,24 @@ class TrackingViewController:
             self.selected_nodes = [node]
         self.selection_updated.emit(self.selected_nodes)
         self._update_point_outline()
+        self._update_label_colormap()
         self._set_napari_view()
-        # should probably also update selection in napari layers
+
+    def _update_label_colormap(self):
+        """Updates the opacity of the label colormap to highlight the selected label"""
+
+        highlighted = [
+            node["track_id"]
+            for node in self.selected_nodes
+            if node["t"] == self.viewer.dims.current_step[0]
+        ]
+
+        if self.base_label_color_dict is not None:
+            colormap = create_selection_label_cmap(
+                self.base_label_color_dict,
+                highlighted=highlighted,
+            )
+            self.tracking_layers.seg_layer.colormap = colormap
 
     def _update_point_outline(self):
         """Update the outline color of the selected points"""
@@ -175,8 +232,6 @@ class TrackingViewController:
 
             # Check for 'z' key and update step if exists
             step = list(self.viewer.dims.current_step)
-            # old_time = step[0]  # for checking later
-            # new_time = node["t"]
             step[0] = node["t"]
             if "z" in node:
                 z = node["z"]
@@ -192,9 +247,6 @@ class TrackingViewController:
                     "rect"
                 ].size
 
-                print(f"{node['x']=}")
-                print(f"{camera_pos[0]=}")
-                print(f"{camera_size[0]=}")
                 if not (
                     (
                         node["x"] > camera_pos[0]
