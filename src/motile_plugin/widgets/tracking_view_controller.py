@@ -1,18 +1,18 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Dict
 
 import napari
-import numpy as np
-from motile_toolbox.candidate_graph import NodeAttr
 from motile_toolbox.visualization import to_napari_tracks_layer
-from napari.layers import Labels, Points, Tracks
+from napari.layers import Labels, Tracks
 from psygnal import Signal
-from ..utils.points_utils import construct_points_layer
 
 from motile_plugin.backend.motile_run import MotileRun
+
 from ..utils.colormaps import (
     create_track_layer_colormap,
 )
+from ..utils.points_utils import construct_points_layer
+
 
 @dataclass
 class TrackingLayerGroup:
@@ -38,7 +38,11 @@ class TrackingViewController:
         self.viewer = viewer
         self.selected_nodes = []
         self.tracking_layers: TrackingLayerGroup = TrackingLayerGroup()
-        self.colormap = napari.utils.colormaps.label_colormap(49, seed=0.5, background_value=0,)
+        self.colormap = napari.utils.colormaps.label_colormap(
+            49,
+            seed=0.5,
+            background_value=0,
+        )
 
     def remove_napari_layer(self, layer: napari.layers.Layer | None) -> None:
         """Remove a layer from the napari viewer, if present"""
@@ -99,24 +103,67 @@ class TrackingViewController:
             # deal with the colormap issue for the trackslayer, also apply to points layer
             colormap_name = "track_colors"
             create_track_layer_colormap(
-            tracks=self.tracking_layers.tracks_layer,
+                tracks=self.tracking_layers.tracks_layer,
                 base_colormap=self.colormap,
                 name=colormap_name,
             )
-            self.tracking_layers.tracks_layer.colormap = colormap_name           
-            self.tracking_layers.points_layer = construct_points_layer(run, self.colormap)
+            self.tracking_layers.tracks_layer.colormap = colormap_name
+            self.tracking_layers.points_layer = construct_points_layer(
+                run, self.colormap
+            )
+
+            @self.tracking_layers.points_layer.mouse_drag_callbacks.append
+            def click(layer, event):
+                if event.type == "mouse_press":
+                    point_index = layer.get_value(
+                        event.position,
+                        view_direction=event.view_direction,
+                        dims_displayed=event.dims_displayed,
+                        world=True,
+                    )
+                    if point_index is not None:
+                        node_id = layer.properties["node_id"][point_index]
+                        index = [
+                            i
+                            for i, nid in enumerate(
+                                layer.properties["node_id"]
+                            )
+                            if nid == node_id
+                        ][0]
+                        node = {
+                            key: value[index]
+                            for key, value in layer.properties.items()
+                        }
+
+                        if len(node) > 0:
+                            append = "Shift" in event.modifiers
+                            self.select_node(node, add_to_existing=append)
 
         self.tracking_layers_updated.emit(run)
         self.add_napari_layers()
 
-    def select_node(self, node_id: Any, add_to_existing=False):
-        if add_to_existing:
-            self.selected_nodes.append(node_id)
+    def select_node(self, node: Dict, add_to_existing=False):
+        if add_to_existing and len(self.selected_nodes) == 1:
+            self.selected_nodes.append(node)
         else:
-            self.selected_nodes = [node_id]
+            self.selected_nodes = [node]
         self.selection_updated.emit(self.selected_nodes)
+        self._update_point_outline()
         self._set_napari_view()
         # should probably also update selection in napari layers
+
+    def _update_point_outline(self):
+        """Update the outline color of the selected points"""
+
+        self.tracking_layers.points_layer.border_color = [1, 1, 1, 1]
+        for node in self.selected_nodes:
+            self.tracking_layers.points_layer.border_color[node["index"]] = (
+                0,
+                1,
+                1,
+                1,
+            )
+        self.tracking_layers.points_layer.refresh()
 
     def _set_napari_view(self) -> None:
         """Adjust the current_step of the viewer to jump to the last item of the selected_nodes list"""
