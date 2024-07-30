@@ -7,6 +7,7 @@ from motile_toolbox.candidate_graph import NodeAttr
 from motile_toolbox.visualization import to_napari_tracks_layer
 from napari.layers import Labels, Points, Tracks
 from psygnal import Signal
+from ..utils.points_utils import construct_points_layer
 
 from motile_plugin.backend.motile_run import MotileRun
 from ..utils.colormaps import (
@@ -101,23 +102,10 @@ class TrackingViewController:
             tracks=self.tracking_layers.tracks_layer,
                 base_colormap=self.colormap,
                 name=colormap_name,
-            )  # it still throws an error even though the colormap is correctly displayed
-            self.tracking_layers.tracks_layer.colormap = colormap_name           
-
-            node_ids = np.array(run.tracks.nodes())
-            points = [
-                [
-                    data[NodeAttr.TIME.value],
-                ]
-                + list(data[NodeAttr.POS.value])
-                for _, data in run.tracks.nodes(data=True)
-            ]
-            self.tracking_layers.points_layer = Points(
-                name=run.run_name + "_points",
-                data=points,
-                features={"node_id": node_ids},
-                face_colormap=self.colormap,
             )
+            self.tracking_layers.tracks_layer.colormap = colormap_name           
+            self.tracking_layers.points_layer = construct_points_layer(run, self.colormap)
+
         self.tracking_layers_updated.emit(run)
         self.add_napari_layers()
 
