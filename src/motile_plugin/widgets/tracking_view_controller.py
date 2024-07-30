@@ -77,9 +77,10 @@ class TrackingViewController:
         for layer in self.viewer.layers:
             layer.visible = False  # deactivate the input layer
 
-        self.base_label_color_dict = create_label_color_dict(
-            run.track_df["track_id"].unique(), colormap=self.colormap
-        )
+        if run.track_df is not None:
+            self.base_label_color_dict = create_label_color_dict(
+                run.track_df["track_id"].unique(), colormap=self.colormap
+            )
 
         # Create new layers
         if run.output_segmentation is not None:
