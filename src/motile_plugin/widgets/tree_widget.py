@@ -2,6 +2,7 @@ from typing import List
 
 import napari
 import numpy as np
+import pandas as pd
 import pyqtgraph as pg
 from psygnal import Signal
 from PyQt5.QtGui import QColor, QMouseEvent
@@ -9,12 +10,9 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QHBoxLayout, QWidget
 
 from motile_plugin.backend.motile_run import MotileRun
-from motile_plugin.utils.tree_widget_utils import extract_sorted_tracks
 from motile_plugin.widgets.tracking_view_controller import (
     TrackingViewController,
 )
-
-from ..utils.track_data import TrackData
 
 
 class TreeWidget(QWidget):
@@ -26,14 +24,13 @@ class TreeWidget(QWidget):
 
     def __init__(self, viewer: napari.Viewer):
         super().__init__()
-        self.track_data = TrackData()
+        self.track_df = pd.DataFrame()
 
         view_controller = TrackingViewController.get_instance(viewer)
         self.colormap = view_controller.colormap
         self.node_selected.connect(view_controller.select_node)
         view_controller.tracking_layers_updated.connect(self.update_track_data)
         view_controller.selection_updated.connect(self._show_selected)
-        # self.selected_nodes.list_updated.connect(self._show_selected)
 
         # Construct the tree view pyqtgraph widget
         layout = QHBoxLayout()
@@ -50,9 +47,8 @@ class TreeWidget(QWidget):
         self.setLayout(layout)
 
     def update_track_data(self, motile_run: MotileRun):
-        print("UPDATING TRACK DATA")
-        sorted_tracks = extract_sorted_tracks(motile_run.tracks, self.colormap)
-        self.track_data._update_data(sorted_tracks)
+        self.track_df = motile_run.track_df
+        # self.track_data._update_data(motile_run.track_df)
         self._update(pins=[])
 
     def _on_click(self, _, points: np.ndarray, ev: QMouseEvent) -> None:
@@ -63,7 +59,7 @@ class TreeWidget(QWidget):
         index = clicked_point.index()  # Get the index of the clicked point
 
         # find the corresponding element in the list of dicts
-        node_df = self.track_data.df[self.track_data.df["index"] == index]
+        node_df = self.track_df[self.track_df["index"] == index]
         if not node_df.empty:
             node_df.iloc[
                 0
@@ -106,11 +102,11 @@ class TreeWidget(QWidget):
         adj_colors = []
         symbols = []
         sizes = []
-        if self.track_data.df is None:
+        if self.track_df is None:
             self.g.scatter.clear()
             return
 
-        for _, node in self.track_data.df.iterrows():
+        for _, node in self.track_df.iterrows():
             if node["symbol"] == "triangle_up":
                 symbols.append("t1")
             elif node["symbol"] == "x":
@@ -128,9 +124,7 @@ class TreeWidget(QWidget):
             pos.append([node["x_axis_pos"], node["t"]])
             parent = node["parent_id"]
             if parent != 0:
-                parent_df = self.track_data.df[
-                    self.track_data.df["node_id"] == parent
-                ]
+                parent_df = self.track_df[self.track_df["node_id"] == parent]
                 if not parent_df.empty:
                     parent_dict = parent_df.iloc[0]
                     adj.append([parent_dict["index"], node["index"]])
@@ -169,41 +163,6 @@ class TreeWidget(QWidget):
         else:
             self.g.scatter.clear()
 
-    def _edit_node(self, edit: str) -> None:
-        """Add a mark to this node: 'Fork' mean this node is dividing so that should have two daughter nodes at the next time point,
-        'Close' means this node is and endpoint and it should have no daughters at the next time point.
-        'Reset' means to remove the 'Fork' or 'Close' mark"""
-
-        node = self.selected_nodes[0]
-
-        if edit == "Fork":
-            self.symbols[node["index"]] = "t1"
-            self.size[node["index"]] = 13
-            self.symbolBrush[node["index"]] = [255, 0, 0, 255]
-            self.track_data._set_fork(node["node_id"])
-
-        elif edit == "Close":
-            self.symbols[node["index"]] = "x"
-            self.size[node["index"]] = 13
-            self.symbolBrush[node["index"]] = [255, 0, 0, 255]
-            self.track_data._set_endpoint(node["node_id"])
-
-        else:
-            # reset node
-            self.symbols[node["index"]] = "o"
-            self.size[node["index"]] = 8
-            self.symbolBrush[node["index"]] = node["color"]
-            self.track_data._reset_node(node["node_id"])
-
-        self.g.setData(
-            pos=self.pos,
-            adj=self.adj,
-            symbol=self.symbols,
-            symbolBrush=self.symbolBrush,
-            size=self.size,
-            pen=self.pen,
-        )
-
     def _update_display(self, visible: list[str] | str):
         """Set visibility of selected nodes"""
 
@@ -212,9 +171,9 @@ class TreeWidget(QWidget):
             self.pen[:, 3] = 255
 
         else:
-            indices = self.track_data.df[
-                self.track_data.df["node_id"].isin(visible)
-            ]["index"].tolist()
+            indices = self.track_df[self.track_df["node_id"].isin(visible)][
+                "index"
+            ].tolist()
             self.symbolBrush[:, 3] = 0
             self.symbolBrush[indices, 3] = 255
             mask = np.isin(self.adj[:, 0], indices) | np.isin(

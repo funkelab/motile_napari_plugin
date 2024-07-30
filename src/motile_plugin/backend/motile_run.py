@@ -4,6 +4,7 @@ from pathlib import Path
 
 import networkx as nx
 import numpy as np
+import pandas as pd
 from pydantic import BaseModel
 
 from .solver_params import SolverParams
@@ -31,6 +32,7 @@ class MotileRun(BaseModel):
     input_points: np.ndarray | None = None
     output_segmentation: np.ndarray | None = None
     tracks: nx.DiGraph | None = None
+    track_df: pd.DataFrame | None = None
     time: datetime = datetime.now()
     gaps: list[float] = []
     status: str = "done"

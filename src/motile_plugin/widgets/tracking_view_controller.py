@@ -15,7 +15,6 @@ from ..utils.colormaps import (
     create_track_layer_colormap,
 )
 from ..utils.points_utils import construct_points_layer
-from ..utils.tree_widget_utils import extract_sorted_tracks
 
 
 @dataclass
@@ -78,9 +77,8 @@ class TrackingViewController:
         for layer in self.viewer.layers:
             layer.visible = False  # deactivate the input layer
 
-        track_df = extract_sorted_tracks(run.tracks, self.colormap)
         self.base_label_color_dict = create_label_color_dict(
-            track_df["track_id"].unique(), colormap=self.colormap
+            run.track_df["track_id"].unique(), colormap=self.colormap
         )
 
         # Create new layers
@@ -90,7 +88,7 @@ class TrackingViewController:
                 run.output_segmentation[:, 0],
                 name=run.run_name + "_seg",
                 colormap=self.colormap,
-                properties=track_df,
+                properties=run.track_df,
                 opacity=0.9,
             )
 
@@ -150,7 +148,7 @@ class TrackingViewController:
 
             # construct points layer and add click callback
             self.tracking_layers.points_layer = construct_points_layer(
-                data=track_df, name=run.run_name + "_points"
+                data=run.track_df, name=run.run_name + "_points"
             )
 
             @self.tracking_layers.points_layer.mouse_drag_callbacks.append

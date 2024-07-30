@@ -1,5 +1,6 @@
 import logging
 
+import napari
 import networkx as nx
 import numpy as np
 from motile_toolbox.candidate_graph import NodeAttr
@@ -19,6 +20,7 @@ from motile_plugin.widgets.tracking_view_controller import (
     TrackingViewController,
 )
 
+from ..utils.tree_widget_utils import extract_sorted_tracks
 from .run_editor import RunEditor
 from .run_viewer import RunViewer
 from .runs_list import RunsList
@@ -215,6 +217,12 @@ class MotileWidget(QScrollArea):
             run (MotileRun): The completed run
         """
         run.status = "done"
+        colormap = napari.utils.colormaps.label_colormap(
+            49,
+            seed=0.5,
+            background_value=0,
+        )
+        run.track_df = extract_sorted_tracks(run.tracks, colormap)
         self.solver_update.emit()
         self.view_run(run)
 
