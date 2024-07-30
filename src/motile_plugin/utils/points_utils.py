@@ -1,10 +1,14 @@
+import napari
 import napari.layers
 import numpy as np
 from motile_plugin.backend.motile_run import MotileRun
-from .tree_widget_utils import extract_sorted_tracks
-import napari
 
-def construct_points_layer(run: MotileRun, colormap: napari.utils.CyclicLabelColormap) -> napari.layers.Points:
+from .tree_widget_utils import extract_sorted_tracks
+
+
+def construct_points_layer(
+    run: MotileRun, colormap: napari.utils.CyclicLabelColormap
+) -> napari.layers.Points:
     """Create a point layer for the nodes in the table"""
 
     edge_color = [1, 1, 1, 1]

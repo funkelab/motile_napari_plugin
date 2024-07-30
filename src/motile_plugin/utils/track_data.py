@@ -39,9 +39,9 @@ class TrackData(QObject):
         """Set the node with this id to endpoint and send a signal to emit the update"""
 
         self.df.loc[self.df["node_id"] == node_id, "symbol"] = "disc"
-        self.df.loc[
-            self.df["node_id"] == node_id, "state"
-        ] = "intermittent"  # replace with NodeAttr.STATE.value
+        self.df.loc[self.df["node_id"] == node_id, "state"] = (
+            "intermittent"  # replace with NodeAttr.STATE.value
+        )
         self.df.loc[self.df["node_id"] == node_id, "annotated"] = False
 
         self.data_updated.emit(node_id, "intermittent")

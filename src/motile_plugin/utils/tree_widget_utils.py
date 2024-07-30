@@ -291,9 +291,9 @@ def create_label_color_dict(
     # Iterate over unique labels
     for label in labels:
         color = list(to_rgba(labels_layer.get_color(label)))
-        color[
-            -1
-        ] = 0  # Set opacity to 0 (will be replaced when a label is selected)
+        color[-1] = (
+            0  # Set opacity to 0 (will be replaced when a label is selected)
+        )
         color_dict_rgb[label] = color
 
     return color_dict_rgb

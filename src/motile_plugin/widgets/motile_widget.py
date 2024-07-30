@@ -7,9 +7,9 @@ from napari import Viewer
 from psygnal import Signal
 from qtpy.QtWidgets import (
     QLabel,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
-    QScrollArea,
 )
 from superqt.utils import thread_worker
 

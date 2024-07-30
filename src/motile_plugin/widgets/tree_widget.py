@@ -65,7 +65,6 @@ class TreeWidget(QWidget):
         # find the corresponding element in the list of dicts
         node_df = self.track_data.df[self.track_data.df["index"] == index]
         if not node_df.empty:
-            # extract the selected node
             node_df.iloc[
                 0
             ].to_dict()  # Convert the filtered result to a dictionary
@@ -78,19 +77,14 @@ class TreeWidget(QWidget):
         size = (
             self.size.copy()
         )  # just copy the size here to keep the original self.size intact
-        
+
         outlines = self.outline_pen.copy()
 
         for i, node in enumerate(selection):
             size[node["index"]] = size[node["index"]] + 5
-            outlines[node["index"]] = pg.mkPen(color="c", width=2)           
+            outlines[node["index"]] = pg.mkPen(color="c", width=2)
             if i == 0:
-                x_coord = self.track_data.df.loc[
-                (self.track_data.df["node_id"] == node['node_id']) & 
-                (self.track_data.df["t"] == node['t']), 
-                "x_axis_pos"
-                ].iloc[0]
-                self._center_view(x_coord, node["t"])
+                self._center_view(node["x_axis_pos"], node["t"])
 
         self.tree_widget.plotItem.items[0].scatter.opts["pen"] = outlines
 
