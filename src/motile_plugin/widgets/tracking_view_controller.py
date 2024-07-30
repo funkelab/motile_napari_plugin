@@ -9,7 +9,9 @@ from napari.layers import Labels, Points, Tracks
 from psygnal import Signal
 
 from motile_plugin.backend.motile_run import MotileRun
-
+from ..utils.colormaps import (
+    create_track_layer_colormap,
+)
 
 @dataclass
 class TrackingLayerGroup:
@@ -67,6 +69,7 @@ class TrackingViewController:
 
         # Create new layers
         if run.output_segmentation is not None:
+
             self.tracking_layers.seg_layer = Labels(
                 run.output_segmentation[:, 0],
                 name=run.run_name + "_seg",
@@ -83,6 +86,7 @@ class TrackingViewController:
             track_data, track_props, track_edges = to_napari_tracks_layer(
                 run.tracks
             )
+
             self.tracking_layers.tracks_layer = Tracks(
                 track_data,
                 properties=track_props,
@@ -90,6 +94,16 @@ class TrackingViewController:
                 name=run.run_name + "_tracks",
                 tail_length=3,
             )
+
+            # deal with the colormap issue for the trackslayer, also apply to points layer
+            colormap_name = "track_colors"
+            create_track_layer_colormap(
+            tracks=self.tracking_layers.tracks_layer,
+                base_colormap=self.colormap,
+                name=colormap_name,
+            )  # it still throws an error even though the colormap is correctly displayed
+            self.tracking_layers.tracks_layer.colormap = colormap_name           
+
             node_ids = np.array(run.tracks.nodes())
             points = [
                 [
@@ -112,7 +126,6 @@ class TrackingViewController:
             self.selected_nodes.append(node_id)
         else:
             self.selected_nodes = [node_id]
-        print("Selected nodes: ", self.selected_nodes)
         self.selection_updated.emit(self.selected_nodes)
         self._set_napari_view()
         # should probably also update selection in napari layers
