@@ -51,6 +51,7 @@ class TrackingViewController:
         )
         self.run = None
         self.mode = "all"
+        self.base_label_color_dict = None
 
     def remove_napari_layer(self, layer: napari.layers.Layer | None) -> None:
         """Remove a layer from the napari viewer, if present"""
@@ -216,13 +217,16 @@ class TrackingViewController:
             self.viewer.text_overlay.text = "Toggle Display [T]\n Lineage"
         else:
             self.mode = "all"
-            self.viewer.text_overlay.text = "Toggle Display [T]\n All Cells"
+            self.viewer.text_overlay.text = "Toggle Display [T]\n All"
 
         self.viewer.text_overlay.visible = True
         visible = self.filter_visible_nodes()
-        self.update_label_colormap(visible)
-        self.update_point_outline(visible)
-        self.update_track_visibility(visible)
+        if self.tracking_layers.seg_layer is not None:
+            self.update_label_colormap(visible)
+        if self.tracking_layers.points_layer is not None:
+            self.update_point_outline(visible)
+        if self.tracking_layers.tracks_layer is not None:
+            self.update_track_visibility(visible)
 
     def filter_visible_nodes(self) -> list[int]:
         """Construct a list of track_ids that should be displayed"""
