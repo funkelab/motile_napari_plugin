@@ -11,6 +11,7 @@ from qtpy.QtWidgets import (
     QButtonGroup,
     QGroupBox,
     QHBoxLayout,
+    QPushButton,
     QRadioButton,
     QVBoxLayout,
     QWidget,
@@ -48,6 +49,7 @@ class TreeWidget(QWidget):
         # Construct the tree view pyqtgraph widget
         layout = QVBoxLayout()
         self.tree_widget = pg.PlotWidget()
+        self.tree_widget.setFocusPolicy(Qt.StrongFocus)
         self.tree_widget.setTitle("Lineage Tree")
         self.tree_widget.setLabel("left", text="Time Point")
         self.tree_widget.getAxis("bottom").setStyle(showValues=False)
@@ -57,7 +59,7 @@ class TreeWidget(QWidget):
         self.tree_widget.addItem(self.g)
 
         # Add radiobuttons for switching between different display modes
-        display_box = QGroupBox("Display")
+        display_box = QGroupBox("Display [L]")
         display_layout = QHBoxLayout()
         button_group = QButtonGroup()
         self.show_all_radio = QRadioButton("All cells")
@@ -74,11 +76,153 @@ class TreeWidget(QWidget):
         display_box.setLayout(display_layout)
         display_box.setMaximumWidth(250)
 
-        layout.addWidget(display_box)
+        # add a box with navigation instructions
+        navigation_box = QGroupBox("Navigation [\u27A1 \u2B05 \u2B06 \u2B07]")
 
+        navigation_layout = QHBoxLayout()
+        left_button = QPushButton("\u2B05")
+        right_button = QPushButton("\u27A1")
+        up_button = QPushButton("\u2B06")
+        down_button = QPushButton("\u2B07")
+
+        left_button.clicked.connect(lambda: self.select_next_node("left"))
+        right_button.clicked.connect(lambda: self.select_next_node("right"))
+        up_button.clicked.connect(lambda: self.select_next_node("up"))
+        down_button.clicked.connect(lambda: self.select_next_node("down"))
+
+        navigation_layout.addWidget(left_button)
+        navigation_layout.addWidget(right_button)
+        navigation_layout.addWidget(up_button)
+        navigation_layout.addWidget(down_button)
+        navigation_box.setLayout(navigation_layout)
+        navigation_box.setMaximumWidth(250)
+
+        # combine in a top panel widget
+        panel_layout = QHBoxLayout()
+        panel_layout.addWidget(display_box)
+        panel_layout.addWidget(navigation_box)
+        panel = QWidget()
+        panel.setLayout(panel_layout)
+        panel.setMaximumWidth(520)
+
+        layout.addWidget(panel)
         layout.addWidget(self.tree_widget)
 
         self.setLayout(layout)
+
+    def select_next_node(self, direction: str) -> None:
+        """Interpret in which direction to jump"""
+
+        if direction == "left":
+            if self.mode == "lineage":
+                self.select_up()  # redirect because axes are flipped
+            else:
+                self.select_left()
+        elif direction == "right":
+            if self.mode == "lineage":
+                self.select_down()  # redirect because axes are flipped
+            else:
+                self.select_right()
+        elif direction == "up":
+            if self.mode == "lineage":
+                self.select_left()  # redirect because axes are flipped
+            else:
+                self.select_up()
+        elif direction == "down":
+            if self.mode == "lineage":
+                self.select_right()  # redirect because axes are flipped
+            else:
+                self.select_down()
+
+    def select_left(self) -> None:
+        """Jump one node to the left"""
+
+        if len(self.selection) > 0:
+            node = self.selection[0]
+            left_neighbors = self.track_df.loc[
+                (self.track_df["x_axis_pos"] == node["x_axis_pos"] - 1)
+            ]
+            if not left_neighbors.empty:
+                closest_index = (
+                    (left_neighbors["t"] - node["t"]).abs().idxmin()
+                )
+                left_neighbor = left_neighbors.loc[closest_index].to_dict()
+                self.node_selected.emit(left_neighbor, False)
+
+    def select_right(self) -> None:
+        """Jump one node to the right"""
+
+        if len(self.selection) > 0:
+            node = self.selection[0]
+            right_neighbors = self.track_df.loc[
+                (self.track_df["x_axis_pos"] == node["x_axis_pos"] + 1)
+            ]
+            if not right_neighbors.empty:
+                closest_index = (
+                    (right_neighbors["t"] - node["t"]).abs().idxmin()
+                )
+                right_neighbor = right_neighbors.loc[closest_index].to_dict()
+                self.node_selected.emit(right_neighbor, False)
+
+    def select_up(self) -> None:
+        """Jump one node up"""
+
+        if len(self.selection) > 0:
+            node = self.selection[0]
+            parent_row = self.track_df.loc[
+                self.track_df["node_id"] == node["parent_id"]
+            ]
+            if not parent_row.empty:
+                parent = parent_row.to_dict("records")[0]
+                self.node_selected.emit(parent, False)
+
+    def select_down(self) -> None:
+        """Jump one node down"""
+
+        if len(self.selection) > 0:
+            node = self.selection[0]
+            children = self.track_df.loc[
+                self.track_df["parent_id"] == node["node_id"]
+            ]
+            if not children.empty:
+                child = children.to_dict("records")[0]
+                self.node_selected.emit(child, False)
+
+    def keyPressEvent(self, event) -> None:
+        """Catch arrow key presses to navigate in the tree"""
+
+        if event.key() == Qt.Key_L:
+            self._toggle_display_mode()
+        if event.key() == Qt.Key_Left:
+            if self.mode == "lineage":
+                self.select_up()  # redirect because axes are flipped
+            else:
+                self.select_left()
+        if event.key() == Qt.Key_Right:
+            if self.mode == "lineage":
+                self.select_down()  # redirect because axes are flipped
+            else:
+                self.select_right()
+        elif event.key() == Qt.Key_Up:
+            if self.mode == "lineage":
+                self.select_left()  # redirect because axes are flipped
+            else:
+                self.select_up()
+        elif event.key() == Qt.Key_Down:
+            if self.mode == "lineage":
+                self.select_right()  # redirect because axes are flipped
+            else:
+                self.select_down()
+
+        self.tree_widget.autoRange()
+
+    def _toggle_display_mode(self, event=None) -> None:
+        """Toggle display mode"""
+
+        if self.mode == "lineage":
+            self._set_mode("all")
+        else:
+            self._set_mode("lineage")
 
     def _set_mode(self, mode: str):
         """Change the display mode"""
@@ -89,6 +233,8 @@ class TreeWidget(QWidget):
                 self._update(pins=[], subset=True)
             else:
                 self._update(pins=[], subset=False)
+
+        self.tree_widget.autoRange()
 
     def update_track_data(self, motile_run: MotileRun):
         """Fetch the track_df directly from the new motile_run"""
