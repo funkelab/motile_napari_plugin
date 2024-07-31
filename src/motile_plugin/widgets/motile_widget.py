@@ -1,6 +1,5 @@
 import logging
 
-import napari
 import networkx as nx
 import numpy as np
 from motile_toolbox.candidate_graph import NodeAttr
@@ -20,7 +19,6 @@ from motile_plugin.widgets.tracking_view_controller import (
     TrackingViewController,
 )
 
-from ..utils.tree_widget_utils import extract_sorted_tracks
 from .run_editor import RunEditor
 from .run_viewer import RunViewer
 from .runs_list import RunsList
