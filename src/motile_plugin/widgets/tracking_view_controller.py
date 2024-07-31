@@ -13,7 +13,6 @@ from motile_plugin.backend.motile_run import MotileRun
 from ..utils.colormaps import (
     create_label_color_dict,
     create_selection_label_cmap,
-    create_track_layer_colormap,
 )
 from ..utils.points_utils import construct_points_layer
 from ..utils.tree_widget_utils import extract_lineage_tree
@@ -151,18 +150,14 @@ class TrackingViewController:
                 name=run.run_name + "_tracks",
                 tail_length=3,
             )
+            self.tracking_layers.tracks_layer.color_by = "track_id"
+            self.tracking_layers.tracks_layer.colormaps_dict[
+                "track_id"
+            ] = self.colormap
+
             self.tracks_layer_graph = copy.deepcopy(
                 self.tracking_layers.tracks_layer.graph
             )  # for restoring graph later
-
-            # deal with the colormap issue for the trackslayer, also apply to points layer
-            colormap_name = "track_colors"
-            create_track_layer_colormap(
-                tracks=self.tracking_layers.tracks_layer,
-                base_colormap=self.colormap,
-                name=colormap_name,
-            )
-            self.tracking_layers.tracks_layer.colormap = colormap_name
 
             # construct points layer and add click callback
             self.tracking_layers.points_layer = construct_points_layer(
