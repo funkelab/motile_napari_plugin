@@ -77,7 +77,7 @@ class TreeWidget(QWidget):
         display_box.setMaximumWidth(250)
 
         # add a box with navigation instructions
-        navigation_box = QGroupBox("Navigation [\u27A1 \u2B05 \u2B06 \u2B07]")
+        navigation_box = QGroupBox("Navigation [\u2B05 \u27A1 \u2B06 \u2B07]")
 
         navigation_layout = QHBoxLayout()
         left_button = QPushButton("\u2B05")
@@ -125,12 +125,12 @@ class TreeWidget(QWidget):
                 self.select_right()
         elif direction == "up":
             if self.mode == "lineage":
-                self.select_left()  # redirect because axes are flipped
+                self.select_right()  # redirect because axes are flipped
             else:
                 self.select_up()
         elif direction == "down":
             if self.mode == "lineage":
-                self.select_right()  # redirect because axes are flipped
+                self.select_left()  # redirect because axes are flipped
             else:
                 self.select_down()
 
@@ -148,6 +148,7 @@ class TreeWidget(QWidget):
                 )
                 left_neighbor = left_neighbors.loc[closest_index].to_dict()
                 self.node_selected.emit(left_neighbor, False)
+        self.tree_widget.autoRange()
 
     def select_right(self) -> None:
         """Jump one node to the right"""
@@ -163,6 +164,7 @@ class TreeWidget(QWidget):
                 )
                 right_neighbor = right_neighbors.loc[closest_index].to_dict()
                 self.node_selected.emit(right_neighbor, False)
+        self.tree_widget.autoRange()
 
     def select_up(self) -> None:
         """Jump one node up"""
@@ -175,6 +177,7 @@ class TreeWidget(QWidget):
             if not parent_row.empty:
                 parent = parent_row.to_dict("records")[0]
                 self.node_selected.emit(parent, False)
+        self.tree_widget.autoRange()
 
     def select_down(self) -> None:
         """Jump one node down"""
@@ -187,6 +190,7 @@ class TreeWidget(QWidget):
             if not children.empty:
                 child = children.to_dict("records")[0]
                 self.node_selected.emit(child, False)
+        self.tree_widget.autoRange()
 
     def keyPressEvent(self, event) -> None:
         """Catch arrow key presses to navigate in the tree"""
@@ -205,16 +209,14 @@ class TreeWidget(QWidget):
                 self.select_right()
         elif event.key() == Qt.Key_Up:
             if self.mode == "lineage":
-                self.select_left()  # redirect because axes are flipped
+                self.select_right()  # redirect because axes are flipped
             else:
                 self.select_up()
         elif event.key() == Qt.Key_Down:
             if self.mode == "lineage":
-                self.select_right()  # redirect because axes are flipped
+                self.select_left()  # redirect because axes are flipped
             else:
                 self.select_down()
-
-        self.tree_widget.autoRange()
 
     def _toggle_display_mode(self, event=None) -> None:
         """Toggle display mode"""
@@ -404,6 +406,8 @@ class TreeWidget(QWidget):
             self.tree_widget.getAxis("bottom").setStyle(showValues=False)
             self.tree_widget.getAxis("left").setStyle(showValues=True)
             self.tree_widget.invertY(True)  # to show tracks from top to bottom
+
+        self.tree_widget.autoRange()
 
     def _center_view(self, center_x: int, center_y: int):
         """Center the Viewbox on given coordinates"""
