@@ -15,7 +15,10 @@ from ..utils.colormaps import (
     create_selection_label_cmap,
 )
 from ..utils.points_utils import construct_points_layer
-from ..utils.tree_widget_utils import extract_lineage_tree
+from ..utils.tree_widget_utils import (
+    extract_lineage_tree,
+    extract_sorted_tracks,
+)
 
 
 @dataclass
@@ -26,8 +29,17 @@ class TrackingLayerGroup:
 
 
 class TrackingViewController:
+    """Purposes of the TrackingViewController:
+    - Emit signals that all widgets should use to update selection or update
+        the currently displayed run
+    - Storing the currently displayed run and a dataframe with rendering information
+        for that run
+    - Store shared rendering information like colormaps (or symbol maps)
+    - Interacting with the napari.Viewer by adding and removing layers
+    """
+
     selection_updated = Signal(object)
-    tracking_layers_updated = Signal(object)
+    tracking_layers_updated = Signal()  # rename to run_updated?
 
     @classmethod
     def get_instance(cls, viewer=None):
@@ -49,6 +61,7 @@ class TrackingViewController:
             background_value=0,
         )
         self.run = None
+        self.track_df = None
         self.mode = "all"
         self.base_label_color_dict = None
 
@@ -81,8 +94,8 @@ class TrackingViewController:
         Args:
             run (MotileRun): The run outputs to visualize in napari.
         """
-
         self.run = run  # keep the run information accessible
+        self.track_df = extract_sorted_tracks(run.tracks, self.colormap)
 
         # Remove old layers if necessary
         self.remove_napari_layers()
@@ -90,9 +103,9 @@ class TrackingViewController:
             layer.visible = False  # deactivate the input layer
 
         # create colormap dictionary for updating label colors
-        if run.track_df is not None:
+        if self.track_df is not None:
             self.base_label_color_dict = create_label_color_dict(
-                run.track_df["track_id"].unique(), colormap=self.colormap
+                self.track_df["track_id"].unique(), colormap=self.colormap
             )
 
         # Create new layers
@@ -102,7 +115,7 @@ class TrackingViewController:
                 run.output_segmentation[:, 0],
                 name=run.run_name + "_seg",
                 colormap=self.colormap,
-                properties=run.track_df,
+                properties=self.track_df,
                 opacity=0.9,
             )
 
@@ -161,7 +174,7 @@ class TrackingViewController:
 
             # construct points layer and add click callback
             self.tracking_layers.points_layer = construct_points_layer(
-                data=run.track_df, name=run.run_name + "_points"
+                data=self.track_df, name=run.run_name + "_points"
             )
 
             @self.tracking_layers.points_layer.mouse_drag_callbacks.append
@@ -191,7 +204,7 @@ class TrackingViewController:
                             append = "Shift" in event.modifiers
                             self.select_node(node, add_to_existing=append)
 
-        self.tracking_layers_updated.emit(run)
+        self.tracking_layers_updated.emit()
         self.add_napari_layers()
         self.set_display_mode("all")
 
@@ -234,8 +247,8 @@ class TrackingViewController:
                 )
                 return list(
                     np.unique(
-                        self.run.track_df.loc[
-                            self.run.track_df["node_id"].isin(visible),
+                        self.track_df.loc[
+                            self.track_df["node_id"].isin(visible),
                             "track_id",
                         ].values
                     )
@@ -281,8 +294,8 @@ class TrackingViewController:
         if visible == "all":
             self.tracking_layers.points_layer.shown[:] = True
         else:
-            indices = self.run.track_df[
-                self.run.track_df["track_id"].isin(visible)
+            indices = self.track_df[
+                self.track_df["track_id"].isin(visible)
             ].index.tolist()
 
             self.tracking_layers.points_layer.shown[:] = False

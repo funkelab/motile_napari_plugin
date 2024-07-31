@@ -17,7 +17,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.widgets.tracking_view_controller import (
     TrackingViewController,
 )
@@ -40,11 +39,13 @@ class TreeWidget(QWidget):
         self.graph = None
         self.mode = "all"
 
-        view_controller = TrackingViewController.get_instance(viewer)
-        self.colormap = view_controller.colormap
-        self.node_selected.connect(view_controller.select_node)
-        view_controller.tracking_layers_updated.connect(self.update_track_data)
-        view_controller.selection_updated.connect(self._show_selected)
+        self.view_controller = TrackingViewController.get_instance(viewer)
+        self.colormap = self.view_controller.colormap
+        self.node_selected.connect(self.view_controller.select_node)
+        self.view_controller.tracking_layers_updated.connect(
+            self.update_track_data
+        )
+        self.view_controller.selection_updated.connect(self._show_selected)
 
         # Construct the tree view pyqtgraph widget
         layout = QVBoxLayout()
@@ -238,11 +239,10 @@ class TreeWidget(QWidget):
 
         self.tree_widget.autoRange()
 
-    def update_track_data(self, motile_run: MotileRun):
+    def update_track_data(self):
         """Fetch the track_df directly from the new motile_run"""
-
-        self.track_df = motile_run.track_df
-        self.graph = motile_run.tracks
+        self.track_df = self.view_controller.track_df
+        self.graph = self.view_controller.run.tracks
         self._update(pins=[], subset=False)
 
     def _on_click(self, _, points: np.ndarray, ev: QMouseEvent) -> None:

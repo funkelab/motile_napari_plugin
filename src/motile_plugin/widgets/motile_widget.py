@@ -217,12 +217,6 @@ class MotileWidget(QScrollArea):
             run (MotileRun): The completed run
         """
         run.status = "done"
-        colormap = napari.utils.colormaps.label_colormap(
-            49,
-            seed=0.5,
-            background_value=0,
-        )
-        run.track_df = extract_sorted_tracks(run.tracks, colormap)
         self.solver_update.emit()
         self.view_run(run)
 
