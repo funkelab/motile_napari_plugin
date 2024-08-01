@@ -149,7 +149,6 @@ class TreeWidget(QWidget):
                 )
                 left_neighbor = left_neighbors.loc[closest_index].to_dict()
                 self.node_selected.emit(left_neighbor, False)
-        self.tree_widget.autoRange()
 
     def select_right(self) -> None:
         """Jump one node to the right"""
@@ -165,7 +164,6 @@ class TreeWidget(QWidget):
                 )
                 right_neighbor = right_neighbors.loc[closest_index].to_dict()
                 self.node_selected.emit(right_neighbor, False)
-        self.tree_widget.autoRange()
 
     def select_up(self) -> None:
         """Jump one node up"""
@@ -178,7 +176,6 @@ class TreeWidget(QWidget):
             if not parent_row.empty:
                 parent = parent_row.to_dict("records")[0]
                 self.node_selected.emit(parent, False)
-        self.tree_widget.autoRange()
 
     def select_down(self) -> None:
         """Jump one node down"""
@@ -191,7 +188,6 @@ class TreeWidget(QWidget):
             if not children.empty:
                 child = children.to_dict("records")[0]
                 self.node_selected.emit(child, False)
-        self.tree_widget.autoRange()
 
     def keyPressEvent(self, event) -> None:
         """Catch arrow key presses to navigate in the tree"""
@@ -224,8 +220,10 @@ class TreeWidget(QWidget):
 
         if self.mode == "lineage":
             self._set_mode("all")
+            self.show_all_radio.setChecked(True)
         else:
             self._set_mode("lineage")
+            self.show_lineage_radio.setChecked(True)
 
     def _set_mode(self, mode: str):
         """Change the display mode"""
