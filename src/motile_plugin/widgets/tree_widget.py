@@ -1,5 +1,3 @@
-from typing import List
-
 import napari
 import numpy as np
 import pandas as pd
@@ -34,10 +32,26 @@ class TreeWidget(QWidget):
     def __init__(self, viewer: napari.Viewer):
         super().__init__()
         self.track_df = pd.DataFrame()
-        self.pseudo_df = pd.DataFrame()
+        self.lineage_df = pd.DataFrame()
         self.selection = []
         self.graph = None
         self.mode = "all"
+        self.pins = []
+
+        # initialize empty graph data objects
+        self.pos = None
+        self.adj = None
+        self.symbolBrush = None
+        self.symbols = None
+        self.pen = None
+        self.outline_pen = None
+
+        self.lineage_pos = None
+        self.lineage_adj = None
+        self.lineage_symbolBrush = None
+        self.lineage_symbols = None
+        self.lineage_pen = None
+        self.lineage_outline_pen = None
 
         self.view_controller = TrackingViewController.get_instance(viewer)
         self.colormap = self.view_controller.colormap
@@ -207,11 +221,13 @@ class TreeWidget(QWidget):
         elif event.key() == Qt.Key_Up:
             if self.mode == "lineage":
                 self.select_right()  # redirect because axes are flipped
+                self.tree_widget.autoRange()  # autorange when jumping between lineages but not when staying on the same lineage
             else:
                 self.select_up()
         elif event.key() == Qt.Key_Down:
             if self.mode == "lineage":
                 self.select_left()  # redirect because axes are flipped
+                self.tree_widget.autoRange()  # autorange when jumping between lineages but not when staying on the same lineage
             else:
                 self.select_down()
 
@@ -229,19 +245,35 @@ class TreeWidget(QWidget):
         """Change the display mode"""
 
         self.mode = mode
-        if not self.pseudo_df.empty:
-            if mode == "lineage":
-                self._update(pins=[], subset=True)
-            else:
-                self._update(pins=[], subset=False)
-
+        self._update()
         self.tree_widget.autoRange()
 
     def update_track_data(self):
         """Fetch the track_df directly from the new motile_run"""
+
         self.track_df = self.view_controller.track_df
         self.graph = self.view_controller.run.tracks
-        self._update(pins=[], subset=False)
+
+        # set mode back to all
+        self.mode = "all"
+
+        # reset the plotting data if it hard been generated before
+        self.pos = None
+        self.adj = None
+        self.symbolBrush = None
+        self.symbols = None
+        self.pen = None
+        self.outline_pen = None
+
+        self.lineage_pos = None
+        self.lineage_adj = None
+        self.lineage_symbolBrush = None
+        self.lineage_symbols = None
+        self.lineage_pen = None
+        self.lineage_outline_pen = None
+
+        # call update
+        self._update()
 
     def _on_click(self, _, points: np.ndarray, ev: QMouseEvent) -> None:
         """Adds the selected point to the selected_nodes list"""
@@ -251,7 +283,11 @@ class TreeWidget(QWidget):
         index = clicked_point.index()  # Get the index of the clicked point
 
         # find the corresponding element in the list of dicts
-        node_df = self.pseudo_df[self.pseudo_df["pseudo_index"] == index]
+        if self.mode == "lineage":
+            node_df = self.lineage_df[self.lineage_df["pseudo_index"] == index]
+        else:
+            node_df = self.track_df[self.track_df["index"] == index]
+
         if not node_df.empty:
             node_df.iloc[
                 0
@@ -259,44 +295,86 @@ class TreeWidget(QWidget):
         append = Qt.ShiftModifier == modifiers
         self.node_selected.emit(node_df.iloc[0].to_dict(), append)
 
-    def _show_selected(self, selection):
+    def _show_selected(self, selection: list[dict]) -> None:
         """Update the graph, increasing the size of selected node(s)"""
 
         self.selection = selection
 
+        # reset to default size and color to avoid problems with the array lengths
+        self.g.scatter.setPen(pg.mkPen(QColor(150, 150, 150)))
+        self.g.scatter.setSize(10)
+
+        update_view = False
         if self.mode == "lineage":
-            self._update(pins=[], subset=True)
+            # check whether we have switched to a new lineage that needs to be computed or if we are still on the same lineage and can skip this step
+            if self.selection[0]["track_id"] not in np.unique(
+                self.lineage_df["track_id"].values
+            ):
+                self._calculate_lineage_df()
+                self._calculate_lineage_pyqtgraph()
+                update_view = (
+                    True  # only update the view when a new lineage is selected
+                )
+            size = (
+                self.lineage_size.copy()
+            )  # just copy the size here to keep the original self.lineage_size intact
 
-        size = (
-            self.size.copy()
-        )  # just copy the size here to keep the original self.size intact
+            outlines = self.lineage_outline_pen.copy()
 
-        outlines = self.outline_pen.copy()
+            for i, node in enumerate(selection):
+                pseudo_index = self.lineage_df.loc[
+                    self.lineage_df["index"] == node["index"], "pseudo_index"
+                ]
+                if not pseudo_index.empty:
+                    pseudo_index = pseudo_index.values[0]
+                    size[pseudo_index] = size[pseudo_index] + 5
+                    outlines[pseudo_index] = pg.mkPen(color="c", width=2)
+                    if i == 0:
+                        self._center_view(node["x_axis_pos"], node["t"])
 
-        for i, node in enumerate(selection):
-            pseudo_index = self.pseudo_df.loc[
-                self.pseudo_df["index"] == node["index"], "pseudo_index"
-            ]
-            if not pseudo_index.empty:
-                pseudo_index = pseudo_index.values[0]
-                size[pseudo_index] = size[pseudo_index] + 5
-                outlines[pseudo_index] = pg.mkPen(color="c", width=2)
+            if update_view:
+                self.g.setData(
+                    pos=self.lineage_pos,
+                    adj=self.lineage_adj,
+                    symbol=self.lineage_symbols,
+                    symbolBrush=self.lineage_symbolBrush,
+                    pen=self.lineage_pen,
+                )
+                self.tree_widget.autoRange()
+
+            self.g.scatter.setPen(outlines)
+            self.g.scatter.setSize(size)
+
+        else:
+            size = (
+                self.size.copy()
+            )  # just copy the size here to keep the original self.size intact
+
+            outlines = self.outline_pen.copy()
+            for i, node in enumerate(selection):
+                size[node["index"]] = size[node["index"]] + 5
+                outlines[node["index"]] = pg.mkPen(color="c", width=2)
                 if i == 0:
                     self._center_view(node["x_axis_pos"], node["t"])
 
-        self.tree_widget.plotItem.items[0].scatter.opts["pen"] = outlines
+            self.g.scatter.setPen(outlines)
+            self.g.scatter.setSize(size)
 
-        self.g.setData(
-            pos=self.pos,
-            adj=self.adj,
-            symbolBrush=self.symbolBrush,
-            size=size,
-            symbol=self.symbols,
-            pen=self.pen,
-        )
+    def _calculate_lineage_df(self) -> None:
+        """Subset dataframe to include only nodes belonging to the current lineage"""
 
-    def _update(self, pins: List, subset: bool = False) -> None:
-        """Redraw the pyqtgraph object with the given tracks dataframe"""
+        if len(self.selection) == 0:
+            visible = []
+        else:
+            visible = extract_lineage_tree(
+                self.graph, self.selection[0]["node_id"]
+            )
+        self.lineage_df = self.track_df[self.track_df["node_id"].isin(visible)]
+        self.lineage_df = self.lineage_df.reset_index()
+        self.lineage_df["pseudo_index"] = self.lineage_df.index
+
+    def _calculate_lineage_pyqtgraph(self) -> None:
+        """Create graph data for a specific lineage"""
 
         pos = []
         pos_colors = []
@@ -304,63 +382,110 @@ class TreeWidget(QWidget):
         adj_colors = []
         symbols = []
         sizes = []
-        if self.track_df is None:
-            self.g.scatter.clear()
-            return
 
-        self.g.scatter.clear()
-        if subset:
-            if len(self.selection) == 0:
-                self.g.scatter.clear()
-                return
-            else:
-                visible = extract_lineage_tree(
-                    self.graph, self.selection[0]["node_id"]
-                )
-            self.pseudo_df = self.track_df[
-                self.track_df["node_id"].isin(visible)
-            ]
-            self.pseudo_df = self.pseudo_df.reset_index()
-        else:
-            self.pseudo_df = self.track_df
+        if not self.lineage_df.empty:
+            for _, node in self.lineage_df.iterrows():
+                if node["symbol"] == "triangle_up":
+                    symbols.append("t1")
+                elif node["symbol"] == "x":
+                    symbols.append("x")
+                else:
+                    symbols.append("o")
+                if node["annotated"]:
+                    pos_colors.append(
+                        [255, 0, 0, 255]
+                    )  # edits displayed in red
+                    sizes.append(13)
+                else:
+                    pos_colors.append(node["color"])
+                    sizes.append(8)
 
-        self.pseudo_df["pseudo_index"] = self.pseudo_df.index
-
-        for _, node in self.pseudo_df.iterrows():
-            if node["symbol"] == "triangle_up":
-                symbols.append("t1")
-            elif node["symbol"] == "x":
-                symbols.append("x")
-            else:
-                symbols.append("o")
-
-            if node["annotated"]:
-                pos_colors.append([255, 0, 0, 255])  # edits displayed in red
-                sizes.append(13)
-            else:
-                pos_colors.append(node["color"])
-                sizes.append(8)
-
-            if subset:
                 pos.append([node["t"], node["x_axis_pos"]])
-            else:
-                pos.append([node["x_axis_pos"], node["t"]])
-            parent = node["parent_id"]
-            if parent != 0:
-                parent_df = self.pseudo_df[self.pseudo_df["node_id"] == parent]
-                if not parent_df.empty:
-                    parent_dict = parent_df.iloc[0]
-                    adj.append(
-                        [parent_dict["pseudo_index"], node["pseudo_index"]]
-                    )
-                    if (parent_dict["node_id"], node["node_id"]) in pins:
-                        adj_colors.append(
-                            [255, 0, 0, 255, 255, 1]
-                        )  # pinned edges displayed in red
-                    else:
-                        adj_colors.append(
-                            parent_dict["color"].tolist() + [255, 1]
+
+                parent = node["parent_id"]
+                if parent != 0:
+                    parent_df = self.lineage_df[
+                        self.lineage_df["node_id"] == parent
+                    ]
+                    if not parent_df.empty:
+                        parent_dict = parent_df.iloc[0]
+                        adj.append(
+                            [parent_dict["pseudo_index"], node["pseudo_index"]]
                         )
+                        if (
+                            parent_dict["node_id"],
+                            node["node_id"],
+                        ) in self.pins:
+                            adj_colors.append(
+                                [255, 0, 0, 255, 255, 1]
+                            )  # pinned edges displayed in red
+                        else:
+                            adj_colors.append(
+                                parent_dict["color"].tolist() + [255, 1]
+                            )
+
+        self.lineage_pos = np.array(pos)
+        self.lineage_adj = np.array(adj)
+        self.lineage_symbols = symbols
+        self.lineage_symbolBrush = np.array(pos_colors)
+        self.lineage_pen = np.array(adj_colors)
+        self.lineage_size = np.array(sizes)
+
+        self.lineage_outline_pen = np.array(
+            [
+                pg.mkPen(QColor(150, 150, 150))
+                for i in range(len(self.lineage_pos))
+            ]
+        )
+
+    def _calculate_pyqtgraph(self) -> None:
+        """Calculate the pyqtgraph data for plotting"""
+
+        pos = []
+        pos_colors = []
+        adj = []
+        adj_colors = []
+        symbols = []
+        sizes = []
+
+        if self.track_df is not None:
+            for _, node in self.track_df.iterrows():
+                if node["symbol"] == "triangle_up":
+                    symbols.append("t1")
+                elif node["symbol"] == "x":
+                    symbols.append("x")
+                else:
+                    symbols.append("o")
+
+                if node["annotated"]:
+                    pos_colors.append(
+                        [255, 0, 0, 255]
+                    )  # edits displayed in red
+                    sizes.append(13)
+                else:
+                    pos_colors.append(node["color"])
+                    sizes.append(8)
+
+                pos.append([node["x_axis_pos"], node["t"]])
+                parent = node["parent_id"]
+                if parent != 0:
+                    parent_df = self.track_df[
+                        self.track_df["node_id"] == parent
+                    ]
+                    if not parent_df.empty:
+                        parent_dict = parent_df.iloc[0]
+                        adj.append([parent_dict["index"], node["index"]])
+                        if (
+                            parent_dict["node_id"],
+                            node["node_id"],
+                        ) in self.pins:
+                            adj_colors.append(
+                                [255, 0, 0, 255, 255, 1]
+                            )  # pinned edges displayed in red
+                        else:
+                            adj_colors.append(
+                                parent_dict["color"].tolist() + [255, 1]
+                            )
 
         self.pos = np.array(pos)
         self.adj = np.array(adj)
@@ -373,32 +498,52 @@ class TreeWidget(QWidget):
             [pg.mkPen(QColor(150, 150, 150)) for i in range(len(self.pos))]
         )
 
-        self.tree_widget.plotItem.items[0].scatter.opts["pen"] = pg.mkPen(
-            QColor(150, 150, 150)
-        )  # first reset the pen to avoid problems with length mismatch between the different properties
+    def _update(self) -> None:
+        """Redraw the pyqtgraph object with the given tracks dataframe"""
 
-        if len(self.pos) > 0:
-            self.g.setData(
-                pos=self.pos,
-                adj=self.adj,
-                symbol=self.symbols,
-                symbolBrush=self.symbolBrush,
-                size=self.size,
-                pen=self.pen,
-            )
-            self.tree_widget.plotItem.items[0].scatter.opts[
-                "pen"
-            ] = self.outline_pen
-        else:
-            self.g.scatter.clear()
+        self.g.scatter.setPen(
+            pg.mkPen(QColor(150, 150, 150))
+        )  # first reset the pen to avoid problems with length mismatch between the different properties
+        self.g.scatter.setSize(10)
 
         if self.mode == "lineage":
+            self._calculate_lineage_df()
+            self._calculate_lineage_pyqtgraph()
+            if len(self.lineage_pos) > 0:
+                self.g.setData(
+                    pos=self.lineage_pos,
+                    adj=self.lineage_adj,
+                    symbol=self.lineage_symbols,
+                    symbolBrush=self.lineage_symbolBrush,
+                    pen=self.lineage_pen,
+                )
+                self.g.scatter.setPen(self.lineage_outline_pen)
+                self.g.scatter.setSize(self.lineage_size)
+            else:
+                self.g.scatter.clear()
+
             self.tree_widget.setLabel("bottom", text="Time Point")
             self.tree_widget.setLabel("left", text="")
             self.tree_widget.getAxis("bottom").setStyle(showValues=True)
             self.tree_widget.getAxis("left").setStyle(showValues=False)
             self.tree_widget.invertY(False)
-        else:
+
+        if self.mode == "all":
+            if self.pos is None:
+                self._calculate_pyqtgraph()
+            if len(self.pos) > 0:
+                self.g.setData(
+                    pos=self.pos,
+                    adj=self.adj,
+                    symbol=self.symbols,
+                    symbolBrush=self.symbolBrush,
+                    pen=self.pen,
+                )
+                self.g.scatter.setPen(self.outline_pen)
+                self.g.scatter.setSize(self.size)
+            else:
+                self.g.scatter.clear()
+
             self.tree_widget.setLabel("left", text="Time Point")
             self.tree_widget.setLabel("bottom", text="")
             self.tree_widget.getAxis("bottom").setStyle(showValues=False)
