@@ -1,20 +1,15 @@
-import copy
 from dataclasses import dataclass
-from typing import Dict
 
 import napari
 import numpy as np
-from motile_toolbox.visualization import to_napari_tracks_layer
-from napari.layers import Labels, Tracks
 from psygnal import Signal
 
 from motile_plugin.backend.motile_run import MotileRun
 
-from ..utils.colormaps import (
-    create_label_color_dict,
-    create_selection_label_cmap,
-)
-from ..utils.points_utils import construct_points_layer
+from ..layers.tracked_graph import TrackGraph
+from ..layers.tracked_labels import TrackLabels
+from ..layers.tracked_points import TrackPoints
+from ..utils.node_selection import NodeSelectionList
 from ..utils.tree_widget_utils import (
     extract_lineage_tree,
     extract_sorted_tracks,
@@ -23,9 +18,9 @@ from ..utils.tree_widget_utils import (
 
 @dataclass
 class TrackingLayerGroup:
-    tracks_layer: napari.layers.Tracks | None = None
-    seg_layer: napari.layers.Labels | None = None
-    points_layer: napari.layers.Points | None = None
+    tracks_layer: TrackGraph | None = None
+    seg_layer: TrackLabels | None = None
+    points_layer: TrackPoints | None = None
 
 
 class TrackingViewController:
@@ -38,7 +33,6 @@ class TrackingViewController:
     - Interacting with the napari.Viewer by adding and removing layers
     """
 
-    selection_updated = Signal(object)
     tracking_layers_updated = Signal()  # rename to run_updated?
 
     @classmethod
@@ -53,7 +47,8 @@ class TrackingViewController:
     def __init__(self, viewer: napari.viewer):
         self.viewer = viewer
         self.viewer.bind_key("t")(self.toggle_display_mode)
-        self.selected_nodes = []
+        self.selected_nodes = NodeSelectionList()
+        self.selected_nodes.list_updated.connect(self.select_node)
         self.tracking_layers: TrackingLayerGroup = TrackingLayerGroup()
         self.colormap = napari.utils.colormaps.label_colormap(
             49,
@@ -63,7 +58,6 @@ class TrackingViewController:
         self.run = None
         self.track_df = None
         self.mode = "all"
-        self.base_label_color_dict = None
 
     def remove_napari_layer(self, layer: napari.layers.Layer | None) -> None:
         """Remove a layer from the napari viewer, if present"""
@@ -102,47 +96,18 @@ class TrackingViewController:
         for layer in self.viewer.layers:
             layer.visible = False  # deactivate the input layer
 
-        # create colormap dictionary for updating label colors
-        if self.track_df is not None:
-            self.base_label_color_dict = create_label_color_dict(
-                self.track_df["track_id"].unique(), colormap=self.colormap
-            )
-
         # Create new layers
         if run.output_segmentation is not None:
 
-            self.tracking_layers.seg_layer = Labels(
-                run.output_segmentation[:, 0],
+            self.tracking_layers.seg_layer = TrackLabels(
+                viewer=self.viewer,
+                data=run.output_segmentation[:, 0],
                 name=run.run_name + "_seg",
                 colormap=self.colormap,
-                properties=self.track_df,
+                track_df=self.track_df,
                 opacity=0.9,
+                selected_nodes=self.selected_nodes,
             )
-
-            # add callback for selecting nodes on the labels layer
-            @self.tracking_layers.seg_layer.mouse_drag_callbacks.append
-            def click(layer, event):
-                if event.type == "mouse_press":
-                    position = event.position
-                    value = layer.get_value(
-                        position,
-                        view_direction=event.view_direction,
-                        dims_displayed=event.dims_displayed,
-                        world=True,
-                    )
-                    if value is not None and value != 0:
-
-                        index = np.where(
-                            (layer.properties["t"] == position[0])
-                            & (layer.properties["track_id"] == value)
-                        )[0]
-                        node = {
-                            key: value[index][0]
-                            for key, value in layer.properties.items()
-                        }
-                        if len(node) > 0:
-                            append = "Shift" in event.modifiers
-                            self.select_node(node, add_to_existing=append)
 
         else:
             self.tracking_layers.seg_layer = None
@@ -151,58 +116,18 @@ class TrackingViewController:
             self.tracking_layers.tracks_layer = None
             self.tracking_layers.points_layer = None
         else:
-            # add tracks layer
-            track_data, track_props, track_edges = to_napari_tracks_layer(
-                run.tracks
-            )
-
-            self.tracking_layers.tracks_layer = Tracks(
-                track_data,
-                properties=track_props,
-                graph=track_edges,
+            self.tracking_layers.tracks_layer = TrackGraph(
+                viewer=self.viewer,
+                data=run.tracks,
                 name=run.run_name + "_tracks",
-                tail_length=3,
+                colormap=self.colormap,
             )
-            self.tracking_layers.tracks_layer.color_by = "track_id"
-            self.tracking_layers.tracks_layer.colormaps_dict[
-                "track_id"
-            ] = self.colormap
-
-            self.tracks_layer_graph = copy.deepcopy(
-                self.tracking_layers.tracks_layer.graph
-            )  # for restoring graph later
-
-            # construct points layer and add click callback
-            self.tracking_layers.points_layer = construct_points_layer(
-                data=self.track_df, name=run.run_name + "_points"
+            self.tracking_layers.points_layer = TrackPoints(
+                viewer=self.viewer,
+                data=self.track_df,
+                name=run.run_name + "_points",
+                selected_nodes=self.selected_nodes,
             )
-
-            @self.tracking_layers.points_layer.mouse_drag_callbacks.append
-            def click(layer, event):
-                if event.type == "mouse_press":
-                    point_index = layer.get_value(
-                        event.position,
-                        view_direction=event.view_direction,
-                        dims_displayed=event.dims_displayed,
-                        world=True,
-                    )
-                    if point_index is not None:
-                        node_id = layer.properties["node_id"][point_index]
-                        index = [
-                            i
-                            for i, nid in enumerate(
-                                layer.properties["node_id"]
-                            )
-                            if nid == node_id
-                        ][0]
-                        node = {
-                            key: value[index]
-                            for key, value in layer.properties.items()
-                        }
-
-                        if len(node) > 0:
-                            append = "Shift" in event.modifiers
-                            self.select_node(node, add_to_existing=append)
 
         self.tracking_layers_updated.emit()
         self.add_napari_layers()
@@ -230,11 +155,11 @@ class TrackingViewController:
         self.viewer.text_overlay.visible = True
         visible = self.filter_visible_nodes()
         if self.tracking_layers.seg_layer is not None:
-            self.update_label_colormap(visible)
+            self.tracking_layers.seg_layer.update_label_colormap(visible)
         if self.tracking_layers.points_layer is not None:
-            self.update_point_outline(visible)
+            self.tracking_layers.points_layer.update_point_outline(visible)
         if self.tracking_layers.tracks_layer is not None:
-            self.update_track_visibility(visible)
+            self.tracking_layers.tracks_layer.update_track_visibility(visible)
 
     def filter_visible_nodes(self) -> list[int]:
         """Construct a list of track_ids that should be displayed"""
@@ -256,86 +181,14 @@ class TrackingViewController:
         else:
             return "all"
 
-    def select_node(self, node: Dict, add_to_existing=False) -> None:
-        """Updates the list of selected nodes and triggers visualization updates in other components"""
+    def select_node(self) -> None:
+        """Sets the view and triggers visualization updates in other components"""
 
-        if add_to_existing and len(self.selected_nodes) == 1:
-            self.selected_nodes.append(node)
-        else:
-            self.selected_nodes = [node]
-        self.selection_updated.emit(self.selected_nodes)
         self.set_napari_view()
-
         visible = self.filter_visible_nodes()
-
-        self.update_point_outline(visible)
-        self.update_label_colormap(visible)
-        self.update_track_visibility(visible)
-
-    def update_label_colormap(self, visible: list[int] | str) -> None:
-        """Updates the opacity of the label colormap to highlight the selected label and optionally hide cells not belonging to the current lineage"""
-
-        highlighted = [
-            node["track_id"]
-            for node in self.selected_nodes
-            if node["t"] == self.viewer.dims.current_step[0]
-        ]
-        if self.base_label_color_dict is not None:
-            colormap = create_selection_label_cmap(
-                self.base_label_color_dict,
-                visible=visible,
-                highlighted=highlighted,
-            )
-            self.tracking_layers.seg_layer.colormap = colormap
-
-    def update_point_outline(self, visible: list[int] | str) -> None:
-        """Update the outline color of the selected points and visibility according to display mode"""
-
-        if visible == "all":
-            self.tracking_layers.points_layer.shown[:] = True
-        else:
-            indices = self.track_df[
-                self.track_df["track_id"].isin(visible)
-            ].index.tolist()
-
-            self.tracking_layers.points_layer.shown[:] = False
-            self.tracking_layers.points_layer.shown[indices] = True
-
-        self.tracking_layers.points_layer.border_color = [1, 1, 1, 1]
-        for node in self.selected_nodes:
-            self.tracking_layers.points_layer.border_color[node["index"]] = (
-                0,
-                1,
-                1,
-                1,
-            )
-        self.tracking_layers.points_layer.refresh()
-
-    def update_track_visibility(self, visible: list[int] | str) -> None:
-        """Optionally show only the tracks of a current lineage"""
-
-        if visible == "all":
-            self.tracking_layers.tracks_layer.track_colors[:, 3] = 1
-            self.tracking_layers.tracks_layer.graph = self.tracks_layer_graph
-        else:
-            track_id_mask = np.isin(
-                self.tracking_layers.tracks_layer.properties["track_id"],
-                visible,
-            )
-            self.tracking_layers.tracks_layer.graph = {
-                key: self.tracks_layer_graph[key]
-                for key in visible
-                if key in self.tracks_layer_graph
-            }
-
-            self.tracking_layers.tracks_layer.track_colors[:, 3] = 0
-            self.tracking_layers.tracks_layer.track_colors[
-                track_id_mask, 3
-            ] = 1
-            if len(self.tracking_layers.tracks_layer.graph.items()) == 0:
-                self.tracking_layers.tracks_layer.display_graph = False  # empty dicts to not trigger update (bug?) so disable the graph entirely as a workaround
-            else:
-                self.tracking_layers.tracks_layer.display_graph = True
+        self.tracking_layers.seg_layer.update_label_colormap(visible)
+        self.tracking_layers.points_layer.update_point_outline(visible)
+        self.tracking_layers.tracks_layer.update_track_visibility(visible)
 
     def set_napari_view(self) -> None:
         """Adjust the current_step of the viewer to jump to the last item of the selected_nodes list"""

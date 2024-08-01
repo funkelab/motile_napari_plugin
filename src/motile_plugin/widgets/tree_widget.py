@@ -2,7 +2,6 @@ import napari
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
-from psygnal import Signal
 from PyQt5.QtGui import QColor, QMouseEvent
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
@@ -25,15 +24,10 @@ from ..utils.tree_widget_utils import extract_lineage_tree
 class TreeWidget(QWidget):
     """pyqtgraph-based widget for lineage tree visualization and interactive annotation of nodes and edges"""
 
-    node_selected = Signal(
-        str, bool
-    )  # boolean indicates if append to existing selection or not
-
     def __init__(self, viewer: napari.Viewer):
         super().__init__()
         self.track_df = pd.DataFrame()
         self.lineage_df = pd.DataFrame()
-        self.selection = []
         self.graph = None
         self.mode = "all"
         self.pins = []
@@ -55,11 +49,11 @@ class TreeWidget(QWidget):
 
         self.view_controller = TrackingViewController.get_instance(viewer)
         self.colormap = self.view_controller.colormap
-        self.node_selected.connect(self.view_controller.select_node)
+        self.selected_nodes = self.view_controller.selected_nodes
+        self.selected_nodes.list_updated.connect(self._show_selected)
         self.view_controller.tracking_layers_updated.connect(
             self.update_track_data
         )
-        self.view_controller.selection_updated.connect(self._show_selected)
 
         # Construct the tree view pyqtgraph widget
         layout = QVBoxLayout()
@@ -152,8 +146,8 @@ class TreeWidget(QWidget):
     def select_left(self) -> None:
         """Jump one node to the left"""
 
-        if len(self.selection) > 0:
-            node = self.selection[0]
+        if len(self.selected_nodes) > 0:
+            node = self.selected_nodes[0]
             left_neighbors = self.track_df.loc[
                 (self.track_df["x_axis_pos"] == node["x_axis_pos"] - 1)
             ]
@@ -162,13 +156,13 @@ class TreeWidget(QWidget):
                     (left_neighbors["t"] - node["t"]).abs().idxmin()
                 )
                 left_neighbor = left_neighbors.loc[closest_index].to_dict()
-                self.node_selected.emit(left_neighbor, False)
+                self.selected_nodes.append(left_neighbor)
 
     def select_right(self) -> None:
         """Jump one node to the right"""
 
-        if len(self.selection) > 0:
-            node = self.selection[0]
+        if len(self.selected_nodes) > 0:
+            node = self.selected_nodes[0]
             right_neighbors = self.track_df.loc[
                 (self.track_df["x_axis_pos"] == node["x_axis_pos"] + 1)
             ]
@@ -177,31 +171,31 @@ class TreeWidget(QWidget):
                     (right_neighbors["t"] - node["t"]).abs().idxmin()
                 )
                 right_neighbor = right_neighbors.loc[closest_index].to_dict()
-                self.node_selected.emit(right_neighbor, False)
+                self.selected_nodes.append(right_neighbor)
 
     def select_up(self) -> None:
         """Jump one node up"""
 
-        if len(self.selection) > 0:
-            node = self.selection[0]
+        if len(self.selected_nodes) > 0:
+            node = self.selected_nodes[0]
             parent_row = self.track_df.loc[
                 self.track_df["node_id"] == node["parent_id"]
             ]
             if not parent_row.empty:
                 parent = parent_row.to_dict("records")[0]
-                self.node_selected.emit(parent, False)
+                self.selected_nodes.append(parent)
 
     def select_down(self) -> None:
         """Jump one node down"""
 
-        if len(self.selection) > 0:
-            node = self.selection[0]
+        if len(self.selected_nodes) > 0:
+            node = self.selected_nodes[0]
             children = self.track_df.loc[
                 self.track_df["parent_id"] == node["node_id"]
             ]
             if not children.empty:
                 child = children.to_dict("records")[0]
-                self.node_selected.emit(child, False)
+                self.selected_nodes.append(child)
 
     def keyPressEvent(self, event) -> None:
         """Catch arrow key presses to navigate in the tree"""
@@ -293,12 +287,10 @@ class TreeWidget(QWidget):
                 0
             ].to_dict()  # Convert the filtered result to a dictionary
         append = Qt.ShiftModifier == modifiers
-        self.node_selected.emit(node_df.iloc[0].to_dict(), append)
+        self.selected_nodes.append(node_df.iloc[0].to_dict(), append)
 
-    def _show_selected(self, selection: list[dict]) -> None:
+    def _show_selected(self) -> None:
         """Update the graph, increasing the size of selected node(s)"""
-
-        self.selection = selection
 
         # reset to default size and color to avoid problems with the array lengths
         self.g.scatter.setPen(pg.mkPen(QColor(150, 150, 150)))
@@ -307,7 +299,7 @@ class TreeWidget(QWidget):
         update_view = False
         if self.mode == "lineage":
             # check whether we have switched to a new lineage that needs to be computed or if we are still on the same lineage and can skip this step
-            if self.selection[0]["track_id"] not in np.unique(
+            if self.selected_nodes[0]["track_id"] not in np.unique(
                 self.lineage_df["track_id"].values
             ):
                 self._calculate_lineage_df()
@@ -321,7 +313,7 @@ class TreeWidget(QWidget):
 
             outlines = self.lineage_outline_pen.copy()
 
-            for i, node in enumerate(selection):
+            for i, node in enumerate(self.selected_nodes):
                 pseudo_index = self.lineage_df.loc[
                     self.lineage_df["index"] == node["index"], "pseudo_index"
                 ]
@@ -351,7 +343,7 @@ class TreeWidget(QWidget):
             )  # just copy the size here to keep the original self.size intact
 
             outlines = self.outline_pen.copy()
-            for i, node in enumerate(selection):
+            for i, node in enumerate(self.selected_nodes):
                 size[node["index"]] = size[node["index"]] + 5
                 outlines[node["index"]] = pg.mkPen(color="c", width=2)
                 if i == 0:
@@ -363,11 +355,11 @@ class TreeWidget(QWidget):
     def _calculate_lineage_df(self) -> None:
         """Subset dataframe to include only nodes belonging to the current lineage"""
 
-        if len(self.selection) == 0:
+        if len(self.selected_nodes) == 0:
             visible = []
         else:
             visible = extract_lineage_tree(
-                self.graph, self.selection[0]["node_id"]
+                self.graph, self.selected_nodes[0]["node_id"]
             )
         self.lineage_df = self.track_df[self.track_df["node_id"].isin(visible)]
         self.lineage_df = self.lineage_df.reset_index()

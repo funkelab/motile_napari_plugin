@@ -1,33 +1,24 @@
-from typing import Tuple
-
-import pyqtgraph as pg
-from PyQt5.QtCore import QObject, Qt, pyqtSignal
-
-from .tree_widget_utils import normalize_modifiers
+from psygnal import Signal
+from PyQt5.QtCore import QObject
 
 
 class NodeSelectionList(QObject):
     """Updates the current selection (0, 1, or 2) of nodes. Sends a signal on every update."""
 
-    list_updated = pyqtSignal()
+    list_updated = Signal()
 
     def __init__(self):
         super().__init__()
         self._list = []
 
-    def append(
-        self, item, modifiers: Qt.KeyboardModifiers | Tuple | None = None
-    ):
+    def append(self, item, append: bool | None = False):
         """Append or replace an item to the list, depending on the number of items present and the keyboard modifiers used. Emit update signal"""
 
         if len(self) == 2:
             self._list = []
 
-        if isinstance(modifiers, tuple):
-            modifiers = normalize_modifiers(modifiers)
-
         # single selection plus shift modifier: append to list to have two items in it
-        if modifiers == pg.QtCore.Qt.ShiftModifier and len(self) == 1:
+        if append:
             self._list.append(item)
 
         # replace item in list
