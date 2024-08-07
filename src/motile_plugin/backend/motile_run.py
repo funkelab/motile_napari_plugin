@@ -26,7 +26,7 @@ class MotileRun(BaseModel):
     """
 
     run_name: str
-    solver_params: SolverParams
+    solver_params: SolverParams | None = None
     input_segmentation: np.ndarray | None = None
     input_points: np.ndarray | None = None
     output_segmentation: np.ndarray | None = None
