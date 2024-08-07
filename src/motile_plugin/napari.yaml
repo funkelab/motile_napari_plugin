@@ -14,6 +14,10 @@ contributions:
       python_name: motile_plugin.widgets.tree_widget:TreeWidget
       title: "Open the lineage view widget"
       short_title: "lineage view"
+    - id: motile-plugin.plane_slider_widget
+      python_name: motile_plugin.widgets.plane_slider_widget:PlaneSliderWidget
+      title: "Open the plane slider widget"
+      short_title: "plane sliders"
     - id: motile-plugin.solve
       python_name: motile_plugin.backend.solve:solve
       title: "Run motile tracking (backend only)"
@@ -25,6 +29,8 @@ contributions:
       display_name: Motile Tracking
     - command: motile-plugin.tree_widget
       display_name: Lineage View
+    - command: motile-plugin.plane_slider_widget
+      display_name: 3D Plane Sliders
   sample_data:
     - command: motile-plugin.Fluo_N2DL_HeLa
       key: "Fluo-N2DL-HeLa"

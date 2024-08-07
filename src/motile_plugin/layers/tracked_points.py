@@ -14,6 +14,7 @@ class TrackPoints(napari.layers.Points):
         data: pd.DataFrame,
         name: str,
         selected_nodes: NodeSelectionList,
+        scale: np.array
     ):
 
         # Collect point data, colors and symbols directly from the track_data dataframe
@@ -44,10 +45,14 @@ class TrackPoints(napari.layers.Points):
             size=5,
             properties=data,
             border_color=[1, 1, 1, 1],
+            blending="translucent",
+            scale=scale
         )
 
         self.viewer = viewer
         self.selected_nodes = selected_nodes
+        self.visible_nodes = 'all'
+        self.plane_nodes = 'all'
 
         @self.mouse_drag_callbacks.append
         def click(layer, event):
@@ -74,10 +79,25 @@ class TrackPoints(napari.layers.Points):
                         append = "Shift" in event.modifiers
                         self.selected_nodes.append(node, append)
 
-    def update_point_outline(self, visible: list[int] | str) -> None:
+    def update_point_outline(self, visible_nodes: list[int] | str | None = None, plane_nodes: list[int] | str | None = None) -> None:
         """Update the outline color of the selected points and visibility according to display mode"""
 
-        if visible == "all":
+        if visible_nodes is not None: 
+            self.visible_nodes = visible_nodes
+        
+        if plane_nodes is not None: 
+            self.plane_nodes = plane_nodes
+        
+        if isinstance(self.visible_nodes, str) and isinstance(self.plane_nodes, str):
+            visible = 'all'
+        elif not isinstance(self.visible_nodes, str) and isinstance(self.plane_nodes, str):
+            visible = self.visible_nodes
+        elif isinstance(self.visible_nodes, str) and not isinstance(self.plane_nodes, str):
+            visible = self.plane_nodes
+        else:
+            visible = list(set(self.visible_nodes).intersection(set(self.plane_nodes)))
+
+        if isinstance(visible, str):
             self.shown[:] = True
         else:
             indices = np.where(np.isin(self.properties["track_id"], visible))[

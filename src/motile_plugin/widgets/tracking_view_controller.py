@@ -74,12 +74,12 @@ class TrackingViewController:
     def add_napari_layers(self) -> None:
         """Add new tracking layers to the viewer"""
 
-        if self.tracking_layers.tracks_layer is not None:
-            self.viewer.add_layer(self.tracking_layers.tracks_layer)
         if self.tracking_layers.seg_layer is not None:
             self.viewer.add_layer(self.tracking_layers.seg_layer)
         if self.tracking_layers.points_layer is not None:
             self.viewer.add_layer(self.tracking_layers.points_layer)
+        if self.tracking_layers.tracks_layer is not None:
+            self.viewer.add_layer(self.tracking_layers.tracks_layer)
 
     def update_napari_layers(self, run: MotileRun) -> None:
         """Remove the old napari layers and update them according to the run output.
@@ -95,7 +95,9 @@ class TrackingViewController:
         self.remove_napari_layers()
         for layer in self.viewer.layers:
             layer.visible = False  # deactivate the input layer
+            scale = layer.scale
 
+        print('this is the scale', scale)
         # Create new layers
         if run.output_segmentation is not None:
 
@@ -107,6 +109,7 @@ class TrackingViewController:
                 track_df=self.track_df,
                 opacity=0.9,
                 selected_nodes=self.selected_nodes,
+                scale=scale,
             )
 
         else:
@@ -121,12 +124,14 @@ class TrackingViewController:
                 data=run.tracks,
                 name=run.run_name + "_tracks",
                 colormap=self.colormap,
+                scale=scale,
             )
             self.tracking_layers.points_layer = TrackPoints(
                 viewer=self.viewer,
                 data=self.track_df,
                 name=run.run_name + "_points",
                 selected_nodes=self.selected_nodes,
+                scale=scale,
             )
 
         self.tracking_layers_updated.emit()

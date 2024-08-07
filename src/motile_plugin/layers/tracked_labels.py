@@ -10,7 +10,7 @@ from ..utils.node_selection import NodeSelectionList
 
 
 def create_selection_label_cmap(
-    color_dict_rgb: Dict, visible: List[int] | str, highlighted: List[int]
+    color_dict_rgb: Dict, visible: List[int] | str, highlighted: List[int], opacity: float
 ) -> DirectLabelColormap:
     """Generates a label colormap with three possible opacity values (0 for invisibible labels, 0.6 for visible labels, and 1 for selected labels)"""
 
@@ -18,10 +18,10 @@ def create_selection_label_cmap(
     if visible == "all":
         for key in color_dict_rgb_temp:
             if key is not None:
-                color_dict_rgb_temp[key][-1] = 0.6  # set opacity to 0.6
+                color_dict_rgb_temp[key][-1] = opacity  
     else:
         for label in visible:
-            color_dict_rgb_temp[label][-1] = 0.6  # set opacity to 0.6
+            color_dict_rgb_temp[label][-1] = opacity  
 
     for label in highlighted:
         if label != 0:
@@ -42,6 +42,7 @@ class TrackLabels(napari.layers.Labels):
         track_df: pd.DataFrame,
         opacity: float,
         selected_nodes: NodeSelectionList,
+        scale: np.array
     ):
         super().__init__(
             data=data,
@@ -49,10 +50,14 @@ class TrackLabels(napari.layers.Labels):
             opacity=opacity,
             colormap=colormap,
             properties=track_df,
+            blending="translucent_no_depth",
+            scale=scale
         )
 
         self.viewer = viewer
         self.selected_nodes = selected_nodes
+        self.display_mode = 'slice'
+        self.visible_nodes = 'all'
 
         self.base_label_color_dict = self.create_label_color_dict(
             track_df["track_id"].unique(), colormap=colormap
@@ -60,7 +65,7 @@ class TrackLabels(napari.layers.Labels):
 
         @self.mouse_drag_callbacks.append
         def click(layer, event):
-            if event.type == "mouse_press":
+            if event.type == "mouse_press" and not layer.display_mode == 'plane':
                 position = event.position
                 value = layer.get_value(
                     position,
@@ -98,8 +103,11 @@ class TrackLabels(napari.layers.Labels):
 
         return color_dict_rgb
 
-    def update_label_colormap(self, visible: list[int] | str) -> None:
+    def update_label_colormap(self, visible_nodes: list[int] | str | None = None ) -> None:
         """Updates the opacity of the label colormap to highlight the selected label and optionally hide cells not belonging to the current lineage"""
+
+        if visible_nodes is not None: 
+            self.visible_nodes = visible_nodes 
 
         highlighted = [
             node["track_id"]
@@ -107,10 +115,28 @@ class TrackLabels(napari.layers.Labels):
             if node["t"] == self.viewer.dims.current_step[0]
         ]
 
-        if self.base_label_color_dict is not None:
-            colormap = create_selection_label_cmap(
-                self.base_label_color_dict,
-                visible=visible,
-                highlighted=highlighted,
-            )
-            self.colormap = colormap
+        if len(self.selected_nodes) > 0:
+            self.selected_label = self.selected_nodes[0]['track_id']
+
+        if self.display_mode != "slice" and isinstance(self.visible_nodes, str):
+            opacity = 0.6
+            if self.base_label_color_dict is not None:
+                colormap = create_selection_label_cmap(
+                    self.base_label_color_dict,
+                    visible=[self.selected_label],
+                    highlighted=highlighted,
+                    opacity=opacity
+                )
+                self.colormap = colormap
+                self.blending = 'translucent'
+        else: 
+            opacity = 0.6
+            if self.base_label_color_dict is not None:
+                colormap = create_selection_label_cmap(
+                    self.base_label_color_dict,
+                    visible=self.visible_nodes,
+                    highlighted=highlighted,
+                    opacity=opacity
+                )
+                self.colormap = colormap
+                self.blending = 'translucent_no_depth'
