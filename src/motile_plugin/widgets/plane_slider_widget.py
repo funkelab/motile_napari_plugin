@@ -19,6 +19,7 @@ from motile_plugin.widgets.tracking_view_controller import (
     TrackingViewController,
 )
 
+
 class PlaneSliderWidget(QWidget):
     """Widget for extended 3D visualization purposes only,
     constructs additional layers and allows switching between plane and volume mode.
@@ -35,7 +36,7 @@ class PlaneSliderWidget(QWidget):
         self.view_controller.tracking_layers_updated.connect(self._update)
 
         self.plane_colormap = self.view_controller.colormap
-       
+
         self.intensity_images = [
             layer
             for layer in self.viewer.layers
@@ -143,26 +144,37 @@ class PlaneSliderWidget(QWidget):
         self.setLayout(main_layout)
         self.on_ndisplay_changed()
 
-    def _update(self,):
+    def _update(
+        self,
+    ):
         """Update sliders and reinitialize viewing layers"""
 
         self.plane_colormap = self.view_controller.colormap
 
-        self.z_plane_slider.setMaximum(int(
-            self.viewer.dims.range[-3].stop)
+        self.z_plane_slider.setMaximum(
+            int(
+                self.viewer.dims.range[-3].stop
+                / self.viewer.dims.range[-3].step
+            )
         )
-        self.y_plane_slider.setMaximum(int(
-            self.viewer.dims.range[-2].stop)
+        self.y_plane_slider.setMaximum(
+            int(
+                self.viewer.dims.range[-2].stop
+                / self.viewer.dims.range[-2].step
+            )
         )
-        self.x_plane_slider.setMaximum(int(
-            self.viewer.dims.range[-1].stop)
+        self.x_plane_slider.setMaximum(
+            int(
+                self.viewer.dims.range[-1].stop
+                / self.viewer.dims.range[-1].step
+            )
         )
 
         self.z_plane_layers = []
         self.y_plane_layers = []
         self.x_plane_layers = []
         self.volume_layer = None
-               
+
         self.intensity_images = [
             layer
             for layer in self.viewer.layers
@@ -177,8 +189,10 @@ class PlaneSliderWidget(QWidget):
         self.z_plane_btn.setEnabled(True)
         self.y_plane_btn.setEnabled(True)
         self.x_plane_btn.setEnabled(True)
-        if self.view_controller.tracking_layers.seg_layer is not None: 
-            self.view_controller.tracking_layers.seg_layer.display_mode = "plane"
+        if self.view_controller.tracking_layers.seg_layer is not None:
+            self.view_controller.tracking_layers.seg_layer.display_mode = (
+                "plane"
+            )
             self.view_controller.tracking_layers.seg_layer.update_label_colormap()
 
         if self.z_plane_btn.isChecked():
@@ -194,9 +208,11 @@ class PlaneSliderWidget(QWidget):
             for layer in self.x_plane_layers:
                 self.viewer.layers.append(layer)
 
-        if self.volume_layer is not None: 
-            if self.volume_layer in self.viewer.layers:
-                self.viewer.layers.remove(self.volume_layer)
+        if (
+            self.volume_layer is not None
+            and self.volume_layer in self.viewer.layers
+        ):
+            self.viewer.layers.remove(self.volume_layer)
 
         for layer in self.viewer.layers:
             if isinstance(layer, napari.layers.Image):
@@ -205,7 +221,9 @@ class PlaneSliderWidget(QWidget):
                     index, 0
                 )  # move image layers to the bottom
         self.viewer.layers.selection.clear()
-        self.viewer.layers.selection.add(self.view_controller.tracking_layers.points_layer)
+        self.viewer.layers.selection.add(
+            self.view_controller.tracking_layers.points_layer
+        )
 
     def _set_volume_mode(self) -> None:
         """Set the mode to volume, disable slider and change depiction to 'volume' for Image and Labels layers"""
@@ -226,23 +244,37 @@ class PlaneSliderWidget(QWidget):
         if self.x_plane_btn.isChecked():
             self._deactivate_slider("x")
 
-        # add a new volume labels layer that is noneditable but displays all labels in the background 
-        if self.view_controller.tracking_layers.seg_layer is not None: 
-            if self.volume_layer is None: 
-                self.volume_layer = self.viewer.add_labels(self.view_controller.tracking_layers.seg_layer.data, name = 'volume view (no edits)', opacity = 0.4, blending = 'translucent_no_depth', scale=self.view_controller.tracking_layers.seg_layer.scale)
+        # add a new volume labels layer that is noneditable but displays all labels in the background
+        if self.view_controller.tracking_layers.seg_layer is not None:
+            if self.volume_layer is None:
+                self.volume_layer = self.viewer.add_labels(
+                    self.view_controller.tracking_layers.seg_layer.data,
+                    name="volume view (no edits)",
+                    opacity=0.4,
+                    blending="translucent_no_depth",
+                    scale=self.view_controller.tracking_layers.seg_layer.scale,
+                )
                 self.volume_layer.mouse_pan = False
                 self.volume_layer.mouse_zoom = False
-            else: 
+            else:
                 self.viewer.layers.append(self.volume_layer)
 
         # make the labels the selected layer and update colormaps
         self.viewer.layers.selection.clear()
         if self.view_controller.tracking_layers.seg_layer is not None:
-            self.viewer.layers.selection.add(self.view_controller.tracking_layers.seg_layer)
-            self.view_controller.tracking_layers.seg_layer.display_mode = "volume"
+            self.viewer.layers.selection.add(
+                self.view_controller.tracking_layers.seg_layer
+            )
+            self.view_controller.tracking_layers.seg_layer.display_mode = (
+                "volume"
+            )
             self.view_controller.tracking_layers.seg_layer.update_label_colormap()
-        self.view_controller.tracking_layers.points_layer.update_point_outline(plane_nodes = 'all')
-        self.view_controller.tracking_layers.tracks_layer.update_track_visibility(plane_nodes = 'all')
+        self.view_controller.tracking_layers.points_layer.update_point_outline(
+            plane_nodes="all"
+        )
+        self.view_controller.tracking_layers.tracks_layer.update_track_visibility(
+            plane_nodes="all"
+        )
 
     def on_ndisplay_changed(self) -> None:
         """Update the buttons depending on the display mode of the viewer. Buttons and slider should only be active in 3D mode"""
@@ -263,19 +295,27 @@ class PlaneSliderWidget(QWidget):
                 self._deactivate_slider("y")
             if self.x_plane_btn.isChecked():
                 self._deactivate_slider("x")
-            
+
             if self.volume_layer in self.viewer.layers:
                 self.viewer.layers.remove(self.volume_layer)
 
             # show all the points and tracks in volume mode
-            if self.view_controller.tracking_layers.points_layer is not None: 
-                self.view_controller.tracking_layers.points_layer.update_point_outline(plane_nodes = 'all')
+            if self.view_controller.tracking_layers.points_layer is not None:
+                self.view_controller.tracking_layers.points_layer.update_point_outline(
+                    plane_nodes="all"
+                )
             if self.view_controller.tracking_layers.tracks_layer is not None:
-                self.view_controller.tracking_layers.tracks_layer.track_colors[:, 3] = 1
-                self.view_controller.tracking_layers.tracks_layer.display_graph = True
+                self.view_controller.tracking_layers.tracks_layer.track_colors[
+                    :, 3
+                ] = 1
+                self.view_controller.tracking_layers.tracks_layer.display_graph = (
+                    True
+                )
                 self.view_controller.tracking_layers.tracks_layer.events.rebuild_tracks()  # fire the event to update the colors
-            if self.view_controller.tracking_layers.seg_layer is not None: 
-                self.view_controller.tracking_layers.seg_layer.display_mode = "slice"
+            if self.view_controller.tracking_layers.seg_layer is not None:
+                self.view_controller.tracking_layers.seg_layer.display_mode = (
+                    "slice"
+                )
                 self.view_controller.tracking_layers.seg_layer.update_label_colormap()
         else:
             self._set_volume_mode()
@@ -338,7 +378,9 @@ class PlaneSliderWidget(QWidget):
 
                 if isinstance(layer, napari.layers.Image):
                     z_layer = self.viewer.add_image(
-                        layer.data, name="z plane of " + layer.name, scale=layer.scale
+                        layer.data,
+                        name="z plane of " + layer.name,
+                        scale=layer.scale,
                     )
                 else:
                     z_layer = self.viewer.add_labels(
@@ -346,7 +388,7 @@ class PlaneSliderWidget(QWidget):
                         name="z plane of " + layer.name,
                         colormap=self.plane_colormap,
                         opacity=0.4,
-                        scale=layer.scale
+                        scale=layer.scale,
                     )
                     z_layer.rendering = "translucent"
                 z_layer.depiction = "plane"
@@ -363,7 +405,9 @@ class PlaneSliderWidget(QWidget):
 
                 if isinstance(layer, napari.layers.Image):
                     y_layer = self.viewer.add_image(
-                        layer.data, name="y plane of " + layer.name, scale=layer.scale,
+                        layer.data,
+                        name="y plane of " + layer.name,
+                        scale=layer.scale,
                     )
                 else:
                     y_layer = self.viewer.add_labels(
@@ -371,7 +415,7 @@ class PlaneSliderWidget(QWidget):
                         name="y plane of " + layer.name,
                         colormap=self.plane_colormap,
                         opacity=0.4,
-                        scale=layer.scale
+                        scale=layer.scale,
                     )
                     y_layer.rendering = "translucent"
 
@@ -389,7 +433,9 @@ class PlaneSliderWidget(QWidget):
 
                 if isinstance(layer, napari.layers.Image):
                     x_layer = self.viewer.add_image(
-                        layer.data, name="x plane of " + layer.name, scale=layer.scale
+                        layer.data,
+                        name="x plane of " + layer.name,
+                        scale=layer.scale,
                     )
                 else:
                     x_layer = self.viewer.add_labels(
@@ -397,7 +443,7 @@ class PlaneSliderWidget(QWidget):
                         name="x plane of " + layer.name,
                         colormap=self.plane_colormap,
                         opacity=0.4,
-                        scale=layer.scale
+                        scale=layer.scale,
                     )
                     x_layer.rendering = "translucent"
                 x_layer.plane.normal = (0, 0, 1)
@@ -411,7 +457,9 @@ class PlaneSliderWidget(QWidget):
                 self.x_plane_layers.append(x_layer)
 
             self.viewer.layers.selection.clear()
-            self.viewer.layers.selection.add(self.view_controller.tracking_layers.points_layer)
+            self.viewer.layers.selection.add(
+                self.view_controller.tracking_layers.points_layer
+            )
 
             for layer in self.viewer.layers:
                 if isinstance(layer, napari.layers.Image):
@@ -458,5 +506,9 @@ class PlaneSliderWidget(QWidget):
             )
 
         # specify which points and tracks to show and which not to show
-        self.view_controller.tracking_layers.points_layer.update_point_outline(plane_nodes = labels_shown)
-        self.view_controller.tracking_layers.tracks_layer.update_track_visibility(plane_nodes = labels_shown)
+        self.view_controller.tracking_layers.points_layer.update_point_outline(
+            plane_nodes=labels_shown
+        )
+        self.view_controller.tracking_layers.tracks_layer.update_track_visibility(
+            plane_nodes=labels_shown
+        )

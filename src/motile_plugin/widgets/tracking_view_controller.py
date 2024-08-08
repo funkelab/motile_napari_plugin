@@ -95,9 +95,8 @@ class TrackingViewController:
         self.remove_napari_layers()
         for layer in self.viewer.layers:
             layer.visible = False  # deactivate the input layer
-            scale = layer.scale
+            self.scale = layer.scale
 
-        print('this is the scale', scale)
         # Create new layers
         if run.output_segmentation is not None:
 
@@ -109,7 +108,7 @@ class TrackingViewController:
                 track_df=self.track_df,
                 opacity=0.9,
                 selected_nodes=self.selected_nodes,
-                scale=scale,
+                scale=self.scale,
             )
 
         else:
@@ -124,14 +123,14 @@ class TrackingViewController:
                 data=run.tracks,
                 name=run.run_name + "_tracks",
                 colormap=self.colormap,
-                scale=scale,
+                scale=self.scale,
             )
             self.tracking_layers.points_layer = TrackPoints(
                 viewer=self.viewer,
                 data=self.track_df,
                 name=run.run_name + "_points",
                 selected_nodes=self.selected_nodes,
-                scale=scale,
+                scale=self.scale,
             )
 
         self.tracking_layers_updated.emit()
@@ -206,7 +205,10 @@ class TrackingViewController:
             step[0] = node["t"]
             if "z" in node:
                 z = node["z"]
-                step[1] = int(z)
+                step[1] = int(
+                    z + 0.5
+                )  # need the + 0.5 to be sure to jump to the slice that holds the corresponding point
+
             self.viewer.dims.current_step = step
 
             # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
@@ -232,6 +234,6 @@ class TrackingViewController:
 
                     self.viewer.camera.center = (
                         camera_center[0],
-                        node["y"],
-                        node["x"],
+                        node["y"] * self.scale[-2],
+                        node["x"] * self.scale[-1],
                     )
