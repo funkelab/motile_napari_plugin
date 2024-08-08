@@ -48,8 +48,8 @@ class TrackingViewController:
     def __init__(
         self,
         viewer: napari.viewer,
-        time_attr=NodeAttr.TIME.value,
-        pos_attr=NodeAttr.POS.value,
+        time_attr: str = NodeAttr.TIME.value,
+        pos_attr: str = NodeAttr.POS.value,
     ):
         self.viewer = viewer
         self.viewer.bind_key("t")(self.toggle_display_mode)
@@ -98,6 +98,7 @@ class TrackingViewController:
         Args:
             run (MotileRun): The run outputs to visualize in napari.
         """
+        self.selected_nodes._list = []
         self.run = run  # keep the run information accessible
         if time_attr is not None:
             self.time_attr = time_attr
@@ -113,7 +114,8 @@ class TrackingViewController:
         # Remove old layers if necessary
         self.remove_napari_layers()
         for layer in self.viewer.layers:
-            layer.visible = False  # deactivate the input layer
+            if isinstance(layer, napari.layers.Labels):
+                layer.visible = False  # deactivate the input labels layer
 
         # Create new layers
         if run.output_segmentation is not None:
@@ -207,7 +209,8 @@ class TrackingViewController:
 
         self.set_napari_view()
         visible = self.filter_visible_nodes()
-        self.tracking_layers.seg_layer.update_label_colormap(visible)
+        if self.tracking_layers.seg_layer is not None:
+            self.tracking_layers.seg_layer.update_label_colormap(visible)
         self.tracking_layers.points_layer.update_point_outline(visible)
         self.tracking_layers.tracks_layer.update_track_visibility(visible)
 
