@@ -15,6 +15,9 @@ for more details on the concepts and method.
 Browsing tracking data with interactive lineage tree
 ![](docs/images/motile_napari_tree_view.gif)
 
+Viewing cells in 3D volume and 3D plane mode
+![](docs/images/motile_napari_3d_viewing.gif)
+
 ----------------------------------
 
 ## Installation
