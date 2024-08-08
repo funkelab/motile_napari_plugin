@@ -3,12 +3,14 @@ import copy
 import napari
 import networkx as nx
 import numpy as np
+from motile_toolbox.candidate_graph import NodeAttr
 from motile_toolbox.visualization import to_napari_tracks_layer
 from napari.utils import CyclicLabelColormap
 
 
 class TrackGraph(napari.layers.Tracks):
-    """Extended points layer that holds the track information and emits and responds to dynamics visualization signals"""
+    """Extended tracks layer that holds the track information and emits and responds
+    to dynamics visualization signals"""
 
     def __init__(
         self,
@@ -16,8 +18,12 @@ class TrackGraph(napari.layers.Tracks):
         data: nx.DiGraph,
         name: str,
         colormap: CyclicLabelColormap,
+        time_attr=NodeAttr.TIME.value,
+        pos_attr=NodeAttr.POS.value,
     ):
-        track_data, track_props, track_edges = to_napari_tracks_layer(data)
+        track_data, track_props, track_edges = to_napari_tracks_layer(
+            data, frame_key=time_attr, location_key=pos_attr
+        )
 
         super().__init__(
             data=track_data,

@@ -16,6 +16,8 @@ from qtpy.QtWidgets import QPushButton
 def extract_sorted_tracks(
     solution_nx_graph: nx.DiGraph,
     colormap: napari.utils.CyclicLabelColormap,
+    time_attr=NodeAttr.TIME.value,
+    pos_attr=NodeAttr.POS.value,
 ) -> pd.DataFrame:
     """
     Extract the information of individual tracks required for constructing the pyqtgraph plot. Follows the same logic as the relabel_segmentation
@@ -56,15 +58,16 @@ def extract_sorted_tracks(
         # Sort nodes in each weakly connected component by their time attribute to ensure correct order
         sorted_nodes = sorted(
             node_set,
-            key=lambda node: solution_nx_graph.nodes[node][
-                NodeAttr.TIME.value
-            ],
+            key=lambda node: solution_nx_graph.nodes[node][time_attr],
         )
 
         parent_track_id = None
         for node in sorted_nodes:
             node_data = solution_nx_graph.nodes[node]
-            pos = node_data[NodeAttr.POS.value]
+            if isinstance(pos_attr, (list, tuple)):
+                pos = [node_data[dim] for dim in pos_attr]
+            else:
+                pos = node_data[pos_attr]
             annotated = False
             if node in parent_nodes:
                 state = "fork"  # can we change this to NodeAttr.STATE.value or equivalent?
@@ -87,7 +90,7 @@ def extract_sorted_tracks(
                 annotated = True
 
             track_dict = {
-                "t": node_data[NodeAttr.TIME.value],
+                "t": node_data[time_attr],
                 "node_id": node,
                 "track_id": id_counter,
                 "color": colormap.map(id_counter) * 255,
@@ -291,9 +294,9 @@ def create_label_color_dict(
     # Iterate over unique labels
     for label in labels:
         color = list(to_rgba(labels_layer.get_color(label)))
-        color[-1] = (
-            0  # Set opacity to 0 (will be replaced when a label is selected)
-        )
+        color[
+            -1
+        ] = 0  # Set opacity to 0 (will be replaced when a label is selected)
         color_dict_rgb[label] = color
 
     return color_dict_rgb

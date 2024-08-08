@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import napari
 import numpy as np
+from motile_toolbox.candidate_graph import NodeAttr
 from psygnal import Signal
 
 from motile_plugin.backend.motile_run import MotileRun
@@ -44,7 +45,12 @@ class TrackingViewController:
             cls._instance = TrackingViewController(viewer)
         return cls._instance
 
-    def __init__(self, viewer: napari.viewer):
+    def __init__(
+        self,
+        viewer: napari.viewer,
+        time_attr=NodeAttr.TIME.value,
+        pos_attr=NodeAttr.POS.value,
+    ):
         self.viewer = viewer
         self.viewer.bind_key("t")(self.toggle_display_mode)
         self.selected_nodes = NodeSelectionList()
@@ -56,6 +62,8 @@ class TrackingViewController:
             background_value=0,
         )
         self.run = None
+        self.time_attr = time_attr
+        self.pos_attr = pos_attr
         self.track_df = None
         self.mode = "all"
 
@@ -81,7 +89,9 @@ class TrackingViewController:
         if self.tracking_layers.points_layer is not None:
             self.viewer.add_layer(self.tracking_layers.points_layer)
 
-    def update_napari_layers(self, run: MotileRun) -> None:
+    def update_napari_layers(
+        self, run: MotileRun, time_attr=None, pos_attr=None
+    ) -> None:
         """Remove the old napari layers and update them according to the run output.
         Will create new segmentation and tracks layers and add them to the viewer.
 
@@ -89,7 +99,16 @@ class TrackingViewController:
             run (MotileRun): The run outputs to visualize in napari.
         """
         self.run = run  # keep the run information accessible
-        self.track_df = extract_sorted_tracks(run.tracks, self.colormap)
+        if time_attr is not None:
+            self.time_attr = time_attr
+        if pos_attr is not None:
+            self.pos_attr = pos_attr
+        self.track_df = extract_sorted_tracks(
+            run.tracks,
+            self.colormap,
+            time_attr=self.time_attr,
+            pos_attr=self.pos_attr,
+        )
 
         # Remove old layers if necessary
         self.remove_napari_layers()
@@ -121,6 +140,8 @@ class TrackingViewController:
                 data=run.tracks,
                 name=run.run_name + "_tracks",
                 colormap=self.colormap,
+                time_attr=self.time_attr,
+                pos_attr=self.pos_attr,
             )
             self.tracking_layers.points_layer = TrackPoints(
                 viewer=self.viewer,
