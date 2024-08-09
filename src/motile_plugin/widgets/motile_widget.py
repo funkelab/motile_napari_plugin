@@ -27,8 +27,9 @@ logger = logging.getLogger(__name__)
 
 
 class MotileWidget(QScrollArea):
-    """The main widget for the motile napari plugin. Coordinates sub-widgets
-    and calls the back-end motile solver.
+    """A widget that controls the backend components of the motile napari plugin.
+    Recieves user input about solver parameters, runs motile, and passes
+    results to the TrackingViewController.
     """
 
     # A signal for passing events from the motile solver to the run view widget
