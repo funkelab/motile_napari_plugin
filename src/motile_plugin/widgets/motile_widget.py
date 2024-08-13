@@ -15,6 +15,7 @@ from superqt.utils import thread_worker
 
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.backend.solve import solve
+from motile_plugin.core import Tracks
 from motile_plugin.widgets.tracking_view_controller import (
     TrackingViewController,
 )
@@ -170,15 +171,16 @@ class MotileWidget(QScrollArea):
             input_data = run.input_points
         else:
             raise ValueError("Must have one of input segmentation or points")
-        run.tracks = solve(
+        graph = solve(
             run.solver_params,
             input_data,
             lambda event_data: self._on_solver_event(run, event_data),
         )
         if run.input_segmentation is not None:
-            run.output_segmentation = self.relabel_segmentation(
-                run.tracks, run.input_segmentation
+            output_segmentation = self.relabel_segmentation(
+                graph, run.input_segmentation
             )
+        run.tracks = Tracks(graph=graph, segmentation=output_segmentation)
         return run
 
     def _on_solver_event(self, run: MotileRun, event_data: dict) -> None:
