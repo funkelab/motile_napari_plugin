@@ -6,7 +6,7 @@ from motile_plugin.core import NodeType, Tracks
 from ..utils.node_selection import NodeSelectionList
 
 
-class TrackPoints(napari.layers.Points):
+class Points(napari.layers.Points):
     """Extended points layer that holds the track information and emits and responds to dynamics visualization signals"""
 
     def __init__(

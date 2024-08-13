@@ -91,9 +91,9 @@ class TrackLabels(napari.layers.Labels):
         # Iterate over unique labels
         for label in labels:
             color = colormap.map(label)
-            color[-1] = (
-                0  # Set opacity to 0 (will be replaced when a label is visible/invisible/selected)
-            )
+            color[
+                -1
+            ] = 0  # Set opacity to 0 (will be replaced when a label is visible/invisible/selected)
             color_dict_rgb[label] = color
 
         return color_dict_rgb
