@@ -17,7 +17,7 @@ from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.backend.solve import solve
 from motile_plugin.core import Tracks
 from motile_plugin.widgets.tracking_view_controller import (
-    TrackingViewController,
+    TracksViewer,
 )
 
 from .run_editor import RunEditor
@@ -42,8 +42,8 @@ class MotileWidget(QScrollArea):
     def __init__(self, viewer: Viewer):
         super().__init__()
         self.viewer: Viewer = viewer
-        view_controller = TrackingViewController.get_instance(self.viewer)
-        self.update_layers.connect(view_controller.update_napari_layers)
+        view_controller = TracksViewer.get_instance(self.viewer)
+        self.update_layers.connect(view_controller.update_tracks)
         self.remove_layers.connect(view_controller.remove_napari_layers)
 
         # Create sub-widgets and connect signals
@@ -132,7 +132,6 @@ class MotileWidget(QScrollArea):
         output_shape = (segmentation.shape[0], 1, *segmentation.shape[2:])
         tracked_masks = np.zeros_like(segmentation, shape=output_shape)
         for node, _data in solution_nx_graph.nodes(data=True):
-
             time_frame = solution_nx_graph.nodes[node][NodeAttr.TIME.value]
             previous_seg_id = solution_nx_graph.nodes[node][
                 NodeAttr.SEG_ID.value

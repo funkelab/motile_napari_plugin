@@ -15,7 +15,7 @@ from qtpy.QtWidgets import (
 )
 
 from motile_plugin.widgets.tracking_view_controller import (
-    TrackingViewController,
+    TracksViewer,
 )
 
 from ..utils.tree_widget_utils import extract_lineage_tree
@@ -47,13 +47,11 @@ class TreeWidget(QWidget):
         self.lineage_pen = None
         self.lineage_outline_pen = None
 
-        self.view_controller = TrackingViewController.get_instance(viewer)
+        self.view_controller = TracksViewer.get_instance(viewer)
         self.colormap = self.view_controller.colormap
         self.selected_nodes = self.view_controller.selected_nodes
         self.selected_nodes.list_updated.connect(self._show_selected)
-        self.view_controller.tracking_layers_updated.connect(
-            self.update_track_data
-        )
+        self.view_controller.tracks_updated.connect(self.update_track_data)
 
         # Construct the tree view pyqtgraph widget
         layout = QVBoxLayout()
@@ -86,13 +84,13 @@ class TreeWidget(QWidget):
         display_box.setMaximumWidth(250)
 
         # add a box with navigation instructions
-        navigation_box = QGroupBox("Navigation [\u2B05 \u27A1 \u2B06 \u2B07]")
+        navigation_box = QGroupBox("Navigation [\u2b05 \u27a1 \u2b06 \u2b07]")
 
         navigation_layout = QHBoxLayout()
-        left_button = QPushButton("\u2B05")
-        right_button = QPushButton("\u27A1")
-        up_button = QPushButton("\u2B06")
-        down_button = QPushButton("\u2B07")
+        left_button = QPushButton("\u2b05")
+        right_button = QPushButton("\u27a1")
+        up_button = QPushButton("\u2b06")
+        down_button = QPushButton("\u2b07")
 
         left_button.clicked.connect(lambda: self.select_next_node("left"))
         right_button.clicked.connect(lambda: self.select_next_node("right"))

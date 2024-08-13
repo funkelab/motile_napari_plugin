@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 import napari
 import numpy as np
-from motile_toolbox.candidate_graph import NodeAttr
 from psygnal import Signal
 
 from motile_plugin.backend.motile_run import MotileRun
@@ -19,23 +18,23 @@ from ..utils.tree_widget_utils import (
 
 
 @dataclass
-class TrackingLayerGroup:
+class TracksLayerGroup:
     tracks_layer: TrackGraph | None = None
     seg_layer: TrackLabels | None = None
     points_layer: TrackPoints | None = None
 
 
-class TrackingViewController:
-    """Purposes of the TrackingViewController:
+class TracksViewer:
+    """Purposes of the TracksViewer:
     - Emit signals that all widgets should use to update selection or update
-        the currently displayed run
+        the currently displayed Tracks object
     - Storing the currently displayed run and a dataframe with rendering information
         for that run
     - Store shared rendering information like colormaps (or symbol maps)
     - Interacting with the napari.Viewer by adding and removing layers
     """
 
-    tracking_layers_updated = Signal()  # rename to run_updated?
+    tracks_updated = Signal()
 
     @classmethod
     def get_instance(cls, viewer=None):
@@ -43,20 +42,22 @@ class TrackingViewController:
             print("Making new tracking view controller")
             if viewer is None:
                 raise ValueError("Make a viewer first please!")
-            cls._instance = TrackingViewController(viewer)
+            cls._instance = TracksViewer(viewer)
         return cls._instance
 
     def __init__(
         self,
         viewer: napari.viewer,
-        time_attr: str = NodeAttr.TIME.value,
-        pos_attr: str = NodeAttr.POS.value,
     ):
         self.viewer = viewer
+        # TODO: separate and document keybinds
         self.viewer.bind_key("t")(self.toggle_display_mode)
+
         self.selected_nodes = NodeSelectionList()
         self.selected_nodes.list_updated.connect(self.select_node)
-        self.tracking_layers: TrackingLayerGroup = TrackingLayerGroup()
+
+        self.tracking_layers = TracksLayerGroup()
+
         self.colormap = napari.utils.colormaps.label_colormap(
             49,
             seed=0.5,
@@ -70,8 +71,8 @@ class TrackingViewController:
         }
         # TODO: remove unnecessary items
         self.run = None
-        self.time_attr = time_attr
-        self.pos_attr = pos_attr
+        self.time_attr = "time"
+        self.pos_attr = "pos"
         self.track_df = None
         self.mode = "all"
 
@@ -82,14 +83,12 @@ class TrackingViewController:
 
     def remove_napari_layers(self) -> None:
         """Remove all tracking layers from the viewer"""
-
         self.remove_napari_layer(self.tracking_layers.tracks_layer)
         self.remove_napari_layer(self.tracking_layers.seg_layer)
         self.remove_napari_layer(self.tracking_layers.points_layer)
 
     def add_napari_layers(self) -> None:
         """Add new tracking layers to the viewer"""
-
         if self.tracking_layers.tracks_layer is not None:
             self.viewer.add_layer(self.tracking_layers.tracks_layer)
         if self.tracking_layers.seg_layer is not None:
@@ -97,10 +96,8 @@ class TrackingViewController:
         if self.tracking_layers.points_layer is not None:
             self.viewer.add_layer(self.tracking_layers.points_layer)
 
-    def update_napari_layers(
-        self, run: MotileRun, time_attr=None, pos_attr=None
-    ) -> None:
-        """Remove the old napari layers and update them according to the run output.
+    def update_tracks(self, run: MotileRun) -> None:
+        """Stop viewing a previous run and replace it with a new one.
         Will create new segmentation and tracks layers and add them to the viewer.
 
         Args:
@@ -108,10 +105,6 @@ class TrackingViewController:
         """
         self.selected_nodes._list = []
         self.run = run  # keep the run information accessible
-        if time_attr is not None:
-            self.time_attr = time_attr
-        if pos_attr is not None:
-            self.pos_attr = pos_attr
 
         graph = None if self.tracks is None else run.tracks.graph
         self.track_df = extract_sorted_tracks(
@@ -123,9 +116,11 @@ class TrackingViewController:
 
         # Remove old layers if necessary
         self.remove_napari_layers()
+
+        # deactivate the input labels layer
         for layer in self.viewer.layers:
             if isinstance(layer, napari.layers.Labels):
-                layer.visible = False  # deactivate the input labels layer
+                layer.visible = False
 
         # Create new layers
         if run.tracks is not None and run.tracks.segmentation is not None:
@@ -167,7 +162,7 @@ class TrackingViewController:
                 colormap=self.colormap,
             )
 
-        self.tracking_layers_updated.emit()
+        self.tracks_updated.emit()
         self.add_napari_layers()
         self.set_display_mode("all")
 
