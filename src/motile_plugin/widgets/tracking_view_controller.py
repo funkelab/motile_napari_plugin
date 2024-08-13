@@ -6,6 +6,7 @@ from motile_toolbox.candidate_graph import NodeAttr
 from psygnal import Signal
 
 from motile_plugin.backend.motile_run import MotileRun
+from motile_plugin.core import NodeType
 
 from ..layers.tracked_graph import TrackGraph
 from ..layers.tracked_labels import TrackLabels
@@ -61,6 +62,13 @@ class TrackingViewController:
             seed=0.5,
             background_value=0,
         )
+
+        self.symbolmap: dict[NodeType, str] = {
+            NodeType.END: "x",
+            NodeType.CONTINUE: "disc",
+            NodeType.SPLIT: "triangle_up",
+        }
+        # TODO: remove unnecessary items
         self.run = None
         self.time_attr = time_attr
         self.pos_attr = pos_attr
@@ -104,8 +112,10 @@ class TrackingViewController:
             self.time_attr = time_attr
         if pos_attr is not None:
             self.pos_attr = pos_attr
+
+        graph = None if self.tracks is None else run.tracks.graph
         self.track_df = extract_sorted_tracks(
-            run.tracks,
+            graph,
             self.colormap,
             time_attr=self.time_attr,
             pos_attr=self.pos_attr,
@@ -118,11 +128,10 @@ class TrackingViewController:
                 layer.visible = False  # deactivate the input labels layer
 
         # Create new layers
-        if run.output_segmentation is not None:
-
+        if run.tracks is not None and run.tracks.segmentation is not None:
             self.tracking_layers.seg_layer = TrackLabels(
                 viewer=self.viewer,
-                data=run.output_segmentation[:, 0],
+                data=run.tracks.segmentation[:, 0],
                 name=run.run_name + "_seg",
                 colormap=self.colormap,
                 track_df=self.track_df,
@@ -133,13 +142,17 @@ class TrackingViewController:
         else:
             self.tracking_layers.seg_layer = None
 
-        if run.tracks is None or run.tracks.number_of_nodes() == 0:
+        if (
+            run.tracks is None
+            or run.tracks.graph is None
+            or run.tracks.graph.number_of_nodes() == 0
+        ):
             self.tracking_layers.tracks_layer = None
             self.tracking_layers.points_layer = None
         else:
             self.tracking_layers.tracks_layer = TrackGraph(
                 viewer=self.viewer,
-                data=run.tracks,
+                data=run.tracks.graph,
                 name=run.run_name + "_tracks",
                 colormap=self.colormap,
                 time_attr=self.time_attr,
@@ -147,9 +160,11 @@ class TrackingViewController:
             )
             self.tracking_layers.points_layer = TrackPoints(
                 viewer=self.viewer,
-                data=self.track_df,
+                tracks=run.tracks,
                 name=run.run_name + "_points",
                 selected_nodes=self.selected_nodes,
+                symbolmap=self.symbolmap,
+                colormap=self.colormap,
             )
 
         self.tracking_layers_updated.emit()

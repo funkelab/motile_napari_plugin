@@ -1,6 +1,7 @@
 import napari
 import numpy as np
-import pandas as pd
+
+from motile_plugin.core import NodeType, Tracks
 
 from ..utils.node_selection import NodeSelectionList
 
@@ -11,30 +12,22 @@ class TrackPoints(napari.layers.Points):
     def __init__(
         self,
         viewer: napari.Viewer,
-        data: pd.DataFrame,
+        tracks: Tracks,
         name: str,
         selected_nodes: NodeSelectionList,
+        symbolmap: dict[NodeType, str],
+        colormap: napari.utils.Colormap,
     ):
+        self.colormap = colormap
+        self.symbolmap = symbolmap
 
-        # Collect point data, colors and symbols directly from the track_data dataframe
-        colors = np.array(data["color"].tolist()) / 255
-        annotate_indices = data[
-            data["annotated"]
-        ].index  # manual edits should be displayed in a different color
-        colors[annotate_indices] = np.array([1, 0, 0, 1])
-        symbols = np.array(data["symbol"].tolist())
-
-        if "z" in data.columns:
-            points = np.column_stack(
-                (
-                    data["t"].values,
-                    data["z"].values,
-                    data["y"].values,
-                    data["x"].values,
-                )
-            )
-        else:
-            points = data[["t", "y", "x"]].values
+        nodes = list(tracks.graph.nodes)
+        points = [tracks.get_location(node, incl_time=True) for node in nodes]
+        colors = [
+            colormap.map(tracks.graph.nodes[node]["tracklet_id"])
+            for node in nodes
+        ]
+        symbols = self.get_symbols(tracks, symbolmap)
 
         super().__init__(
             data=points,
@@ -42,7 +35,7 @@ class TrackPoints(napari.layers.Points):
             symbol=symbols,
             face_color=colors,
             size=5,
-            properties=data,
+            # properties=data, TODO
             border_color=[1, 1, 1, 1],
         )
 
@@ -73,6 +66,20 @@ class TrackPoints(napari.layers.Points):
                     if len(node) > 0:
                         append = "Shift" in event.modifiers
                         self.selected_nodes.append(node, append)
+
+    def get_symbols(
+        self, tracks: Tracks, symbolmap: dict[NodeType, str]
+    ) -> list[str]:
+        statemap = {
+            0: NodeType.END,
+            1: NodeType.CONTINUE,
+            2: NodeType.SPLIT,
+        }
+        symbols = [
+            symbolmap[statemap[degree]]
+            for _, degree in tracks.graph.out_degree
+        ]
+        return symbols
 
     def update_point_outline(self, visible: list[int] | str) -> None:
         """Update the outline color of the selected points and visibility according to display mode"""
