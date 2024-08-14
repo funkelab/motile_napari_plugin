@@ -46,7 +46,6 @@ class TrackPoints(napari.layers.Points):
 
         @self.mouse_drag_callbacks.append
         def click(layer, event):
-            print(event.__dict__)
             if event.type == "mouse_press":
                 # is the value passed from the click event?
                 point_index = layer.get_value(

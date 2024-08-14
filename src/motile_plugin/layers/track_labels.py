@@ -3,7 +3,6 @@ from typing import Dict, List
 
 import napari
 import numpy as np
-import pandas as pd
 from napari.utils import CyclicLabelColormap, DirectLabelColormap
 
 from motile_plugin.core import Tracks
@@ -41,17 +40,25 @@ class TrackLabels(napari.layers.Labels):
         data: np.array,
         name: str,
         colormap: CyclicLabelColormap,
-        track_df: pd.DataFrame,  # TODO: update to not use df like points layer
         tracks: Tracks,
         opacity: float,
         selected_nodes: NodeSelectionList,
     ):
+        self.nodes = list(tracks.graph.nodes)
+        props = {
+            "node_id": self.nodes,
+            "track_id": [
+                data["tracklet_id"]
+                for _, data in tracks.graph.nodes(data=True)
+            ],
+            "t": [tracks.get_time(node) for node in self.nodes],
+        }
         super().__init__(
             data=data,
             name=name,
             opacity=opacity,
             colormap=colormap,
-            properties=track_df,
+            properties=props,
         )
 
         self.viewer = viewer
@@ -59,31 +66,29 @@ class TrackLabels(napari.layers.Labels):
         self.tracks = tracks
 
         self.base_label_color_dict = self.create_label_color_dict(
-            track_df["track_id"].unique(), colormap=colormap
+            np.unique(self.properties["track_id"]), colormap=colormap
         )
 
         @self.mouse_drag_callbacks.append
         def click(layer, event):
             if event.type == "mouse_press":
-                position = event.position
-                value = layer.get_value(
-                    position,
+                # is the value passed from the click event?
+                label = layer.get_value(
+                    event.position,
                     view_direction=event.view_direction,
                     dims_displayed=event.dims_displayed,
                     world=True,
                 )
-                if value is not None and value != 0:
+
+                if label is not None and label != 0:
+                    # TODO: Why is this a tuple?
                     index = np.where(
-                        (layer.properties["t"] == position[0])
-                        & (layer.properties["track_id"] == value)
+                        (layer.properties["t"] == event.position[0])
+                        & (layer.properties["track_id"] == label)
                     )[0]
-                    node = {
-                        key: value[index][0]
-                        for key, value in layer.properties.items()
-                    }
-                    if len(node) > 0:
-                        append = "Shift" in event.modifiers
-                        self.selected_nodes.add(node, append)
+                    node_id = self.nodes[int(index)]
+                    append = "Shift" in event.modifiers
+                    self.selected_nodes.add(node_id, append)
 
     def create_label_color_dict(
         self, labels: List[int], colormap: CyclicLabelColormap

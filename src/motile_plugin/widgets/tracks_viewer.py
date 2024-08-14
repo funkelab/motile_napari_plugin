@@ -130,7 +130,6 @@ class TracksViewer:
                 data=run.tracks.segmentation[:, 0],
                 name=run.run_name + "_seg",
                 colormap=self.colormap,
-                track_df=self.track_df,
                 tracks=self.tracks,
                 opacity=0.9,
                 selected_nodes=self.selected_nodes,
