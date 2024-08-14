@@ -89,11 +89,12 @@ def extract_sorted_tracks(
                 symbol = "x"
                 annotated = True
 
+            track_id = solution_nx_graph.nodes[node]["tracklet_id"]
             track_dict = {
                 "t": node_data[time_attr],
                 "node_id": node,
-                "track_id": id_counter,
-                "color": colormap.map(id_counter) * 255,
+                "track_id": track_id,
+                "color": colormap.map(track_id) * 255,
                 "x": pos[-1],
                 "y": pos[-2],
                 "index": counter,
@@ -114,12 +115,11 @@ def extract_sorted_tracks(
                     0
                 ]  # There should be only one predecessor in a lineage tree
                 track_dict["parent_id"] = parent_id
+
                 if parent_track_id is None:
-                    parent_track_id = [
-                        node["track_id"]
-                        for node in track_list
-                        if node["node_id"] == parent_id
-                    ][0]
+                    parent_track_id = solution_nx_graph.nodes[parent_id][
+                        "tracklet_id"
+                    ]
                 track_dict["parent_track_id"] = parent_track_id
 
             else:
