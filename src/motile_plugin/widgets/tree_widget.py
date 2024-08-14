@@ -22,7 +22,8 @@ from ..utils.tree_widget_utils import extract_lineage_tree
 
 
 class TreeWidget(QWidget):
-    """pyqtgraph-based widget for lineage tree visualization and interactive annotation of nodes and edges"""
+    """pyqtgraph-based widget for lineage tree visualization and interactive
+    annotation of nodes and edges"""
 
     def __init__(self, viewer: napari.Viewer):
         super().__init__()
@@ -33,19 +34,7 @@ class TreeWidget(QWidget):
         self.pins = []
 
         # initialize empty graph data objects
-        self.pos = None
-        self.adj = None
-        self.symbolBrush = None
-        self.symbols = None
-        self.pen = None
-        self.outline_pen = None
-
-        self.lineage_pos = None
-        self.lineage_adj = None
-        self.lineage_symbolBrush = None
-        self.lineage_symbols = None
-        self.lineage_pen = None
-        self.lineage_outline_pen = None
+        self._reset_plotting_data()
 
         self.view_controller = TracksViewer.get_instance(viewer)
         self.colormap = self.view_controller.colormap
@@ -55,17 +44,42 @@ class TreeWidget(QWidget):
 
         # Construct the tree view pyqtgraph widget
         layout = QVBoxLayout()
-        self.tree_widget = pg.PlotWidget()
-        self.tree_widget.setFocusPolicy(Qt.StrongFocus)
-        self.tree_widget.setTitle("Lineage Tree")
-        self.tree_widget.setLabel("left", text="Time Point")
-        self.tree_widget.getAxis("bottom").setStyle(showValues=False)
-        self.tree_widget.invertY(True)  # to show tracks from top to bottom
+
+        self.tree_widget: pg.PlotWidget = self._get_tree_widget()
         self.g = pg.GraphItem()
         self.g.scatter.sigClicked.connect(self._on_click)
         self.tree_widget.addItem(self.g)
 
         # Add radiobuttons for switching between different display modes
+        self.show_all_radio: QRadioButton
+        self.show_lineage_radio: QRadioButton
+
+        display_box: QGroupBox = self._get_mode_widget()
+        navigation_box = self._get_navigation_widget()
+
+        # combine in a top panel widget
+        panel_layout = QHBoxLayout()
+        panel_layout.addWidget(display_box)
+        panel_layout.addWidget(navigation_box)
+        panel = QWidget()
+        panel.setLayout(panel_layout)
+        panel.setMaximumWidth(520)
+
+        layout.addWidget(panel)
+        layout.addWidget(self.tree_widget)
+
+        self.setLayout(layout)
+
+    def _get_tree_widget(self):
+        tree_widget = pg.PlotWidget()
+        tree_widget.setFocusPolicy(Qt.StrongFocus)
+        tree_widget.setTitle("Lineage Tree")
+        tree_widget.setLabel("left", text="Time Point")
+        tree_widget.getAxis("bottom").setStyle(showValues=False)
+        tree_widget.invertY(True)  # to show tracks from top to bottom
+        return tree_widget
+
+    def _get_mode_widget(self):
         display_box = QGroupBox("Display [L]")
         display_layout = QHBoxLayout()
         button_group = QButtonGroup()
@@ -82,10 +96,10 @@ class TreeWidget(QWidget):
         display_layout.addWidget(self.show_lineage_radio)
         display_box.setLayout(display_layout)
         display_box.setMaximumWidth(250)
+        return display_box
 
-        # add a box with navigation instructions
+    def _get_navigation_widget(self):
         navigation_box = QGroupBox("Navigation [\u2b05 \u27a1 \u2b06 \u2b07]")
-
         navigation_layout = QHBoxLayout()
         left_button = QPushButton("\u2b05")
         right_button = QPushButton("\u27a1")
@@ -103,19 +117,7 @@ class TreeWidget(QWidget):
         navigation_layout.addWidget(down_button)
         navigation_box.setLayout(navigation_layout)
         navigation_box.setMaximumWidth(250)
-
-        # combine in a top panel widget
-        panel_layout = QHBoxLayout()
-        panel_layout.addWidget(display_box)
-        panel_layout.addWidget(navigation_box)
-        panel = QWidget()
-        panel.setLayout(panel_layout)
-        panel.setMaximumWidth(520)
-
-        layout.addWidget(panel)
-        layout.addWidget(self.tree_widget)
-
-        self.setLayout(layout)
+        return navigation_box
 
     def select_next_node(self, direction: str) -> None:
         """Interpret in which direction to jump"""
@@ -154,7 +156,7 @@ class TreeWidget(QWidget):
                     (left_neighbors["t"] - node["t"]).abs().idxmin()
                 )
                 left_neighbor = left_neighbors.loc[closest_index].to_dict()
-                self.selected_nodes.append(left_neighbor)
+                self.selected_nodes.add(left_neighbor)
 
     def select_right(self) -> None:
         """Jump one node to the right"""
@@ -169,7 +171,7 @@ class TreeWidget(QWidget):
                     (right_neighbors["t"] - node["t"]).abs().idxmin()
                 )
                 right_neighbor = right_neighbors.loc[closest_index].to_dict()
-                self.selected_nodes.append(right_neighbor)
+                self.selected_nodes.add(right_neighbor)
 
     def select_up(self) -> None:
         """Jump one node up"""
@@ -181,7 +183,7 @@ class TreeWidget(QWidget):
             ]
             if not parent_row.empty:
                 parent = parent_row.to_dict("records")[0]
-                self.selected_nodes.append(parent)
+                self.selected_nodes.add(parent)
 
     def select_down(self) -> None:
         """Jump one node down"""
@@ -193,7 +195,7 @@ class TreeWidget(QWidget):
             ]
             if not children.empty:
                 child = children.to_dict("records")[0]
-                self.selected_nodes.append(child)
+                self.selected_nodes.add(child)
 
     def keyPressEvent(self, event) -> None:
         """Catch arrow key presses to navigate in the tree"""
@@ -240,15 +242,7 @@ class TreeWidget(QWidget):
         self._update()
         self.tree_widget.autoRange()
 
-    def update_track_data(self):
-        """Fetch the track_df directly from the new motile_run"""
-
-        self.track_df = self.view_controller.track_df
-        self.graph = self.view_controller.run.tracks
-
-        # set mode back to all
-        self.mode = "all"
-
+    def _reset_plotting_data(self):
         # reset the plotting data if it hard been generated before
         self.pos = None
         self.adj = None
@@ -263,6 +257,17 @@ class TreeWidget(QWidget):
         self.lineage_symbols = None
         self.lineage_pen = None
         self.lineage_outline_pen = None
+
+    def update_track_data(self):
+        """Fetch the track_df directly from the new motile_run"""
+
+        self.track_df = self.view_controller.track_df
+        self.graph = self.view_controller.run.tracks
+
+        # set mode back to all
+        self.mode = "all"
+
+        self._reset_plotting_data()
 
         # call update
         self._update()
@@ -285,7 +290,7 @@ class TreeWidget(QWidget):
                 0
             ].to_dict()  # Convert the filtered result to a dictionary
         append = Qt.ShiftModifier == modifiers
-        self.selected_nodes.append(node_df.iloc[0].to_dict(), append)
+        self.selected_nodes.add(node_df.iloc[0].to_dict(), append)
 
     def _show_selected(self) -> None:
         """Update the graph, increasing the size of selected node(s)"""
@@ -381,14 +386,8 @@ class TreeWidget(QWidget):
                     symbols.append("x")
                 else:
                     symbols.append("o")
-                if node["annotated"]:
-                    pos_colors.append(
-                        [255, 0, 0, 255]
-                    )  # edits displayed in red
-                    sizes.append(13)
-                else:
-                    pos_colors.append(node["color"])
-                    sizes.append(8)
+                pos_colors.append(node["color"])
+                sizes.append(8)
 
                 pos.append([node["t"], node["x_axis_pos"]])
 
@@ -447,14 +446,8 @@ class TreeWidget(QWidget):
                 else:
                     symbols.append("o")
 
-                if node["annotated"]:
-                    pos_colors.append(
-                        [255, 0, 0, 255]
-                    )  # edits displayed in red
-                    sizes.append(13)
-                else:
-                    pos_colors.append(node["color"])
-                    sizes.append(8)
+                pos_colors.append(node["color"])
+                sizes.append(8)
 
                 pos.append([node["x_axis_pos"], node["t"]])
                 parent = node["parent_id"]
