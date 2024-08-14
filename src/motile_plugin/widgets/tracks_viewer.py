@@ -7,9 +7,9 @@ from psygnal import Signal
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.core import NodeType
 
-from ..layers.tracked_graph import TrackGraph
-from ..layers.tracked_labels import TrackLabels
-from ..layers.tracked_points import TrackPoints
+from ..layers.track_graph import TrackGraph
+from ..layers.track_labels import TrackLabels
+from ..layers.track_points import TrackPoints
 from ..utils.node_selection import NodeSelectionList
 from ..utils.tree_widget_utils import (
     extract_lineage_tree,
@@ -54,7 +54,7 @@ class TracksViewer:
         self.viewer.bind_key("t")(self.toggle_display_mode)
 
         self.selected_nodes = NodeSelectionList()
-        self.selected_nodes.list_updated.connect(self.select_node)
+        self.selected_nodes.list_updated.connect(self.update_selection)
 
         self.tracking_layers = TracksLayerGroup()
 
@@ -105,6 +105,7 @@ class TracksViewer:
         """
         self.selected_nodes._list = []
         self.run = run  # keep the run information accessible
+        self.tracks = self.run.tracks
 
         graph = None if self.tracks is None else run.tracks.graph
         self.track_df = extract_sorted_tracks(
@@ -130,6 +131,7 @@ class TracksViewer:
                 name=run.run_name + "_seg",
                 colormap=self.colormap,
                 track_df=self.track_df,
+                tracks=self.tracks,
                 opacity=0.9,
                 selected_nodes=self.selected_nodes,
             )
@@ -201,7 +203,7 @@ class TracksViewer:
                 return []
             else:
                 visible = extract_lineage_tree(
-                    self.run.tracks, self.selected_nodes[0]["node_id"]
+                    self.run.tracks, self.selected_nodes[0]
                 )
                 return list(
                     np.unique(
@@ -214,7 +216,7 @@ class TracksViewer:
         else:
             return "all"
 
-    def select_node(self) -> None:
+    def update_selection(self) -> None:
         """Sets the view and triggers visualization updates in other components"""
 
         self.set_napari_view()
@@ -226,41 +228,32 @@ class TracksViewer:
 
     def set_napari_view(self) -> None:
         """Adjust the current_step of the viewer to jump to the last item of the selected_nodes list"""
-
         if len(self.selected_nodes) > 0:
             node = self.selected_nodes[-1]
+            location = self.tracks.get_location(node, incl_time=True)
+            assert (
+                len(location) == self.viewer.dims.ndim
+            ), f"Location {location} does not match viewer number of dims {self.viewer.dims.ndim}"
 
-            # Check for 'z' key and update step if exists
             step = list(self.viewer.dims.current_step)
-            step[0] = node["t"]
-            if "z" in node:
-                z = node["z"]
-                step[1] = int(z)
+            for dim in self.viewer.dims.not_displayed:
+                step[dim] = location[dim]
+
             self.viewer.dims.current_step = step
 
             # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
+            example_layer = self.tracking_layers.points_layer
+            corner_pixels = example_layer.corner_pixels
+            camera_center = self.viewer.camera.center
+
             if self.viewer.dims.ndisplay == 2:  # no 3D solution yet
-                camera_pos = self.viewer.window._qt_window._qt_viewer.canvas.view.camera.get_state()[
-                    "rect"
-                ]._pos  # top left corner
-                camera_size = self.viewer.window._qt_window._qt_viewer.canvas.view.camera.get_state()[
-                    "rect"
-                ].size
+                changed = False
+                for dim in self.viewer.dims.displayed:
+                    _min = corner_pixels[0][dim]
+                    _max = corner_pixels[1][dim]
+                    if location[dim] < _min or location[dim] > _max:
+                        camera_center[dim] = location[dim]
+                        changed = True
 
-                if not (
-                    (
-                        node["x"] > camera_pos[0]
-                        and node["x"] < camera_pos[0] + camera_size[0]
-                    )
-                    and (
-                        node["y"] > camera_pos[1]
-                        and node["y"] < camera_pos[1] + camera_size[1]
-                    )
-                ):
-                    camera_center = self.viewer.camera.center
-
-                    self.viewer.camera.center = (
-                        camera_center[0],
-                        node["y"],
-                        node["x"],
-                    )
+                if changed:
+                    self.viewer.camera.center = camera_center

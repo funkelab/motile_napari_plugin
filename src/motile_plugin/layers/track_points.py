@@ -6,7 +6,7 @@ from motile_plugin.core import NodeType, Tracks
 from ..utils.node_selection import NodeSelectionList
 
 
-class Points(napari.layers.Points):
+class TrackPoints(napari.layers.Points):
     """Extended points layer that holds the track information and emits and responds to dynamics visualization signals"""
 
     def __init__(
@@ -21,12 +21,14 @@ class Points(napari.layers.Points):
         self.colormap = colormap
         self.symbolmap = symbolmap
 
-        nodes = list(tracks.graph.nodes)
-        points = [tracks.get_location(node, incl_time=True) for node in nodes]
-        colors = [
-            colormap.map(tracks.graph.nodes[node]["tracklet_id"])
-            for node in nodes
+        self.nodes = list(tracks.graph.nodes)
+        points = [
+            tracks.get_location(node, incl_time=True) for node in self.nodes
         ]
+        track_ids = [
+            tracks.graph.nodes[node]["tracklet_id"] for node in self.nodes
+        ]
+        colors = [colormap.map(track_id) for track_id in track_ids]
         symbols = self.get_symbols(tracks, symbolmap)
 
         super().__init__(
@@ -35,7 +37,7 @@ class Points(napari.layers.Points):
             symbol=symbols,
             face_color=colors,
             size=5,
-            # properties=data, TODO
+            properties={"node_id": self.nodes, "track_id": track_ids},
             border_color=[1, 1, 1, 1],
         )
 
@@ -44,7 +46,9 @@ class Points(napari.layers.Points):
 
         @self.mouse_drag_callbacks.append
         def click(layer, event):
+            print(event.__dict__)
             if event.type == "mouse_press":
+                # is the value passed from the click event?
                 point_index = layer.get_value(
                     event.position,
                     view_direction=event.view_direction,
@@ -52,20 +56,9 @@ class Points(napari.layers.Points):
                     world=True,
                 )
                 if point_index is not None:
-                    node_id = layer.properties["node_id"][point_index]
-                    index = [
-                        i
-                        for i, nid in enumerate(layer.properties["node_id"])
-                        if nid == node_id
-                    ][0]
-                    node = {
-                        key: value[index]
-                        for key, value in layer.properties.items()
-                    }
-
-                    if len(node) > 0:
-                        append = "Shift" in event.modifiers
-                        self.selected_nodes.append(node, append)
+                    node_id = self.nodes[point_index]
+                    append = "Shift" in event.modifiers
+                    self.selected_nodes.add(node_id, append)
 
     def get_symbols(
         self, tracks: Tracks, symbolmap: dict[NodeType, str]
@@ -82,8 +75,12 @@ class Points(napari.layers.Points):
         return symbols
 
     def update_point_outline(self, visible: list[int] | str) -> None:
-        """Update the outline color of the selected points and visibility according to display mode"""
+        """Update the outline color of the selected points and visibility according to display mode
 
+        Args:
+            visible (list[int] | str): A list of track ids, or "all"
+        """
+        # filter out the non-selected tracks if in lineage mode
         if visible == "all":
             self.shown[:] = True
         else:
@@ -93,9 +90,13 @@ class Points(napari.layers.Points):
             self.shown[:] = False
             self.shown[indices] = True
 
+        # set border color for selected item
         self.border_color = [1, 1, 1, 1]
         for node in self.selected_nodes:
-            self.border_color[node["index"]] = (
+            index = self.nodes.index(
+                node
+            )  # TODO: store a dict from node to index
+            self.border_color[index] = (
                 0,
                 1,
                 1,

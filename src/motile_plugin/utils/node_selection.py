@@ -3,7 +3,8 @@ from PyQt5.QtCore import QObject
 
 
 class NodeSelectionList(QObject):
-    """Updates the current selection (0, 1, or 2) of nodes. Sends a signal on every update."""
+    """Updates the current selection (0, 1, or 2) of nodes. Sends a signal on every update.
+    Stores a list of node ids only."""
 
     list_updated = Signal()
 
@@ -11,7 +12,7 @@ class NodeSelectionList(QObject):
         super().__init__()
         self._list = []
 
-    def append(self, item, append: bool | None = False):
+    def add(self, item, append: bool | None = False):
         """Append or replace an item to the list, depending on the number of items present and the keyboard modifiers used. Emit update signal"""
 
         if len(self) == 2:

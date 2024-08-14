@@ -29,3 +29,6 @@ class Tracks(BaseModel):
             pos = [data[self.time_attr], *pos]
 
         return pos
+
+    def get_time(self, node):
+        return self.graph.nodes[node][self.time_attr]

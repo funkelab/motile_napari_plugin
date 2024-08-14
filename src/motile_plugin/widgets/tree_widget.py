@@ -14,7 +14,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from motile_plugin.widgets.tracking_view_controller import (
+from motile_plugin.widgets.tracks_viewer import (
     TracksViewer,
 )
 

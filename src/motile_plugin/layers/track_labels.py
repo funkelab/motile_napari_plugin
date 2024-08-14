@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from napari.utils import CyclicLabelColormap, DirectLabelColormap
 
+from motile_plugin.core import Tracks
+
 from ..utils.node_selection import NodeSelectionList
 
 
@@ -39,7 +41,8 @@ class TrackLabels(napari.layers.Labels):
         data: np.array,
         name: str,
         colormap: CyclicLabelColormap,
-        track_df: pd.DataFrame,
+        track_df: pd.DataFrame,  # TODO: update to not use df like points layer
+        tracks: Tracks,
         opacity: float,
         selected_nodes: NodeSelectionList,
     ):
@@ -53,6 +56,7 @@ class TrackLabels(napari.layers.Labels):
 
         self.viewer = viewer
         self.selected_nodes = selected_nodes
+        self.tracks = tracks
 
         self.base_label_color_dict = self.create_label_color_dict(
             track_df["track_id"].unique(), colormap=colormap
@@ -79,7 +83,7 @@ class TrackLabels(napari.layers.Labels):
                     }
                     if len(node) > 0:
                         append = "Shift" in event.modifiers
-                        self.selected_nodes.append(node, append)
+                        self.selected_nodes.add(node, append)
 
     def create_label_color_dict(
         self, labels: List[int], colormap: CyclicLabelColormap
@@ -102,9 +106,9 @@ class TrackLabels(napari.layers.Labels):
         """Updates the opacity of the label colormap to highlight the selected label and optionally hide cells not belonging to the current lineage"""
 
         highlighted = [
-            node["track_id"]
+            self.tracks.graph.nodes[node]["tracklet_id"]
             for node in self.selected_nodes
-            if node["t"] == self.viewer.dims.current_step[0]
+            if self.tracks.get_time(node) == self.viewer.dims.current_step[0]
         ]
 
         if self.base_label_color_dict is not None:

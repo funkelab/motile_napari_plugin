@@ -16,7 +16,7 @@ from superqt.utils import thread_worker
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.backend.solve import solve
 from motile_plugin.core import Tracks
-from motile_plugin.widgets.tracking_view_controller import (
+from motile_plugin.widgets.tracks_viewer import (
     TracksViewer,
 )
 
