@@ -459,9 +459,7 @@ class TreeWidget(QWidget):
             )  # flip because the axes have changed in lineage mode
 
         view_box = self.tree_widget.plotItem.getViewBox()
-        current_range = (
-            view_box.viewRange()
-        )  # Get the current range of the viewbox
+        current_range = view_box.viewRange()
 
         x_range = current_range[0]
         y_range = current_range[1]
@@ -471,7 +469,7 @@ class TreeWidget(QWidget):
             x_range[0] <= center_x <= x_range[1]
             and y_range[0] <= center_y <= y_range[1]
         ):
-            return  # The point is already within the current range, no need to move the view
+            return
 
         # Calculate the width and height of the current view
         current_width = x_range[1] - x_range[0]
@@ -487,5 +485,4 @@ class TreeWidget(QWidget):
             center_y + current_height / 2,
         )
 
-        # Set the new range to the viewbox
         view_box.setRange(xRange=new_x_range, yRange=new_y_range, padding=0)

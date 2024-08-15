@@ -70,10 +70,9 @@ class TrackLabels(napari.layers.Labels):
         )
 
         @self.mouse_drag_callbacks.append
-        def click(layer, event):
+        def click(_, event):
             if event.type == "mouse_press":
-                # is the value passed from the click event?
-                label = layer.get_value(
+                label = self.get_value(
                     event.position,
                     view_direction=event.view_direction,
                     dims_displayed=event.dims_displayed,
@@ -81,12 +80,14 @@ class TrackLabels(napari.layers.Labels):
                 )
 
                 if label is not None and label != 0:
-                    # TODO: Why is this a tuple?
+                    t_values = self.properties["t"]
+                    track_ids = self.properties["track_id"]
                     index = np.where(
-                        (layer.properties["t"] == event.position[0])
-                        & (layer.properties["track_id"] == label)
-                    )[0]
-                    node_id = self.nodes[int(index)]
+                        (t_values == event.position[0]) & (track_ids == label)
+                    )[
+                        0
+                    ]  # np.where returns a tuple with an array per dimension, here we apply it to a single dimension so take the first element (an array of indices fulfilling condition)
+                    node_id = self.nodes[index[0]]
                     append = "Shift" in event.modifiers
                     self.selected_nodes.add(node_id, append)
 
@@ -100,9 +101,9 @@ class TrackLabels(napari.layers.Labels):
         # Iterate over unique labels
         for label in labels:
             color = colormap.map(label)
-            color[
-                -1
-            ] = 0  # Set opacity to 0 (will be replaced when a label is visible/invisible/selected)
+            color[-1] = (
+                0  # Set opacity to 0 (will be replaced when a label is visible/invisible/selected)
+            )
             color_dict_rgb[label] = color
 
         return color_dict_rgb
