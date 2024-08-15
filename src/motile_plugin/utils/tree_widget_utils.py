@@ -39,7 +39,6 @@ def extract_sorted_tracks(
         return None
 
     track_list = []
-    counter = 0
     id_counter = 1
     parent_mapping = []
 
@@ -97,7 +96,6 @@ def extract_sorted_tracks(
                 "color": colormap.map(track_id) * 255,
                 "x": pos[-1],
                 "y": pos[-2],
-                "index": counter,
                 "parent_id": 0,
                 "parent_track_id": 0,
                 "state": state,
@@ -128,7 +126,6 @@ def extract_sorted_tracks(
                 track_dict["parent_track_id"] = parent_track_id
 
             track_list.append(track_dict)
-            counter += 1
 
         parent_mapping.append(
             {"track_id": id_counter, "parent_track_id": parent_track_id}
