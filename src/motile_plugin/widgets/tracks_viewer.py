@@ -243,7 +243,7 @@ class TracksViewer:
             # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
             example_layer = self.tracking_layers.points_layer
             corner_pixels = example_layer.corner_pixels
-            camera_center = self.viewer.camera.center
+            camera_center = list(self.viewer.camera.center)
 
             if self.viewer.dims.ndisplay == 2:  # no 3D solution yet
                 changed = False
