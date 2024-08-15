@@ -198,20 +198,17 @@ class TracksViewer:
     def filter_visible_nodes(self) -> list[int]:
         """Construct a list of track_ids that should be displayed"""
         if self.mode == "lineage":
-            if len(self.selected_nodes) == 0:
-                return []
-            else:
-                visible = extract_lineage_tree(
-                    self.run.tracks, self.selected_nodes[0]
+            visible = []
+            for node in self.selected_nodes:
+                visible += extract_lineage_tree(self.run.tracks.graph, node)
+            return list(
+                np.unique(
+                    self.track_df.loc[
+                        self.track_df["node_id"].isin(visible),
+                        "track_id",
+                    ].values
                 )
-                return list(
-                    np.unique(
-                        self.track_df.loc[
-                            self.track_df["node_id"].isin(visible),
-                            "track_id",
-                        ].values
-                    )
-                )
+            )
         else:
             return "all"
 
