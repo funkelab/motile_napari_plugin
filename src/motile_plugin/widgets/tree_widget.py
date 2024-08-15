@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 import pyqtgraph as pg
 from PyQt5.QtGui import QColor, QMouseEvent
+from pyqtgraph.Qt import QtCore
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
-    QButtonGroup,
     QGroupBox,
     QHBoxLayout,
     QPushButton,
@@ -17,25 +17,33 @@ from qtpy.QtWidgets import (
 from motile_plugin.widgets.tracks_viewer import (
     TracksViewer,
 )
-from pyqtgraph.Qt import QtCore
+
 from ..utils.tree_widget_utils import extract_lineage_tree
+from .tree_view_mode_widget import TreeViewModeWidget
+
+
 class CustomViewBox(pg.ViewBox):
     def __init__(self, *args, **kwds):
-        kwds['enableMenu'] = False
+        kwds["enableMenu"] = False
         pg.ViewBox.__init__(self, *args, **kwds)
         self.setMouseMode(self.RectMode)
-        
+
     ## reimplement right-click to zoom out
     def mouseClickEvent(self, ev):
         if ev.button() == QtCore.Qt.MouseButton.RightButton:
             self.autoRange()
-    
+
     ## reimplement mouseDragEvent to disable continuous axis zoom
     def mouseDragEvent(self, ev, axis=None):
-        if axis is not None and ev.button() == QtCore.Qt.MouseButton.RightButton:
+        if (
+            axis is not None
+            and ev.button() == QtCore.Qt.MouseButton.RightButton
+        ):
             ev.ignore()
         else:
             pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
+
+
 class TreeWidget(QWidget):
     """pyqtgraph-based widget for lineage tree visualization and interactive
     annotation of nodes and edges"""
@@ -69,12 +77,15 @@ class TreeWidget(QWidget):
         self.show_all_radio: QRadioButton
         self.show_lineage_radio: QRadioButton
 
-        display_box: QGroupBox = self._get_mode_widget()
         navigation_box = self._get_navigation_widget()
 
         # combine in a top panel widget
         panel_layout = QHBoxLayout()
-        panel_layout.addWidget(display_box)
+
+        self.mode_widget = TreeViewModeWidget()
+        self.mode_widget.change_mode.connect(self._set_mode)
+        panel_layout.addWidget(self.mode_widget)
+
         panel_layout.addWidget(navigation_box)
         panel = QWidget()
         panel.setLayout(panel_layout)
@@ -96,25 +107,6 @@ class TreeWidget(QWidget):
         tree_widget.invertY(True)  # to show tracks from top to bottom
 
         return tree_widget
-
-    def _get_mode_widget(self):
-        display_box = QGroupBox("Display [L]")
-        display_layout = QHBoxLayout()
-        button_group = QButtonGroup()
-        self.show_all_radio = QRadioButton("All cells")
-        self.show_all_radio.setChecked(True)
-        self.show_all_radio.clicked.connect(lambda: self._set_mode("all"))
-        self.show_lineage_radio = QRadioButton("Current lineage")
-        self.show_lineage_radio.clicked.connect(
-            lambda: self._set_mode("lineage")
-        )
-        button_group.addButton(self.show_all_radio)
-        button_group.addButton(self.show_lineage_radio)
-        display_layout.addWidget(self.show_all_radio)
-        display_layout.addWidget(self.show_lineage_radio)
-        display_box.setLayout(display_layout)
-        display_box.setMaximumWidth(250)
-        return display_box
 
     def _get_navigation_widget(self):
         navigation_box = QGroupBox("Navigation [\u2b05 \u27a1 \u2b06 \u2b07]")
@@ -166,15 +158,24 @@ class TreeWidget(QWidget):
 
         if len(self.selected_nodes) > 0:
             node_id = self.selected_nodes[0]
-            x_axis_pos = self.track_df.loc[self.track_df['node_id'] == node_id, "x_axis_pos"].values[0]
-            t = self.track_df.loc[self.track_df['node_id'] == node_id, 't'].values[0]
+            x_axis_pos = self.track_df.loc[
+                self.track_df["node_id"] == node_id, "x_axis_pos"
+            ].values[0]
+            t = self.track_df.loc[
+                self.track_df["node_id"] == node_id, "t"
+            ].values[0]
             left_neighbors = self.track_df.loc[
-                (self.track_df["x_axis_pos"] < x_axis_pos) & (self.track_df['t'] == t)
+                (self.track_df["x_axis_pos"] < x_axis_pos)
+                & (self.track_df["t"] == t)
             ]
             if not left_neighbors.empty:
                 # Find the closest index label
-                closest_index_label = (left_neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
-                left_neighbor = left_neighbors.loc[closest_index_label, 'node_id']
+                closest_index_label = (
+                    (left_neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
+                )
+                left_neighbor = left_neighbors.loc[
+                    closest_index_label, "node_id"
+                ]
                 self.selected_nodes.add(left_neighbor)
 
     def select_right(self) -> None:
@@ -182,16 +183,25 @@ class TreeWidget(QWidget):
 
         if len(self.selected_nodes) > 0:
             node_id = self.selected_nodes[0]
-            x_axis_pos = self.track_df.loc[self.track_df['node_id'] == node_id, "x_axis_pos"].values[0]
-            t = self.track_df.loc[self.track_df['node_id'] == node_id, 't'].values[0]
+            x_axis_pos = self.track_df.loc[
+                self.track_df["node_id"] == node_id, "x_axis_pos"
+            ].values[0]
+            t = self.track_df.loc[
+                self.track_df["node_id"] == node_id, "t"
+            ].values[0]
             right_neighbors = self.track_df.loc[
-                (self.track_df["x_axis_pos"] > x_axis_pos) & (self.track_df['t'] == t)
+                (self.track_df["x_axis_pos"] > x_axis_pos)
+                & (self.track_df["t"] == t)
             ]
 
             if not right_neighbors.empty:
                 # Find the closest index label
-                closest_index_label = (right_neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
-                right_neighbor = right_neighbors.loc[closest_index_label, 'node_id']
+                closest_index_label = (
+                    (right_neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
+                )
+                right_neighbor = right_neighbors.loc[
+                    closest_index_label, "node_id"
+                ]
                 self.selected_nodes.add(right_neighbor)
 
     def select_up(self) -> None:
@@ -199,30 +209,30 @@ class TreeWidget(QWidget):
 
         if len(self.selected_nodes) > 0:
             node_id = self.selected_nodes[0]
-            parent_id = self.track_df.loc[self.track_df['node_id'] == node_id, 'parent_id'].values[0]
+            parent_id = self.track_df.loc[
+                self.track_df["node_id"] == node_id, "parent_id"
+            ].values[0]
             parent_row = self.track_df.loc[
                 self.track_df["node_id"] == parent_id
             ]
             if not parent_row.empty:
-                self.selected_nodes.add(parent_row['node_id'].values[0])
-                
+                self.selected_nodes.add(parent_row["node_id"].values[0])
+
     def select_down(self) -> None:
         """Jump one node down"""
 
         if len(self.selected_nodes) > 0:
             node_id = self.selected_nodes[0]
-            children = self.track_df.loc[
-                self.track_df["parent_id"] == node_id
-            ]
+            children = self.track_df.loc[self.track_df["parent_id"] == node_id]
             if not children.empty:
                 child = children.to_dict("records")[0]
-                self.selected_nodes.add(child['node_id'])
+                self.selected_nodes.add(child["node_id"])
 
     def keyPressEvent(self, event) -> None:
         """Catch arrow key presses to navigate in the tree"""
 
         if event.key() == Qt.Key_L:
-            self._toggle_display_mode()
+            self.mode_widget._toggle_display_mode()
         if event.key() == Qt.Key_Left:
             if self.mode == "lineage":
                 self.select_up()  # redirect because axes are flipped
@@ -245,16 +255,6 @@ class TreeWidget(QWidget):
                 self.tree_widget.autoRange()  # autorange when jumping between lineages but not when staying on the same lineage
             else:
                 self.select_down()
-
-    def _toggle_display_mode(self, event=None) -> None:
-        """Toggle display mode"""
-
-        if self.mode == "lineage":
-            self._set_mode("all")
-            self.show_all_radio.setChecked(True)
-        else:
-            self._set_mode("lineage")
-            self.show_lineage_radio.setChecked(True)
 
     def _set_mode(self, mode: str):
         """Change the display mode"""
@@ -328,7 +328,9 @@ class TreeWidget(QWidget):
             outlines = self.lineage_outline_pen.copy()
 
             for i, node_id in enumerate(self.selected_nodes):
-                node_df = self.lineage_df.loc[self.lineage_df["node_id"] == node_id]
+                node_df = self.lineage_df.loc[
+                    self.lineage_df["node_id"] == node_id
+                ]
                 if not node_df.empty:
                     x_axis_pos = node_df["x_axis_pos"].values[0]
                     t = node_df["t"].values[0]
@@ -349,7 +351,7 @@ class TreeWidget(QWidget):
                     symbol=self.lineage_symbols,
                     symbolBrush=self.lineage_symbolBrush,
                     pen=self.lineage_pen,
-                    data=self.lineage_node_ids
+                    data=self.lineage_node_ids,
                 )
                 self.tree_widget.autoRange()
 
@@ -363,7 +365,9 @@ class TreeWidget(QWidget):
 
             outlines = self.outline_pen.copy()
             for i, node_id in enumerate(self.selected_nodes):
-                node_df = self.track_df.loc[self.track_df["node_id"] == node_id]
+                node_df = self.track_df.loc[
+                    self.track_df["node_id"] == node_id
+                ]
                 if not node_df.empty:
                     x_axis_pos = node_df["x_axis_pos"].values[0]
                     t = node_df["t"].values[0]
@@ -386,13 +390,10 @@ class TreeWidget(QWidget):
         if len(self.selected_nodes) == 0:
             visible = []
         else:
-            print(type(self.graph), type(self.selected_nodes[0]))
-            visible = extract_lineage_tree(
-                self.graph, self.selected_nodes[0]
-            )
+            visible = extract_lineage_tree(self.graph, self.selected_nodes[0])
         self.lineage_df = self.track_df[self.track_df["node_id"].isin(visible)]
         self.lineage_df = self.lineage_df.reset_index()
-    
+
     def _calculate_lineage_pyqtgraph(self) -> None:
         """Create graph data for a specific lineage"""
 
@@ -413,7 +414,7 @@ class TreeWidget(QWidget):
                 else:
                     symbols.append("o")
                 pos_colors.append(node["color"])
-                self.lineage_node_ids.append(node['node_id'])
+                self.lineage_node_ids.append(node["node_id"])
                 sizes.append(8)
 
                 pos.append([node["t"], node["x_axis_pos"]])
@@ -425,9 +426,7 @@ class TreeWidget(QWidget):
                     ]
                     if not parent_df.empty:
 
-                        adj.append(
-                            [parent_df.index[0], i]
-                        )
+                        adj.append([parent_df.index[0], i])
                         if (
                             parent_df["node_id"].values[0],
                             node["node_id"],
@@ -437,14 +436,14 @@ class TreeWidget(QWidget):
                             )  # pinned edges displayed in red
                         else:
                             adj_colors.append(
-                                parent_df["color"].values[0].tolist() + [255, 1]
+                                parent_df["color"].values[0].tolist()
+                                + [255, 1]
                             )
 
         self.lineage_pos = np.array(pos)
         self.lineage_adj = np.array(adj)
         self.lineage_symbols = symbols
-        self.lineage_symbolBrush = np.array(pos_colors)\
-
+        self.lineage_symbolBrush = np.array(pos_colors)
         self.lineage_pen = np.array(adj_colors)
         self.lineage_size = np.array(sizes)
 
@@ -479,16 +478,14 @@ class TreeWidget(QWidget):
                 sizes.append(8)
 
                 pos.append([node["x_axis_pos"], node["t"]])
-                self.node_ids.append(node['node_id'])
+                self.node_ids.append(node["node_id"])
                 parent = node["parent_id"]
                 if parent != 0:
                     parent_df = self.track_df[
                         self.track_df["node_id"] == parent
                     ]
                     if not parent_df.empty:
-                        adj.append(
-                            [parent_df.index[0], i]
-                        )
+                        adj.append([parent_df.index[0], i])
 
                         if (
                             parent_df["node_id"].values[0],
@@ -499,8 +496,8 @@ class TreeWidget(QWidget):
                             )  # pinned edges displayed in red
                         else:
                             adj_colors.append(
-                                parent_df["color"].values[0]
-                                .tolist() + [255, 1]
+                                parent_df["color"].values[0].tolist()
+                                + [255, 1]
                             )
 
         self.pos = np.array(pos)
@@ -533,7 +530,7 @@ class TreeWidget(QWidget):
                     symbol=self.lineage_symbols,
                     symbolBrush=self.lineage_symbolBrush,
                     pen=self.lineage_pen,
-                    data=self.lineage_node_ids
+                    data=self.lineage_node_ids,
                 )
                 self.g.scatter.setPen(self.lineage_outline_pen)
                 self.g.scatter.setSize(self.lineage_size)
@@ -554,7 +551,7 @@ class TreeWidget(QWidget):
                     symbol=self.symbols,
                     symbolBrush=self.symbolBrush,
                     pen=self.pen,
-                    data=self.node_ids
+                    data=self.node_ids,
                 )
                 self.g.scatter.setPen(self.outline_pen)
                 self.g.scatter.setSize(self.size)
