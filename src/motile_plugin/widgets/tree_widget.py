@@ -6,10 +6,7 @@ from PyQt5.QtGui import QColor, QMouseEvent
 from pyqtgraph.Qt import QtCore
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
-    QGroupBox,
     QHBoxLayout,
-    QPushButton,
-    QRadioButton,
     QVBoxLayout,
     QWidget,
 )
@@ -19,6 +16,7 @@ from motile_plugin.widgets.tracks_viewer import (
 )
 
 from ..utils.tree_widget_utils import extract_lineage_tree
+from .navigation_widget import NavigationWidget
 from .tree_view_mode_widget import TreeViewModeWidget
 
 
@@ -63,7 +61,7 @@ class TreeWidget(QWidget):
         self.colormap = self.view_controller.colormap
         self.selected_nodes = self.view_controller.selected_nodes
         self.selected_nodes.list_updated.connect(self._show_selected)
-        self.view_controller.tracks_updated.connect(self.update_track_data)
+        self.view_controller.tracks_updated.connect(self._update_track_data)
 
         # Construct the tree view pyqtgraph widget
         layout = QVBoxLayout()
@@ -74,19 +72,19 @@ class TreeWidget(QWidget):
         self.tree_widget.addItem(self.g)
 
         # Add radiobuttons for switching between different display modes
-        self.show_all_radio: QRadioButton
-        self.show_lineage_radio: QRadioButton
-
-        navigation_box = self._get_navigation_widget()
-
-        # combine in a top panel widget
-        panel_layout = QHBoxLayout()
-
         self.mode_widget = TreeViewModeWidget()
         self.mode_widget.change_mode.connect(self._set_mode)
-        panel_layout.addWidget(self.mode_widget)
 
-        panel_layout.addWidget(navigation_box)
+        # Add navigation widget
+        self.navigation_widget = NavigationWidget(
+            self.track_df, self.mode, self.selected_nodes
+        )
+
+        # Construct a toolbar and set main layout
+        panel_layout = QHBoxLayout()
+        panel_layout.addWidget(self.mode_widget)
+        panel_layout.addWidget(self.navigation_widget)
+
         panel = QWidget()
         panel.setLayout(panel_layout)
         panel.setMaximumWidth(520)
@@ -96,7 +94,8 @@ class TreeWidget(QWidget):
 
         self.setLayout(layout)
 
-    def _get_tree_widget(self):
+    def _get_tree_widget(self) -> pg.PlotWidget:
+        """Construct the pyqtgraph treewidget"""
 
         vb = CustomViewBox()
         tree_widget = pg.PlotWidget(viewBox=vb)
@@ -108,126 +107,6 @@ class TreeWidget(QWidget):
 
         return tree_widget
 
-    def _get_navigation_widget(self):
-        navigation_box = QGroupBox("Navigation [\u2b05 \u27a1 \u2b06 \u2b07]")
-        navigation_layout = QHBoxLayout()
-        left_button = QPushButton("\u2b05")
-        right_button = QPushButton("\u27a1")
-        up_button = QPushButton("\u2b06")
-        down_button = QPushButton("\u2b07")
-
-        left_button.clicked.connect(lambda: self.select_next_node("left"))
-        right_button.clicked.connect(lambda: self.select_next_node("right"))
-        up_button.clicked.connect(lambda: self.select_next_node("up"))
-        down_button.clicked.connect(lambda: self.select_next_node("down"))
-
-        navigation_layout.addWidget(left_button)
-        navigation_layout.addWidget(right_button)
-        navigation_layout.addWidget(up_button)
-        navigation_layout.addWidget(down_button)
-        navigation_box.setLayout(navigation_layout)
-        navigation_box.setMaximumWidth(250)
-        return navigation_box
-
-    def select_next_node(self, direction: str) -> None:
-        """Interpret in which direction to jump"""
-
-        if direction == "left":
-            if self.mode == "lineage":
-                self.select_up()  # redirect because axes are flipped
-            else:
-                self.select_left()
-        elif direction == "right":
-            if self.mode == "lineage":
-                self.select_down()  # redirect because axes are flipped
-            else:
-                self.select_right()
-        elif direction == "up":
-            if self.mode == "lineage":
-                self.select_right()  # redirect because axes are flipped
-            else:
-                self.select_up()
-        elif direction == "down":
-            if self.mode == "lineage":
-                self.select_left()  # redirect because axes are flipped
-            else:
-                self.select_down()
-
-    def select_left(self) -> None:
-        """Jump one node to the left"""
-
-        if len(self.selected_nodes) > 0:
-            node_id = self.selected_nodes[0]
-            x_axis_pos = self.track_df.loc[
-                self.track_df["node_id"] == node_id, "x_axis_pos"
-            ].values[0]
-            t = self.track_df.loc[
-                self.track_df["node_id"] == node_id, "t"
-            ].values[0]
-            left_neighbors = self.track_df.loc[
-                (self.track_df["x_axis_pos"] < x_axis_pos)
-                & (self.track_df["t"] == t)
-            ]
-            if not left_neighbors.empty:
-                # Find the closest index label
-                closest_index_label = (
-                    (left_neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
-                )
-                left_neighbor = left_neighbors.loc[
-                    closest_index_label, "node_id"
-                ]
-                self.selected_nodes.add(left_neighbor)
-
-    def select_right(self) -> None:
-        """Jump one node to the right"""
-
-        if len(self.selected_nodes) > 0:
-            node_id = self.selected_nodes[0]
-            x_axis_pos = self.track_df.loc[
-                self.track_df["node_id"] == node_id, "x_axis_pos"
-            ].values[0]
-            t = self.track_df.loc[
-                self.track_df["node_id"] == node_id, "t"
-            ].values[0]
-            right_neighbors = self.track_df.loc[
-                (self.track_df["x_axis_pos"] > x_axis_pos)
-                & (self.track_df["t"] == t)
-            ]
-
-            if not right_neighbors.empty:
-                # Find the closest index label
-                closest_index_label = (
-                    (right_neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
-                )
-                right_neighbor = right_neighbors.loc[
-                    closest_index_label, "node_id"
-                ]
-                self.selected_nodes.add(right_neighbor)
-
-    def select_up(self) -> None:
-        """Jump one node up"""
-
-        if len(self.selected_nodes) > 0:
-            node_id = self.selected_nodes[0]
-            parent_id = self.track_df.loc[
-                self.track_df["node_id"] == node_id, "parent_id"
-            ].values[0]
-            parent_row = self.track_df.loc[
-                self.track_df["node_id"] == parent_id
-            ]
-            if not parent_row.empty:
-                self.selected_nodes.add(parent_row["node_id"].values[0])
-
-    def select_down(self) -> None:
-        """Jump one node down"""
-
-        if len(self.selected_nodes) > 0:
-            node_id = self.selected_nodes[0]
-            children = self.track_df.loc[self.track_df["parent_id"] == node_id]
-            if not children.empty:
-                child = children.to_dict("records")[0]
-                self.selected_nodes.add(child["node_id"])
-
     def keyPressEvent(self, event) -> None:
         """Catch arrow key presses to navigate in the tree"""
 
@@ -235,36 +114,30 @@ class TreeWidget(QWidget):
             self.mode_widget._toggle_display_mode()
         if event.key() == Qt.Key_Left:
             if self.mode == "lineage":
-                self.select_up()  # redirect because axes are flipped
+                self.navigation_widget.select_up()  # redirect because axes are flipped
             else:
-                self.select_left()
+                self.navigation_widget.select_left()
         if event.key() == Qt.Key_Right:
             if self.mode == "lineage":
-                self.select_down()  # redirect because axes are flipped
+                self.navigation_widget.select_down()  # redirect because axes are flipped
             else:
-                self.select_right()
+                self.navigation_widget.select_right()
         elif event.key() == Qt.Key_Up:
             if self.mode == "lineage":
-                self.select_right()  # redirect because axes are flipped
+                self.navigation_widget.select_right()  # redirect because axes are flipped
                 self.tree_widget.autoRange()  # autorange when jumping between lineages but not when staying on the same lineage
             else:
-                self.select_up()
+                self.navigation_widget.select_up()
         elif event.key() == Qt.Key_Down:
             if self.mode == "lineage":
-                self.select_left()  # redirect because axes are flipped
+                self.navigation_widget.select_left()  # redirect because axes are flipped
                 self.tree_widget.autoRange()  # autorange when jumping between lineages but not when staying on the same lineage
             else:
-                self.select_down()
+                self.navigation_widget.select_down()
 
-    def _set_mode(self, mode: str):
-        """Change the display mode"""
+    def _reset_plotting_data(self) -> None:
+        """Reset the plotting data if it had been generated before"""
 
-        self.mode = mode
-        self._update()
-        self.tree_widget.autoRange()
-
-    def _reset_plotting_data(self):
-        # reset the plotting data if it hard been generated before
         self.pos = None
         self.adj = None
         self.symbolBrush = None
@@ -279,20 +152,29 @@ class TreeWidget(QWidget):
         self.lineage_symbols = None
         self.lineage_pen = None
         self.lineage_outline_pen = None
+        self.lineage_node_ids = None
 
-    def update_track_data(self):
+    def _update_track_data(self) -> None:
         """Fetch the track_df directly from the new motile_run"""
 
         self.track_df = self.view_controller.track_df
+        self.navigation_widget.track_df = (
+            self.track_df
+        )  # also update the navagiation widget
         self.graph = self.view_controller.run.tracks.graph
 
         # set mode back to all
         self.mode = "all"
-
         self._reset_plotting_data()
-
-        # call update
         self._update()
+
+    def _set_mode(self, mode: str) -> None:
+        """Change the display mode"""
+
+        self.mode = mode
+        self.navigation_widget.mode = mode
+        self._update()
+        self.tree_widget.autoRange()
 
     def _on_click(self, _, points: np.ndarray, ev: QMouseEvent) -> None:
         """Adds the selected point to the selected_nodes list"""
@@ -313,11 +195,12 @@ class TreeWidget(QWidget):
         if self.mode == "lineage":
 
             # check whether we have switched to a new lineage that needs to be computed or if we are still on the same lineage and can skip this step
-            if self.selected_nodes[0] not in np.unique(
-                self.lineage_df["node_id"].values
+            if not all(
+                node in self.selected_nodes
+                for node in np.unique(self.lineage_df["node_id"].values)
             ):
-                self._calculate_lineage_df()
-                self._calculate_lineage_pyqtgraph()
+                self._create_lineage_df()
+                self._create_lineage_pyqtgraph_content()
                 update_view = (
                     True  # only update the view when a new lineage is selected
                 )
@@ -384,17 +267,17 @@ class TreeWidget(QWidget):
             self.g.scatter.setPen(outlines)
             self.g.scatter.setSize(size)
 
-    def _calculate_lineage_df(self) -> None:
+    def _create_lineage_df(self) -> None:
         """Subset dataframe to include only nodes belonging to the current lineage"""
 
-        if len(self.selected_nodes) == 0:
-            visible = []
-        else:
-            visible = extract_lineage_tree(self.graph, self.selected_nodes[0])
-        self.lineage_df = self.track_df[self.track_df["node_id"].isin(visible)]
-        self.lineage_df = self.lineage_df.reset_index()
+        visible = []
+        for node_id in self.selected_nodes:
+            visible += extract_lineage_tree(self.graph, node_id)
+        self.lineage_df = self.track_df[
+            self.track_df["node_id"].isin(visible)
+        ].reset_index()
 
-    def _calculate_lineage_pyqtgraph(self) -> None:
+    def _create_lineage_pyqtgraph_content(self) -> None:
         """Create graph data for a specific lineage"""
 
         pos = []
@@ -454,7 +337,7 @@ class TreeWidget(QWidget):
             ]
         )
 
-    def _calculate_pyqtgraph(self) -> None:
+    def _create_pyqtgraph_content(self) -> None:
         """Calculate the pyqtgraph data for plotting"""
 
         pos = []
@@ -521,8 +404,8 @@ class TreeWidget(QWidget):
         self.g.scatter.clear()
 
         if self.mode == "lineage":
-            self._calculate_lineage_df()
-            self._calculate_lineage_pyqtgraph()
+            self._create_lineage_df()
+            self._create_lineage_pyqtgraph_content()
             if len(self.lineage_pos) > 0:
                 self.g.setData(
                     pos=self.lineage_pos,
@@ -543,7 +426,7 @@ class TreeWidget(QWidget):
 
         if self.mode == "all":
             if self.pos is None:
-                self._calculate_pyqtgraph()
+                self._create_pyqtgraph_content()
             if len(self.pos) > 0:
                 self.g.setData(
                     pos=self.pos,
