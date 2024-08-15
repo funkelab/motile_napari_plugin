@@ -22,6 +22,9 @@ class TrackPoints(napari.layers.Points):
         self.symbolmap = symbolmap
 
         self.nodes = list(tracks.graph.nodes)
+        self.node_index_dict = dict(
+            zip(self.nodes, [self.nodes.index(node) for node in self.nodes])
+        )
         points = [
             tracks.get_location(node, incl_time=True) for node in self.nodes
         ]
@@ -92,9 +95,7 @@ class TrackPoints(napari.layers.Points):
         # set border color for selected item
         self.border_color = [1, 1, 1, 1]
         for node in self.selected_nodes:
-            index = self.nodes.index(
-                node
-            )  # TODO: store a dict from node to index
+            index = self.node_index_dict[node]
             self.border_color[index] = (
                 0,
                 1,
