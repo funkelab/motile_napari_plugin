@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 import napari
-import numpy as np
 from psygnal import Signal
 
 from motile_plugin.backend.motile_run import MotileRun
@@ -69,11 +68,7 @@ class TracksViewer:
             NodeType.CONTINUE: "disc",
             NodeType.SPLIT: "triangle_up",
         }
-        # TODO: remove unnecessary items
         self.run = None
-        self.time_attr = "time"
-        self.pos_attr = "pos"
-        self.track_df = None
         self.mode = "all"
 
     def remove_napari_layer(self, layer: napari.layers.Layer | None) -> None:
@@ -107,13 +102,7 @@ class TracksViewer:
         self.run = run  # keep the run information accessible
         self.tracks = self.run.tracks
 
-        graph = None if self.tracks is None else run.tracks.graph
-        self.track_df = extract_sorted_tracks(
-            graph,
-            self.colormap,
-            time_attr=self.time_attr,
-            pos_attr=self.pos_attr,
-        )
+        self.track_df = extract_sorted_tracks(self.tracks, self.colormap)
 
         # Remove old layers if necessary
         self.remove_napari_layers()
@@ -201,13 +190,13 @@ class TracksViewer:
             visible = []
             for node in self.selected_nodes:
                 visible += extract_lineage_tree(self.run.tracks.graph, node)
+            if self.tracks is None or self.tracks.graph is None:
+                return []
             return list(
-                np.unique(
-                    self.track_df.loc[
-                        self.track_df["node_id"].isin(visible),
-                        "track_id",
-                    ].values
-                )
+                {
+                    self.tracks.graph.nodes[node]["tracklet_id"]
+                    for node in visible
+                }
             )
         else:
             return "all"
