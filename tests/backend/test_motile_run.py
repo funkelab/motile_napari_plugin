@@ -4,8 +4,7 @@ from motile_plugin.backend import MotileRun, SolverParams
 from motile_plugin.core import Tracks
 
 
-def test_save_load(tmp_path):
-    graph = nx.DiGraph()
+def test_save_load(tmp_path, graph_2d):
     segmentation = np.zeros((10, 10, 10))
     for i in range(10):
         segmentation[i][0:5, 0:5] = i
@@ -14,7 +13,7 @@ def test_save_load(tmp_path):
     run = MotileRun(
         run_name=run_name,
         solver_params=SolverParams(),
-        tracks=Tracks(graph=graph, segmentation=segmentation),
+        tracks=Tracks(graph=graph_2d, segmentation=segmentation),
     )
     path = run.save(tmp_path)
     newrun = MotileRun.load(path)
