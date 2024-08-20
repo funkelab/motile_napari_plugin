@@ -161,7 +161,11 @@ class TreeWidget(QWidget):
         self.navigation_widget.track_df = (
             self.track_df
         )  # also update the navagiation widget
-        self.graph = self.view_controller.run.tracks.graph
+        tracks = self.view_controller.run.tracks
+        if tracks is None or tracks.graph is None:
+            self.graph = None
+        else:
+            self.graph = self.view_controller.run.tracks.graph
 
         # set mode back to all
         self.mode = "all"
