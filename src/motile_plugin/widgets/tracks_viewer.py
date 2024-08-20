@@ -137,11 +137,9 @@ class TracksViewer:
         else:
             self.tracking_layers.tracks_layer = TrackGraph(
                 viewer=self.viewer,
-                data=run.tracks.graph,
+                tracks=run.tracks,
                 name=run.run_name + "_tracks",
                 colormap=self.colormap,
-                time_attr=self.time_attr,
-                pos_attr=self.pos_attr,
             )
             self.tracking_layers.points_layer = TrackPoints(
                 viewer=self.viewer,

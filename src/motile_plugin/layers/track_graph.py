@@ -3,9 +3,10 @@ import copy
 import napari
 import networkx as nx
 import numpy as np
-from motile_toolbox.candidate_graph import NodeAttr
 from motile_toolbox.visualization import to_napari_tracks_layer
 from napari.utils import CyclicLabelColormap
+
+from motile_plugin.core import Tracks
 
 
 class TrackGraph(napari.layers.Tracks):
@@ -15,14 +16,17 @@ class TrackGraph(napari.layers.Tracks):
     def __init__(
         self,
         viewer: napari.Viewer,
-        data: nx.DiGraph,
+        tracks: Tracks,
         name: str,
         colormap: CyclicLabelColormap,
-        time_attr=NodeAttr.TIME.value,
-        pos_attr=NodeAttr.POS.value,
     ):
+        if tracks is None or tracks.graph is None:
+            graph = nx.DiGraph()
+        else:
+            graph = tracks.graph
+
         track_data, track_props, track_edges = to_napari_tracks_layer(
-            data, frame_key=time_attr, location_key=pos_attr
+            graph, frame_key=tracks.time_attr, location_key=tracks.pos_attr
         )
 
         super().__init__(
