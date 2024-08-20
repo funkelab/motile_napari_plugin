@@ -12,7 +12,6 @@ from ..layers.track_points import TrackPoints
 from ..utils.node_selection import NodeSelectionList
 from ..utils.tree_widget_utils import (
     extract_lineage_tree,
-    extract_sorted_tracks,
 )
 
 
@@ -101,8 +100,6 @@ class TracksViewer:
         self.selected_nodes._list = []
         self.run = run  # keep the run information accessible
         self.tracks = self.run.tracks
-
-        self.track_df = extract_sorted_tracks(self.tracks, self.colormap)
 
         # Remove old layers if necessary
         self.remove_napari_layers()
