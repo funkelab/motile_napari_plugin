@@ -27,7 +27,7 @@ class CustomViewBox(pg.ViewBox):
     def __init__(self, *args, **kwds):
         kwds["enableMenu"] = False
         pg.ViewBox.__init__(self, *args, **kwds)
-        self.setMouseMode(self.RectMode)
+        # self.setMouseMode(self.RectMode)
 
     ## reimplement right-click to zoom out
     def mouseClickEvent(self, ev):
@@ -36,10 +36,14 @@ class CustomViewBox(pg.ViewBox):
 
     ## reimplement mouseDragEvent to disable continuous axis zoom
     def mouseDragEvent(self, ev, axis=None):
-        if (
-            axis is not None
-            and ev.button() == QtCore.Qt.MouseButton.RightButton
-        ):
+        if ev.modifiers() == Qt.ShiftModifier:
+            # If Shift is pressed, enable rectangular zoom mode
+            self.setMouseMode(self.RectMode)
+        else:
+            # Otherwise, disable rectangular zoom mode
+            self.setMouseMode(self.PanMode)
+
+        if axis is not None and ev.button() == QtCore.Qt.MouseButton.RightButton:
             ev.ignore()
         else:
             pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
