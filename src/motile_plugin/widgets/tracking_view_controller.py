@@ -1,3 +1,4 @@
+import warnings
 from dataclasses import dataclass
 
 import napari
@@ -118,24 +119,11 @@ class TrackingViewController:
                 layer.visible = False  # deactivate the input labels layer
 
         # Create new layers
-        if run.output_segmentation is not None:
-
-            self.tracking_layers.seg_layer = TrackLabels(
-                viewer=self.viewer,
-                data=run.output_segmentation[:, 0],
-                name=run.run_name + "_seg",
-                colormap=self.colormap,
-                track_df=self.track_df,
-                opacity=0.9,
-                selected_nodes=self.selected_nodes,
-            )
-
-        else:
-            self.tracking_layers.seg_layer = None
-
         if run.tracks is None or run.tracks.number_of_nodes() == 0:
+            warnings.warn("Tracks is empty - not adding layers")
             self.tracking_layers.tracks_layer = None
             self.tracking_layers.points_layer = None
+            self.tracking_layers.seg_layer = None
         else:
             self.tracking_layers.tracks_layer = TrackGraph(
                 viewer=self.viewer,
@@ -151,6 +139,19 @@ class TrackingViewController:
                 name=run.run_name + "_points",
                 selected_nodes=self.selected_nodes,
             )
+
+            if run.output_segmentation is not None:
+                self.tracking_layers.seg_layer = TrackLabels(
+                    viewer=self.viewer,
+                    data=run.output_segmentation[:, 0],
+                    name=run.run_name + "_seg",
+                    colormap=self.colormap,
+                    track_df=self.track_df,
+                    opacity=0.9,
+                    selected_nodes=self.selected_nodes,
+                )
+            else:
+                self.tracking_layers.seg_layer = None
 
         self.tracking_layers_updated.emit()
         self.add_napari_layers()
