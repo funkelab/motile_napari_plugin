@@ -15,7 +15,10 @@ from motile_plugin.widgets.tracks_viewer import (
     TracksViewer,
 )
 
-from ..utils.tree_widget_utils import extract_lineage_tree
+from ..utils.tree_widget_utils import (
+    extract_lineage_tree,
+    extract_sorted_tracks,
+)
 from .navigation_widget import NavigationWidget
 from .tree_view_mode_widget import TreeViewModeWidget
 
@@ -157,11 +160,17 @@ class TreeWidget(QWidget):
     def _update_track_data(self) -> None:
         """Fetch the track_df directly from the new motile_run"""
 
-        self.track_df = self.view_controller.track_df
+        self.track_df = extract_sorted_tracks(
+            self.view_controller.tracks, self.view_controller.colormap
+        )
         self.navigation_widget.track_df = (
             self.track_df
         )  # also update the navagiation widget
-        self.graph = self.view_controller.run.tracks.graph
+        tracks = self.view_controller.run.tracks
+        if tracks is None or tracks.graph is None:
+            self.graph = None
+        else:
+            self.graph = self.view_controller.run.tracks.graph
 
         # set mode back to all
         self.mode = "all"

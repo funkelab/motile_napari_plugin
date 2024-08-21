@@ -133,7 +133,9 @@ class MotileRun(BaseModel):
         output_segmentation = cls._load_array(
             run_dir, OUT_SEG_FILEANME, required=output_seg_required
         )
-        tracks_graph = cls._load_tracks(run_dir, required=output_required)
+        tracks_graph = cls._load_tracks_graph(
+            run_dir, required=output_required
+        )
         tracks = Tracks(graph=tracks_graph, segmentation=output_segmentation)
         gaps = cls._load_gaps(run_dir)
         return cls(
@@ -233,7 +235,7 @@ class MotileRun(BaseModel):
             json.dump(nx.node_link_data(graph), f)
 
     @staticmethod
-    def _load_tracks(
+    def _load_tracks_graph(
         run_dir: Path, required: bool = True
     ) -> nx.DiGraph | None:
         """Load tracks from file. Currently uses networkx node link data
