@@ -233,23 +233,35 @@ class TracksViewer:
 
             step = list(self.viewer.dims.current_step)
             for dim in self.viewer.dims.not_displayed:
-                step[dim] = location[dim]
+                step[dim] = int(location[dim] + 0.5)
 
             self.viewer.dims.current_step = step
 
             # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
             example_layer = self.tracking_layers.points_layer
             corner_pixels = example_layer.corner_pixels
-            camera_center = list(self.viewer.camera.center)
 
-            if self.viewer.dims.ndisplay == 2:  # no 3D solution yet
-                changed = False
-                for dim in self.viewer.dims.displayed:
-                    _min = corner_pixels[0][dim]
-                    _max = corner_pixels[1][dim]
-                    if location[dim] < _min or location[dim] > _max:
-                        camera_center[dim] = location[dim]
-                        changed = True
+            # check which dimensions are shown, the first dimension is displayed on the x axis, and the second on the y_axis
+            dims_displayed = self.viewer.dims.displayed
+            x_dim = dims_displayed[-1]
+            y_dim = dims_displayed[-2]
 
-                if changed:
-                    self.viewer.camera.center = camera_center
+            # find corner pixels for the displayed axes
+            _min_x = corner_pixels[0][x_dim]
+            _max_x = corner_pixels[1][x_dim]
+            _min_y = corner_pixels[0][y_dim]
+            _max_y = corner_pixels[1][y_dim]
+
+            # check whether the node location falls within the corner pixel range
+            if not (
+                (location[x_dim] > _min_x and location[x_dim] < _max_x)
+                and (location[y_dim] > _min_y and location[y_dim] < _max_y)
+            ):
+                camera_center = self.viewer.camera.center
+
+                # set the center y and x to the center of the node, by using the index of the currently displayed dimensions
+                self.viewer.camera.center = (
+                    camera_center[0],
+                    location[y_dim],  # * self.scale[y_dim],
+                    location[x_dim],  # * self.scale[x_dim],
+                )
