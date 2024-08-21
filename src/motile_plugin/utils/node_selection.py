@@ -15,8 +15,12 @@ class NodeSelectionList(QObject):
     def add(self, item, append: bool | None = False):
         """Append or replace an item to the list, depending on the number of items present and the keyboard modifiers used. Emit update signal"""
 
+        # first check if this node was already present, if so, remove it.
+        if item in self._list:
+            self._list.remove(item)
+
         # single selection plus shift modifier: append to list to have two items in it
-        if append:
+        elif append:
             self._list.append(item)
 
         # replace item in list
