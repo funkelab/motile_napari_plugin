@@ -1,5 +1,5 @@
+from motile_plugin.backend import SolverParams
 from motile_plugin.backend.solve import solve
-from motile_plugin.backend.solver_params import SolverParams
 
 
 # capsys is a pytest fixture that captures stdout and stderr output streams

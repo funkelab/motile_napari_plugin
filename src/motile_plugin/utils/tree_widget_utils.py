@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from matplotlib.colors import to_rgba
-from motile_toolbox.candidate_graph import NodeAttr
+from motile_plugin.core import NodeType, Tracks
 from napari import Viewer
 from napari.utils import Colormap, DirectLabelColormap
 from PyQt5.QtCore import Qt
@@ -14,32 +14,31 @@ from qtpy.QtWidgets import QPushButton
 
 
 def extract_sorted_tracks(
-    solution_nx_graph: nx.DiGraph,
+    tracks: Tracks,
     colormap: napari.utils.CyclicLabelColormap,
-    time_attr=NodeAttr.TIME.value,
-    pos_attr=NodeAttr.POS.value,
-) -> pd.DataFrame:
+) -> pd.DataFrame | None:
     """
     Extract the information of individual tracks required for constructing the pyqtgraph plot. Follows the same logic as the relabel_segmentation
     function from the Motile toolbox.
 
     Args:
-        solution_nx_graph (nx.DiGraph): NetworkX graph with the solution to use
-            for relabeling. Nodes not in the graph will be removed from segmentation.
-            Original segmentation IDs and hypothesis IDs have to be stored in the graph
-            so we can map them back.
-        labels (napari.layers.labels.labels.Labels): the labels layer to which the tracking solution belongs.
-            It is used to extract the corresponding label color for the nodes and edges.
+        tracks (motile_plugin.core.Tracks): A tracks object containing a graph
+            to be converted into a dataframe.
+        colormap (napari.utils.CyclicLabelColormap): The colormap to use to
+            extract the color of each node from the track ID
 
     Returns:
-        List: pd.DataFrame with columns 't', 'node_id', 'track_id', 'color', 'x', 'y', ('z'), 'index', 'parent_id', and 'parent_track_id',
-        containing all information needed to construct the pyqtgraph plot.
+        pd.DataFrame | None: data frame with all the information needed to
+        construct the pyqtgraph plot. Columns are: 't', 'node_id', 'track_id',
+        'color', 'x', 'y', ('z'), 'index', 'parent_id', 'parent_track_id',
+        'state', 'symbol', and 'x_axis_pos'
     """
-    if solution_nx_graph is None:
+    if tracks is None or tracks.graph is None:
         return None
 
+    solution_nx_graph = tracks.graph
+
     track_list = []
-    counter = 0
     id_counter = 1
     parent_mapping = []
 
@@ -58,51 +57,34 @@ def extract_sorted_tracks(
         # Sort nodes in each weakly connected component by their time attribute to ensure correct order
         sorted_nodes = sorted(
             node_set,
-            key=lambda node: solution_nx_graph.nodes[node][time_attr],
+            key=lambda node: tracks.get_time(node),
         )
 
         parent_track_id = None
         for node in sorted_nodes:
-            node_data = solution_nx_graph.nodes[node]
-            if isinstance(pos_attr, (list, tuple)):
-                pos = [node_data[dim] for dim in pos_attr]
-            else:
-                pos = node_data[pos_attr]
-            annotated = False
+            pos = tracks.get_location(node)
             if node in parent_nodes:
-                state = "fork"  # can we change this to NodeAttr.STATE.value or equivalent?
+                state = NodeType.SPLIT
                 symbol = "triangle_up"
             elif node in end_nodes:
-                state = "endpoint"  # can we change this to NodeAttr.STATE.value or equivalent?
+                state = NodeType.END
                 symbol = "x"
             else:
-                state = "intermittent"
+                state = NodeType.CONTINUE
                 symbol = "disc"
-
-            # also check for manual annotations
-            if node_data.get("fork") is True:
-                state = "fork"  # can we change this to NodeAttr.STATE.value or equivalent?
-                symbol = "triangle_up"
-                annotated = True
-            if node_data.get("endpoint") is True:
-                state = "endpoint"  # can we change this to NodeAttr.STATE.value or equivalent?
-                symbol = "x"
-                annotated = True
 
             track_id = solution_nx_graph.nodes[node]["tracklet_id"]
             track_dict = {
-                "t": node_data[time_attr],
+                "t": tracks.get_time(node),
                 "node_id": node,
                 "track_id": track_id,
                 "color": colormap.map(track_id) * 255,
                 "x": pos[-1],
                 "y": pos[-2],
-                "index": counter,
                 "parent_id": 0,
                 "parent_track_id": 0,
                 "state": state,
                 "symbol": symbol,
-                "annotated": annotated,
             }
 
             if len(pos) == 3:
@@ -128,7 +110,6 @@ def extract_sorted_tracks(
                 track_dict["parent_track_id"] = parent_track_id
 
             track_list.append(track_dict)
-            counter += 1
 
         parent_mapping.append(
             {"track_id": id_counter, "parent_track_id": parent_track_id}

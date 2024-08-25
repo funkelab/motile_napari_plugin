@@ -1,40 +1,38 @@
 from dataclasses import dataclass
 
 import napari
-import numpy as np
-from motile_toolbox.candidate_graph import NodeAttr
 from psygnal import Signal
 
 from motile_plugin.backend.motile_run import MotileRun
+from motile_plugin.core import NodeType
 
-from ..layers.tracked_graph import TrackGraph
-from ..layers.tracked_labels import TrackLabels
-from ..layers.tracked_points import TrackPoints
+from ..layers.track_graph import TrackGraph
+from ..layers.track_labels import TrackLabels
+from ..layers.track_points import TrackPoints
 from ..utils.node_selection import NodeSelectionList
 from ..utils.tree_widget_utils import (
     extract_lineage_tree,
-    extract_sorted_tracks,
 )
 
 
 @dataclass
-class TrackingLayerGroup:
+class TracksLayerGroup:
     tracks_layer: TrackGraph | None = None
     seg_layer: TrackLabels | None = None
     points_layer: TrackPoints | None = None
 
 
-class TrackingViewController:
-    """Purposes of the TrackingViewController:
+class TracksViewer:
+    """Purposes of the TracksViewer:
     - Emit signals that all widgets should use to update selection or update
-        the currently displayed run
+        the currently displayed Tracks object
     - Storing the currently displayed run and a dataframe with rendering information
         for that run
     - Store shared rendering information like colormaps (or symbol maps)
     - Interacting with the napari.Viewer by adding and removing layers
     """
 
-    tracking_layers_updated = Signal()  # rename to run_updated?
+    tracks_updated = Signal()
 
     @classmethod
     def get_instance(cls, viewer=None):
@@ -42,29 +40,34 @@ class TrackingViewController:
             print("Making new tracking view controller")
             if viewer is None:
                 raise ValueError("Make a viewer first please!")
-            cls._instance = TrackingViewController(viewer)
+            cls._instance = TracksViewer(viewer)
         return cls._instance
 
     def __init__(
         self,
         viewer: napari.viewer,
-        time_attr: str = NodeAttr.TIME.value,
-        pos_attr: str = NodeAttr.POS.value,
     ):
         self.viewer = viewer
+        # TODO: separate and document keybinds
         self.viewer.bind_key("t")(self.toggle_display_mode)
+
         self.selected_nodes = NodeSelectionList()
-        self.selected_nodes.list_updated.connect(self.select_node)
-        self.tracking_layers: TrackingLayerGroup = TrackingLayerGroup()
+        self.selected_nodes.list_updated.connect(self.update_selection)
+
+        self.tracking_layers = TracksLayerGroup()
+
         self.colormap = napari.utils.colormaps.label_colormap(
             49,
             seed=0.5,
             background_value=0,
         )
+
+        self.symbolmap: dict[NodeType, str] = {
+            NodeType.END: "x",
+            NodeType.CONTINUE: "disc",
+            NodeType.SPLIT: "triangle_up",
+        }
         self.run = None
-        self.time_attr = time_attr
-        self.pos_attr = pos_attr
-        self.track_df = None
         self.mode = "all"
 
     def remove_napari_layer(self, layer: napari.layers.Layer | None) -> None:
@@ -74,14 +77,12 @@ class TrackingViewController:
 
     def remove_napari_layers(self) -> None:
         """Remove all tracking layers from the viewer"""
-
         self.remove_napari_layer(self.tracking_layers.tracks_layer)
         self.remove_napari_layer(self.tracking_layers.seg_layer)
         self.remove_napari_layer(self.tracking_layers.points_layer)
 
     def add_napari_layers(self) -> None:
         """Add new tracking layers to the viewer"""
-
         if self.tracking_layers.tracks_layer is not None:
             self.viewer.add_layer(self.tracking_layers.tracks_layer)
         if self.tracking_layers.seg_layer is not None:
@@ -89,10 +90,8 @@ class TrackingViewController:
         if self.tracking_layers.points_layer is not None:
             self.viewer.add_layer(self.tracking_layers.points_layer)
 
-    def update_napari_layers(
-        self, run: MotileRun, time_attr=None, pos_attr=None
-    ) -> None:
-        """Remove the old napari layers and update them according to the run output.
+    def update_tracks(self, run: MotileRun) -> None:
+        """Stop viewing a previous run and replace it with a new one.
         Will create new segmentation and tracks layers and add them to the viewer.
 
         Args:
@@ -100,32 +99,24 @@ class TrackingViewController:
         """
         self.selected_nodes._list = []
         self.run = run  # keep the run information accessible
-        if time_attr is not None:
-            self.time_attr = time_attr
-        if pos_attr is not None:
-            self.pos_attr = pos_attr
-        self.track_df = extract_sorted_tracks(
-            run.tracks,
-            self.colormap,
-            time_attr=self.time_attr,
-            pos_attr=self.pos_attr,
-        )
+        self.tracks = self.run.tracks
 
         # Remove old layers if necessary
         self.remove_napari_layers()
+
+        # deactivate the input labels layer
         for layer in self.viewer.layers:
             if isinstance(layer, napari.layers.Labels):
-                layer.visible = False  # deactivate the input labels layer
+                layer.visible = False
 
         # Create new layers
-        if run.output_segmentation is not None:
-
+        if run.tracks is not None and run.tracks.segmentation is not None:
             self.tracking_layers.seg_layer = TrackLabels(
                 viewer=self.viewer,
-                data=run.output_segmentation[:, 0],
+                data=run.tracks.segmentation[:, 0],
                 name=run.run_name + "_seg",
                 colormap=self.colormap,
-                track_df=self.track_df,
+                tracks=self.tracks,
                 opacity=0.9,
                 selected_nodes=self.selected_nodes,
             )
@@ -133,26 +124,30 @@ class TrackingViewController:
         else:
             self.tracking_layers.seg_layer = None
 
-        if run.tracks is None or run.tracks.number_of_nodes() == 0:
+        if (
+            run.tracks is None
+            or run.tracks.graph is None
+            or run.tracks.graph.number_of_nodes() == 0
+        ):
             self.tracking_layers.tracks_layer = None
             self.tracking_layers.points_layer = None
         else:
             self.tracking_layers.tracks_layer = TrackGraph(
                 viewer=self.viewer,
-                data=run.tracks,
+                tracks=run.tracks,
                 name=run.run_name + "_tracks",
                 colormap=self.colormap,
-                time_attr=self.time_attr,
-                pos_attr=self.pos_attr,
             )
             self.tracking_layers.points_layer = TrackPoints(
                 viewer=self.viewer,
-                data=self.track_df,
+                tracks=run.tracks,
                 name=run.run_name + "_points",
                 selected_nodes=self.selected_nodes,
+                symbolmap=self.symbolmap,
+                colormap=self.colormap,
             )
 
-        self.tracking_layers_updated.emit()
+        self.tracks_updated.emit()
         self.add_napari_layers()
         self.set_display_mode("all")
 
@@ -187,24 +182,21 @@ class TrackingViewController:
     def filter_visible_nodes(self) -> list[int]:
         """Construct a list of track_ids that should be displayed"""
         if self.mode == "lineage":
-            if len(self.selected_nodes) == 0:
+            visible = []
+            for node in self.selected_nodes:
+                visible += extract_lineage_tree(self.run.tracks.graph, node)
+            if self.tracks is None or self.tracks.graph is None:
                 return []
-            else:
-                visible = extract_lineage_tree(
-                    self.run.tracks, self.selected_nodes[0]["node_id"]
-                )
-                return list(
-                    np.unique(
-                        self.track_df.loc[
-                            self.track_df["node_id"].isin(visible),
-                            "track_id",
-                        ].values
-                    )
-                )
+            return list(
+                {
+                    self.tracks.graph.nodes[node]["tracklet_id"]
+                    for node in visible
+                }
+            )
         else:
             return "all"
 
-    def select_node(self) -> None:
+    def update_selection(self) -> None:
         """Sets the view and triggers visualization updates in other components"""
 
         self.set_napari_view()
@@ -216,41 +208,44 @@ class TrackingViewController:
 
     def set_napari_view(self) -> None:
         """Adjust the current_step of the viewer to jump to the last item of the selected_nodes list"""
-
         if len(self.selected_nodes) > 0:
             node = self.selected_nodes[-1]
+            location = self.tracks.get_location(node, incl_time=True)
+            assert (
+                len(location) == self.viewer.dims.ndim
+            ), f"Location {location} does not match viewer number of dims {self.viewer.dims.ndim}"
 
-            # Check for 'z' key and update step if exists
             step = list(self.viewer.dims.current_step)
-            step[0] = node["t"]
-            if "z" in node:
-                z = node["z"]
-                step[1] = int(z)
+            for dim in self.viewer.dims.not_displayed:
+                step[dim] = int(location[dim] + 0.5)
+
             self.viewer.dims.current_step = step
 
             # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
-            if self.viewer.dims.ndisplay == 2:  # no 3D solution yet
-                camera_pos = self.viewer.window._qt_window._qt_viewer.canvas.view.camera.get_state()[
-                    "rect"
-                ]._pos  # top left corner
-                camera_size = self.viewer.window._qt_window._qt_viewer.canvas.view.camera.get_state()[
-                    "rect"
-                ].size
+            example_layer = self.tracking_layers.points_layer
+            corner_pixels = example_layer.corner_pixels
 
-                if not (
-                    (
-                        node["x"] > camera_pos[0]
-                        and node["x"] < camera_pos[0] + camera_size[0]
-                    )
-                    and (
-                        node["y"] > camera_pos[1]
-                        and node["y"] < camera_pos[1] + camera_size[1]
-                    )
-                ):
-                    camera_center = self.viewer.camera.center
+            # check which dimensions are shown, the first dimension is displayed on the x axis, and the second on the y_axis
+            dims_displayed = self.viewer.dims.displayed
+            x_dim = dims_displayed[-1]
+            y_dim = dims_displayed[-2]
 
-                    self.viewer.camera.center = (
-                        camera_center[0],
-                        node["y"],
-                        node["x"],
-                    )
+            # find corner pixels for the displayed axes
+            _min_x = corner_pixels[0][x_dim]
+            _max_x = corner_pixels[1][x_dim]
+            _min_y = corner_pixels[0][y_dim]
+            _max_y = corner_pixels[1][y_dim]
+
+            # check whether the node location falls within the corner pixel range
+            if not (
+                (location[x_dim] > _min_x and location[x_dim] < _max_x)
+                and (location[y_dim] > _min_y and location[y_dim] < _max_y)
+            ):
+                camera_center = self.viewer.camera.center
+
+                # set the center y and x to the center of the node, by using the index of the currently displayed dimensions
+                self.viewer.camera.center = (
+                    camera_center[0],
+                    location[y_dim],  # * self.scale[y_dim],
+                    location[x_dim],  # * self.scale[x_dim],
+                )

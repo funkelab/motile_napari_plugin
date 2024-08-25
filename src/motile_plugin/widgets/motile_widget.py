@@ -15,8 +15,9 @@ from superqt.utils import thread_worker
 
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.backend.solve import solve
-from motile_plugin.widgets.tracking_view_controller import (
-    TrackingViewController,
+from motile_plugin.core import Tracks
+from motile_plugin.widgets.tracks_viewer import (
+    TracksViewer,
 )
 
 from .run_editor import RunEditor
@@ -41,8 +42,8 @@ class MotileWidget(QScrollArea):
     def __init__(self, viewer: Viewer):
         super().__init__()
         self.viewer: Viewer = viewer
-        view_controller = TrackingViewController.get_instance(self.viewer)
-        self.update_layers.connect(view_controller.update_napari_layers)
+        view_controller = TracksViewer.get_instance(self.viewer)
+        self.update_layers.connect(view_controller.update_tracks)
         self.remove_layers.connect(view_controller.remove_napari_layers)
 
         # Create sub-widgets and connect signals
@@ -131,7 +132,6 @@ class MotileWidget(QScrollArea):
         output_shape = (segmentation.shape[0], 1, *segmentation.shape[2:])
         tracked_masks = np.zeros_like(segmentation, shape=output_shape)
         for node, _data in solution_nx_graph.nodes(data=True):
-
             time_frame = solution_nx_graph.nodes[node][NodeAttr.TIME.value]
             previous_seg_id = solution_nx_graph.nodes[node][
                 NodeAttr.SEG_ID.value
@@ -170,15 +170,16 @@ class MotileWidget(QScrollArea):
             input_data = run.input_points
         else:
             raise ValueError("Must have one of input segmentation or points")
-        run.tracks = solve(
+        graph = solve(
             run.solver_params,
             input_data,
             lambda event_data: self._on_solver_event(run, event_data),
         )
         if run.input_segmentation is not None:
-            run.output_segmentation = self.relabel_segmentation(
-                run.tracks, run.input_segmentation
+            output_segmentation = self.relabel_segmentation(
+                graph, run.input_segmentation
             )
+        run.tracks = Tracks(graph=graph, segmentation=output_segmentation)
         return run
 
     def _on_solver_event(self, run: MotileRun, event_data: dict) -> None:

@@ -6,6 +6,8 @@ import networkx as nx
 import numpy as np
 from pydantic import BaseModel
 
+from motile_plugin.core import Tracks
+
 from .solver_params import SolverParams
 
 STAMP_FORMAT = "%m%d%Y_%H%M%S"
@@ -29,8 +31,7 @@ class MotileRun(BaseModel):
     solver_params: SolverParams | None = None
     input_segmentation: np.ndarray | None = None
     input_points: np.ndarray | None = None
-    output_segmentation: np.ndarray | None = None
-    tracks: nx.DiGraph | None = None
+    tracks: Tracks | None = None
     time: datetime = datetime.now()
     gaps: list[float] = []
     status: str = "done"
@@ -70,13 +71,17 @@ class MotileRun(BaseModel):
             ) from e
         return time, run_name
 
-    def save(self, base_path: str | Path):
+    def save(self, base_path: str | Path) -> Path:
         """Save the run in the provided directory. Creates a subdirectory from
         the timestamp and run name and stores one file for each element of the
         run in that subdirectory.
 
         Args:
             base_path (str | Path): The directory to save the run in.
+
+        Returns:
+            (Path): The Path that the run was saved in. The last part of the
+            path is the directory that was created to store the run.
         """
         base_path = Path(base_path)
         run_dir = base_path / self._make_id()
@@ -86,13 +91,15 @@ class MotileRun(BaseModel):
             self._save_array(run_dir, IN_SEG_FILEANME, self.input_segmentation)
         if self.input_points is not None:
             self._save_array(run_dir, IN_POINTS_FILEANME, self.input_points)
-        if self.output_segmentation is not None:
-            self._save_array(
-                run_dir, OUT_SEG_FILEANME, self.output_segmentation
-            )
         if self.tracks is not None:
-            self._save_tracks(run_dir)
+            if self.tracks.segmentation is not None:
+                self._save_array(
+                    run_dir, OUT_SEG_FILEANME, self.tracks.segmentation
+                )
+            if self.tracks.graph is not None:
+                self._save_tracks_graph(run_dir, self.tracks.graph)
         self._save_gaps(run_dir)
+        return run_dir
 
     @classmethod
     def load(cls, run_dir: Path | str, output_required: bool = True):
@@ -119,10 +126,6 @@ class MotileRun(BaseModel):
         input_points = cls._load_array(
             run_dir, IN_POINTS_FILEANME, required=False
         )
-        if input_segmentation is None and input_points is None:
-            raise FileNotFoundError(
-                f"Must have either input segmentation or points: neither found in {run_dir}"
-            )
         if output_required and input_segmentation is not None:
             output_seg_required = True
         else:
@@ -130,14 +133,16 @@ class MotileRun(BaseModel):
         output_segmentation = cls._load_array(
             run_dir, OUT_SEG_FILEANME, required=output_seg_required
         )
-        tracks = cls._load_tracks(run_dir, required=output_required)
+        tracks_graph = cls._load_tracks_graph(
+            run_dir, required=output_required
+        )
+        tracks = Tracks(graph=tracks_graph, segmentation=output_segmentation)
         gaps = cls._load_gaps(run_dir)
         return cls(
             run_name=run_name,
             solver_params=params,
             input_segmentation=input_segmentation,
             input_points=input_points,
-            output_segmentation=output_segmentation,
             tracks=tracks,
             time=time,
             gaps=gaps,
@@ -218,7 +223,7 @@ class MotileRun(BaseModel):
         else:
             return None
 
-    def _save_tracks(self, run_dir: Path):
+    def _save_tracks_graph(self, run_dir: Path, graph: nx.DiGraph):
         """Save the tracks to file. Currently uses networkx node link data
         format (and saves it as json).
 
@@ -227,10 +232,10 @@ class MotileRun(BaseModel):
         """
         tracks_file = run_dir / TRACKS_FILENAME
         with open(tracks_file, "w") as f:
-            json.dump(nx.node_link_data(self.tracks), f)
+            json.dump(nx.node_link_data(graph), f)
 
     @staticmethod
-    def _load_tracks(
+    def _load_tracks_graph(
         run_dir: Path, required: bool = True
     ) -> nx.DiGraph | None:
         """Load tracks from file. Currently uses networkx node link data
@@ -269,7 +274,10 @@ class MotileRun(BaseModel):
         gaps_file = run_dir / GAPS_FILENAME
         if gaps_file.is_file():
             with open(gaps_file) as f:
-                gaps = list(map(float, f.read().split(",")))
+                file_content = f.read()
+            if file_content == "":
+                return []
+            gaps = list(map(float, file_content.split(",")))
             return gaps
         elif required:
             raise FileNotFoundError(f"No gaps found at {gaps_file}")
