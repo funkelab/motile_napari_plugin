@@ -519,6 +519,7 @@ class TreeWidget(QWidget):
             self.tree_widget.getAxis("bottom").setStyle(showValues=True)
             self.tree_widget.getAxis("left").setStyle(showValues=False)
             self.tree_widget.invertY(False)
+            self.tree_widget.autoRange()
 
         if self.mode == "all":
             if self.pos is None:
@@ -542,7 +543,8 @@ class TreeWidget(QWidget):
             self.tree_widget.getAxis("left").setStyle(showValues=True)
             self.tree_widget.invertY(True)  # to show tracks from top to bottom
 
-        self.tree_widget.autoRange()
+            self.tree_widget.autoRange()
+            self.tree_widget.setXRange(0, 20)
 
     def _center_view(self, center_x: int, center_y: int):
         """Center the Viewbox on given coordinates"""
