@@ -5,12 +5,11 @@ from psygnal import Signal
 
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.core import NodeType
-
-from ..layers.track_graph import TrackGraph
-from ..layers.track_labels import TrackLabels
-from ..layers.track_points import TrackPoints
-from ..utils.node_selection import NodeSelectionList
-from ..utils.tree_widget_utils import (
+from motile_plugin.layers.track_graph import TrackGraph
+from motile_plugin.layers.track_labels import TrackLabels
+from motile_plugin.layers.track_points import TrackPoints
+from motile_plugin.utils.node_selection import NodeSelectionList
+from motile_plugin.utils.tree_widget_utils import (
     extract_lineage_tree,
 )
 

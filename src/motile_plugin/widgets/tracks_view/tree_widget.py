@@ -11,14 +11,14 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from motile_plugin.widgets.tracks_viewer import (
-    TracksViewer,
-)
-
-from ..utils.tree_widget_utils import (
+from motile_plugin.utils.tree_widget_utils import (
     extract_lineage_tree,
     extract_sorted_tracks,
 )
+from motile_plugin.widgets.tracks_view.tracks_viewer import (
+    TracksViewer,
+)
+
 from .navigation_widget import NavigationWidget
 from .tree_view_mode_widget import TreeViewModeWidget
 
@@ -43,7 +43,10 @@ class CustomViewBox(pg.ViewBox):
             # Otherwise, disable rectangular zoom mode
             self.setMouseMode(self.PanMode)
 
-        if axis is not None and ev.button() == QtCore.Qt.MouseButton.RightButton:
+        if (
+            axis is not None
+            and ev.button() == QtCore.Qt.MouseButton.RightButton
+        ):
             ev.ignore()
         else:
             pg.ViewBox.mouseDragEvent(self, ev, axis=axis)

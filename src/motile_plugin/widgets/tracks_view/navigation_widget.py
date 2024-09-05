@@ -6,7 +6,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from ..utils.node_selection import NodeSelectionList
+from motile_plugin.utils.node_selection import NodeSelectionList
 
 
 class NavigationWidget(QWidget):
