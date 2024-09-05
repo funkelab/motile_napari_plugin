@@ -53,8 +53,7 @@ class CustomViewBox(pg.ViewBox):
 
 
 class TreeWidget(QWidget):
-    """pyqtgraph-based widget for lineage tree visualization and interactive
-    annotation of nodes and edges"""
+    """pyqtgraph-based widget for lineage tree visualization and navigation"""
 
     def __init__(self, viewer: napari.Viewer):
         super().__init__()
@@ -165,7 +164,6 @@ class TreeWidget(QWidget):
         self.lineage_node_ids = None
 
     def _update_track_data(self) -> None:
-        """Fetch the track_df directly from the new motile_run"""
 
         self.track_df = extract_sorted_tracks(
             self.view_controller.tracks, self.view_controller.colormap
@@ -173,11 +171,11 @@ class TreeWidget(QWidget):
         self.navigation_widget.track_df = (
             self.track_df
         )  # also update the navagiation widget
-        tracks = self.view_controller.run.tracks
+        tracks = self.view_controller.tracks
         if tracks is None or tracks.graph is None:
             self.graph = None
         else:
-            self.graph = self.view_controller.run.tracks.graph
+            self.graph = self.view_controller.tracks.graph
 
         # set mode back to all
         self.mode = "all"

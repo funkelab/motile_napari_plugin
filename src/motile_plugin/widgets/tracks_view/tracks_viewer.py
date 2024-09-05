@@ -3,8 +3,7 @@ from dataclasses import dataclass
 import napari
 from psygnal import Signal
 
-from motile_plugin.backend.motile_run import MotileRun
-from motile_plugin.core import NodeType
+from motile_plugin.core import NodeType, Tracks
 from motile_plugin.layers.track_graph import TrackGraph
 from motile_plugin.layers.track_labels import TrackLabels
 from motile_plugin.layers.track_points import TrackPoints
@@ -25,8 +24,7 @@ class TracksViewer:
     """Purposes of the TracksViewer:
     - Emit signals that all widgets should use to update selection or update
         the currently displayed Tracks object
-    - Storing the currently displayed run and a dataframe with rendering information
-        for that run
+    - Storing the currently displayed tracks
     - Store shared rendering information like colormaps (or symbol maps)
     - Interacting with the napari.Viewer by adding and removing layers
     """
@@ -66,7 +64,6 @@ class TracksViewer:
             NodeType.CONTINUE: "disc",
             NodeType.SPLIT: "triangle_up",
         }
-        self.run = None
         self.mode = "all"
 
     def remove_napari_layer(self, layer: napari.layers.Layer | None) -> None:
@@ -89,16 +86,16 @@ class TracksViewer:
         if self.tracking_layers.points_layer is not None:
             self.viewer.add_layer(self.tracking_layers.points_layer)
 
-    def update_tracks(self, run: MotileRun) -> None:
-        """Stop viewing a previous run and replace it with a new one.
+    def update_tracks(self, tracks: Tracks, name: str) -> None:
+        """Stop viewing a previous set of tracks and replace it with a new one.
         Will create new segmentation and tracks layers and add them to the viewer.
 
         Args:
-            run (MotileRun): The run outputs to visualize in napari.
+            tracks (motile_plugin.core.Tracks): The tracks to visualize in napari.
+            name (str): The name of the tracks to display in the layer names
         """
         self.selected_nodes._list = []
-        self.run = run  # keep the run information accessible
-        self.tracks = self.run.tracks
+        self.tracks = tracks
 
         # Remove old layers if necessary
         self.remove_napari_layers()
@@ -109,11 +106,11 @@ class TracksViewer:
                 layer.visible = False
 
         # Create new layers
-        if run.tracks is not None and run.tracks.segmentation is not None:
+        if tracks is not None and tracks.segmentation is not None:
             self.tracking_layers.seg_layer = TrackLabels(
                 viewer=self.viewer,
-                data=run.tracks.segmentation[:, 0],
-                name=run.run_name + "_seg",
+                data=tracks.segmentation[:, 0],
+                name=name + "_seg",
                 colormap=self.colormap,
                 tracks=self.tracks,
                 opacity=0.9,
@@ -124,23 +121,23 @@ class TracksViewer:
             self.tracking_layers.seg_layer = None
 
         if (
-            run.tracks is None
-            or run.tracks.graph is None
-            or run.tracks.graph.number_of_nodes() == 0
+            tracks is None
+            or tracks.graph is None
+            or tracks.graph.number_of_nodes() == 0
         ):
             self.tracking_layers.tracks_layer = None
             self.tracking_layers.points_layer = None
         else:
             self.tracking_layers.tracks_layer = TrackGraph(
                 viewer=self.viewer,
-                tracks=run.tracks,
-                name=run.run_name + "_tracks",
+                tracks=tracks,
+                name=name + "_tracks",
                 colormap=self.colormap,
             )
             self.tracking_layers.points_layer = TrackPoints(
                 viewer=self.viewer,
-                tracks=run.tracks,
-                name=run.run_name + "_points",
+                tracks=tracks,
+                name=name + "_points",
                 selected_nodes=self.selected_nodes,
                 symbolmap=self.symbolmap,
                 colormap=self.colormap,
@@ -183,7 +180,7 @@ class TracksViewer:
         if self.mode == "lineage":
             visible = []
             for node in self.selected_nodes:
-                visible += extract_lineage_tree(self.run.tracks.graph, node)
+                visible += extract_lineage_tree(self.tracks.graph, node)
             if self.tracks is None or self.tracks.graph is None:
                 return []
             return list(

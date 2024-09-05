@@ -13,9 +13,9 @@ from qtpy.QtWidgets import (
 )
 from superqt.utils import thread_worker
 
-from motile_plugin.backend.motile_run import MotileRun
-from motile_plugin.backend.solve import solve
 from motile_plugin.core import Tracks
+from motile_plugin.motile.motile_run import MotileRun
+from motile_plugin.motile.solve import solve
 from motile_plugin.widgets.tracks_view.tracks_viewer import TracksViewer
 
 from .run_editor import RunEditor
@@ -34,14 +34,14 @@ class MotileWidget(QScrollArea):
     # A signal for passing events from the motile solver to the run view widget
     # To provide updates on progress of the solver
     solver_update = Signal()
-    update_layers = Signal(MotileRun)
+    view_tracks = Signal(Tracks, str)
     remove_layers = Signal()
 
     def __init__(self, viewer: Viewer):
         super().__init__()
         self.viewer: Viewer = viewer
         view_controller = TracksViewer.get_instance(self.viewer)
-        self.update_layers.connect(view_controller.update_tracks)
+        self.view_tracks.connect(view_controller.update_tracks)
         self.remove_layers.connect(view_controller.remove_napari_layers)
 
         # Create sub-widgets and connect signals
@@ -77,7 +77,7 @@ class MotileWidget(QScrollArea):
         self.view_run_widget.update_run(run)
         self.edit_run_widget.hide()
         self.view_run_widget.show()
-        self.update_layers.emit(run)
+        self.view_tracks.emit(run.tracks, run.run_name)
 
     def edit_run(self, run: MotileRun | None):
         """Create or edit a new run in the run editor. Also removes solution layers
