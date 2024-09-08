@@ -96,6 +96,7 @@ class TrackPoints(napari.layers.Points):
 
         # set border color for selected item
         self.border_color = [1, 1, 1, 1]
+        self.size = 5
         for node in self.selected_nodes:
             index = self.node_index_dict[node]
             self.border_color[index] = (
@@ -104,4 +105,5 @@ class TrackPoints(napari.layers.Points):
                 1,
                 1,
             )
+            self.size[index] = 7
         self.refresh()
