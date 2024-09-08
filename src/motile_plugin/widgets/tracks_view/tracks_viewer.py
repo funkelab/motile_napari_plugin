@@ -52,6 +52,7 @@ class TracksViewer:
         self.selected_nodes.list_updated.connect(self.update_selection)
 
         self.tracking_layers = TracksLayerGroup()
+        self.tracks = None
 
         self.colormap = napari.utils.colormaps.label_colormap(
             49,

@@ -66,11 +66,11 @@ class TreeWidget(QWidget):
         # initialize empty graph data objects
         self._reset_plotting_data()
 
-        self.view_controller = TracksViewer.get_instance(viewer)
-        self.colormap = self.view_controller.colormap
-        self.selected_nodes = self.view_controller.selected_nodes
+        self.tracks_viewer = TracksViewer.get_instance(viewer)
+        self.colormap = self.tracks_viewer.colormap
+        self.selected_nodes = self.tracks_viewer.selected_nodes
         self.selected_nodes.list_updated.connect(self._show_selected)
-        self.view_controller.tracks_updated.connect(self._update_track_data)
+        self.tracks_viewer.tracks_updated.connect(self._update_track_data)
 
         # Construct the tree view pyqtgraph widget
         layout = QVBoxLayout()
@@ -102,6 +102,10 @@ class TreeWidget(QWidget):
         layout.addWidget(self.tree_widget)
 
         self.setLayout(layout)
+
+        # check if the tracks_viewer already holds any tracks, if so, immediately call the update_tracks function
+        if self.tracks_viewer.tracks is not None:
+            self._update_track_data()
 
     def _get_tree_widget(self) -> pg.PlotWidget:
         """Construct the pyqtgraph treewidget"""
@@ -166,16 +170,16 @@ class TreeWidget(QWidget):
     def _update_track_data(self) -> None:
 
         self.track_df = extract_sorted_tracks(
-            self.view_controller.tracks, self.view_controller.colormap
+            self.tracks_viewer.tracks, self.tracks_viewer.colormap
         )
         self.navigation_widget.track_df = (
             self.track_df
         )  # also update the navagiation widget
-        tracks = self.view_controller.tracks
+        tracks = self.tracks_viewer.tracks
         if tracks is None or tracks.graph is None:
             self.graph = None
         else:
-            self.graph = self.view_controller.tracks.graph
+            self.graph = self.tracks_viewer.tracks.graph
 
         # set mode back to all
         self.mode = "all"
