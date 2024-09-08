@@ -19,6 +19,7 @@ class TrackGraph(napari.layers.Tracks):
         tracks: Tracks,
         name: str,
         colormap: CyclicLabelColormap,
+        scale: tuple,
     ):
         if tracks is None or tracks.graph is None:
             graph = nx.DiGraph()
@@ -36,6 +37,7 @@ class TrackGraph(napari.layers.Tracks):
             name=name,
             tail_length=3,
             color_by="track_id",
+            scale=scale,
         )
 
         self.viewer = viewer

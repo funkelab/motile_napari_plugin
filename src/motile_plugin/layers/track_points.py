@@ -17,6 +17,7 @@ class TrackPoints(napari.layers.Points):
         selected_nodes: NodeSelectionList,
         symbolmap: dict[NodeType, str],
         colormap: napari.utils.Colormap,
+        scale: tuple,
     ):
         self.colormap = colormap
         self.symbolmap = symbolmap
@@ -42,6 +43,7 @@ class TrackPoints(napari.layers.Points):
             size=5,
             properties={"node_id": self.nodes, "track_id": track_ids},
             border_color=[1, 1, 1, 1],
+            scale=scale,
         )
 
         self.viewer = viewer

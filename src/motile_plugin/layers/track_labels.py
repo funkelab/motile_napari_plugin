@@ -43,6 +43,7 @@ class TrackLabels(napari.layers.Labels):
         tracks: Tracks,
         opacity: float,
         selected_nodes: NodeSelectionList,
+        scale: tuple,
     ):
         self.nodes = list(tracks.graph.nodes)
         props = {
@@ -59,6 +60,7 @@ class TrackLabels(napari.layers.Labels):
             opacity=opacity,
             colormap=colormap,
             properties=props,
+            scale=scale,
         )
 
         self.viewer = viewer
