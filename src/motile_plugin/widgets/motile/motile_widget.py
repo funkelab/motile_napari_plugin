@@ -14,8 +14,8 @@ from qtpy.QtWidgets import (
 from superqt.utils import thread_worker
 
 from motile_plugin.core import Tracks
-from motile_plugin.motile.motile_run import MotileRun
-from motile_plugin.motile.solve import solve
+from motile_plugin.backend.motile_run import MotileRun
+from motile_plugin.backend.solve import solve
 from motile_plugin.widgets.tracks_view.tracks_viewer import TracksViewer
 
 from .run_editor import RunEditor
