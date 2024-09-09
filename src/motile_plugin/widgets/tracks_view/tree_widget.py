@@ -60,7 +60,8 @@ class TreeWidget(QWidget):
         self.track_df = pd.DataFrame()
         self.lineage_df = pd.DataFrame()
         self.graph = None
-        self.mode = "all"
+        self.mode = "all"  # options: "all", "lineage"
+        self.view_direction = "vertical"  # options: "horizontal", "vertical"
         self.pins = []
 
         # initialize empty graph data objects
@@ -86,7 +87,7 @@ class TreeWidget(QWidget):
 
         # Add navigation widget
         self.navigation_widget = NavigationWidget(
-            self.track_df, self.mode, self.selected_nodes
+            self.track_df, self.view_direction, self.selected_nodes
         )
 
         # Construct a toolbar and set main layout
@@ -134,7 +135,7 @@ class TreeWidget(QWidget):
         else:
             if event.key() not in direction_map:
                 return
-            self.navigation_widget.select_next_node(direction_map[event.key()])
+            self.navigation_widget.move(direction_map[event.key()])
 
     def _reset_plotting_data(self) -> None:
         """Reset the plotting data if it had been generated before"""
@@ -169,8 +170,10 @@ class TreeWidget(QWidget):
         else:
             self.graph = self.tracks_viewer.tracks.graph
 
-        # set mode back to all
+        # set mode back to all and view to vertical
         self.mode = "all"
+        self.view_direction = "vertical"
+
         self._reset_plotting_data()
         self._update()
 
@@ -178,7 +181,11 @@ class TreeWidget(QWidget):
         """Change the display mode"""
 
         self.mode = mode
-        self.navigation_widget.mode = mode
+        if self.mode == "all":
+            self.view_direction = "vertical"
+        else:
+            self.view_direction = "horizontal"
+        self.navigation_widget.view_direction = self.view_direction
         self._update()
         self.tree_widget.autoRange()
 

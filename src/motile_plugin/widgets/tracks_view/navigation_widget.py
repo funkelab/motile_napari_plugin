@@ -10,17 +10,23 @@ from motile_plugin.utils.node_selection import NodeSelectionList
 
 
 class NavigationWidget(QWidget):
-    """Widget for controlling navigation in the tree widget"""
-
     def __init__(
         self,
         track_df: pd.DataFrame,
-        mode: str,
+        view_direction: str,
         selected_nodes: NodeSelectionList,
     ):
+        """Widget for controlling navigation in the tree widget
+
+        Args:
+            track_df (pd.DataFrame): The dataframe holding the track information
+            view_direction (str): The view direction of the tree widget. Options: "vertical", "horizontal".
+            selected_nodes (NodeSelectionList): The list of selected nodes.
+        """
+
         super().__init__()
         self.track_df = track_df
-        self.mode = mode
+        self.view_direction = view_direction
         self.selected_nodes = selected_nodes
 
         navigation_box = QGroupBox("Navigation [\u2b05 \u27a1 \u2b06 \u2b07]")
@@ -30,10 +36,10 @@ class NavigationWidget(QWidget):
         up_button = QPushButton("\u2b06")
         down_button = QPushButton("\u2b07")
 
-        left_button.clicked.connect(lambda: self.select_next_node("left"))
-        right_button.clicked.connect(lambda: self.select_next_node("right"))
-        up_button.clicked.connect(lambda: self.select_next_node("up"))
-        down_button.clicked.connect(lambda: self.select_next_node("down"))
+        left_button.clicked.connect(lambda: self.move("left"))
+        right_button.clicked.connect(lambda: self.move("right"))
+        up_button.clicked.connect(lambda: self.move("up"))
+        down_button.clicked.connect(lambda: self.move("down"))
 
         navigation_layout.addWidget(left_button)
         navigation_layout.addWidget(right_button)
@@ -47,33 +53,47 @@ class NavigationWidget(QWidget):
 
         self.setLayout(layout)
 
-    def select_next_node(self, direction: str) -> None:
-        """Interpret in which direction to jump"""
+    def move(self, direction: str) -> None:
+        """Move in the given direction on the tree view. Will select the next
+        node in that direction, based on the orientation of the widget.
+
+        Args:
+            direction (str): The direction to move. Options: "up", "down",
+                "left", "right"
+        """
 
         if direction == "left":
-            if self.mode == "lineage":
-                self.select_up()  # redirect because axes are flipped
+            if self.view_direction == "horizontal":
+                self.select_predecessor()
             else:
-                self.select_left()
+                self.select_next_track(forward=False)
         elif direction == "right":
-            if self.mode == "lineage":
-                self.select_down()  # redirect because axes are flipped
+            if self.view_direction == "horizontal":
+                self.select_successor()
             else:
-                self.select_right()
+                self.select_next_track()
         elif direction == "up":
-            if self.mode == "lineage":
-                self.select_right()  # redirect because axes are flipped
+            if self.view_direction == "horizontal":
+                self.select_next_track()
             else:
-                self.select_up()
+                self.select_predecessor()
         elif direction == "down":
-            if self.mode == "lineage":
-                self.select_left()  # redirect because axes are flipped
+            if self.view_direction == "horizontal":
+                self.select_next_track(forward=False)
             else:
-                self.select_down()
+                self.select_successor()
+        else:
+            raise ValueError(
+                f"Direction must be one of 'left', 'right', 'up', 'down', got {direction}"
+            )
 
-    def select_left(self) -> None:
-        """Jump one node to the left"""
+    def select_next_track(self, forward=True) -> None:
+        """Select the node at the same time point in an adjacent track.
 
+        Args:
+            forward (bool, optional): If true, pick the next track (right/down).
+                Otherwise, pick the previous track (left/up). Defaults to True.
+        """
         if len(self.selected_nodes) > 0:
             node_id = self.selected_nodes[0]
             x_axis_pos = self.track_df.loc[
@@ -82,47 +102,25 @@ class NavigationWidget(QWidget):
             t = self.track_df.loc[
                 self.track_df["node_id"] == node_id, "t"
             ].values[0]
-            left_neighbors = self.track_df.loc[
-                (self.track_df["x_axis_pos"] < x_axis_pos)
-                & (self.track_df["t"] == t)
-            ]
-            if not left_neighbors.empty:
+            if forward:
+                neighbors = self.track_df.loc[
+                    (self.track_df["x_axis_pos"] > x_axis_pos)
+                    & (self.track_df["t"] == t)
+                ]
+            else:
+                neighbors = self.track_df.loc[
+                    (self.track_df["x_axis_pos"] < x_axis_pos)
+                    & (self.track_df["t"] == t)
+                ]
+            if not neighbors.empty:
                 # Find the closest index label
                 closest_index_label = (
-                    (left_neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
+                    (neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
                 )
-                left_neighbor = left_neighbors.loc[
-                    closest_index_label, "node_id"
-                ]
-                self.selected_nodes.add(left_neighbor)
+                neighbor = neighbors.loc[closest_index_label, "node_id"]
+                self.selected_nodes.add(neighbor)
 
-    def select_right(self) -> None:
-        """Jump one node to the right"""
-
-        if len(self.selected_nodes) > 0:
-            node_id = self.selected_nodes[0]
-            x_axis_pos = self.track_df.loc[
-                self.track_df["node_id"] == node_id, "x_axis_pos"
-            ].values[0]
-            t = self.track_df.loc[
-                self.track_df["node_id"] == node_id, "t"
-            ].values[0]
-            right_neighbors = self.track_df.loc[
-                (self.track_df["x_axis_pos"] > x_axis_pos)
-                & (self.track_df["t"] == t)
-            ]
-
-            if not right_neighbors.empty:
-                # Find the closest index label
-                closest_index_label = (
-                    (right_neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
-                )
-                right_neighbor = right_neighbors.loc[
-                    closest_index_label, "node_id"
-                ]
-                self.selected_nodes.add(right_neighbor)
-
-    def select_up(self) -> None:
+    def select_predecessor(self) -> None:
         """Jump one node up"""
 
         if len(self.selected_nodes) > 0:
@@ -136,7 +134,7 @@ class NavigationWidget(QWidget):
             if not parent_row.empty:
                 self.selected_nodes.add(parent_row["node_id"].values[0])
 
-    def select_down(self) -> None:
+    def select_successor(self) -> None:
         """Jump one node down"""
 
         if len(self.selected_nodes) > 0:
