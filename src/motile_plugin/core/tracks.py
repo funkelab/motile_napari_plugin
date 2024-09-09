@@ -38,6 +38,7 @@ class Tracks(BaseModel):
     segmentation: np.ndarray | None = None
     time_attr: str = NodeAttr.TIME.value
     pos_attr: str | tuple[str] | list[str] = NodeAttr.POS.value
+    scale: list[float] | None = None
     # pydantic does not check numpy arrays
     model_config = {"arbitrary_types_allowed": True}
 

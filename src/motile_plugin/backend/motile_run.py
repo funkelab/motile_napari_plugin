@@ -35,6 +35,7 @@ class MotileRun(BaseModel):
     time: datetime = datetime.now()
     gaps: list[float] = []
     status: str = "done"
+    scale: list[float] | None = None
     # pydantic does not check numpy arrays
     model_config = {"arbitrary_types_allowed": True}
 

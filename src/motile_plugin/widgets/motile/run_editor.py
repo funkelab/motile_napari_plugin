@@ -200,6 +200,7 @@ class RunEditor(QGroupBox):
             input_segmentation=input_seg,
             input_points=input_points,
             time=datetime.now(),
+            scale=input_layer.scale,
         )
 
     def emit_run(self) -> None:

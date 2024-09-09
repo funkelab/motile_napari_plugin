@@ -97,11 +97,6 @@ class TracksViewer:
         """
         self.selected_nodes._list = []
         self.tracks = tracks
-
-        self.scale = self.viewer.layers[
-            0
-        ].scale  # TODO find a better place to retrieve the original scale from the data
-
         # Remove old layers if necessary
         self.remove_napari_layers()
 
@@ -120,7 +115,7 @@ class TracksViewer:
                 tracks=self.tracks,
                 opacity=0.9,
                 selected_nodes=self.selected_nodes,
-                scale=self.scale,
+                scale=self.tracks.scale,
             )
 
         else:
@@ -139,7 +134,7 @@ class TracksViewer:
                 tracks=tracks,
                 name=name + "_tracks",
                 colormap=self.colormap,
-                scale=self.scale,
+                scale=self.tracks.scale,
             )
             self.tracking_layers.points_layer = TrackPoints(
                 viewer=self.viewer,
@@ -148,7 +143,7 @@ class TracksViewer:
                 selected_nodes=self.selected_nodes,
                 symbolmap=self.symbolmap,
                 colormap=self.colormap,
-                scale=self.scale,
+                scale=self.tracks.scale,
             )
 
         self.tracks_updated.emit()
@@ -250,6 +245,6 @@ class TracksViewer:
                 # set the center y and x to the center of the node, by using the index of the currently displayed dimensions
                 self.viewer.camera.center = (
                     camera_center[0],
-                    location[y_dim] * self.scale[y_dim],
-                    location[x_dim] * self.scale[x_dim],
+                    location[y_dim] * self.tracks.scale[y_dim],
+                    location[x_dim] * self.tracks.scale[x_dim],
                 )
