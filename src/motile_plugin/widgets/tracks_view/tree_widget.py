@@ -2,9 +2,9 @@ import napari
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
-from PyQt5.QtGui import QColor, QMouseEvent
 from pyqtgraph.Qt import QtCore
 from qtpy.QtCore import Qt
+from qtpy.QtGui import QColor, QMouseEvent
 from qtpy.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
