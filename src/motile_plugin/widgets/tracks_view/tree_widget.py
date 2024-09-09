@@ -122,31 +122,19 @@ class TreeWidget(QWidget):
 
     def keyPressEvent(self, event) -> None:
         """Catch arrow key presses to navigate in the tree"""
+        direction_map = {
+            Qt.Key_Left: "left",
+            Qt.Key_Right: "right",
+            Qt.Key_Up: "up",
+            Qt.Key_Down: "down",
+        }
 
         if event.key() == Qt.Key_L:
             self.mode_widget._toggle_display_mode()
-        if event.key() == Qt.Key_Left:
-            if self.mode == "lineage":
-                self.navigation_widget.select_up()  # redirect because axes are flipped
-            else:
-                self.navigation_widget.select_left()
-        if event.key() == Qt.Key_Right:
-            if self.mode == "lineage":
-                self.navigation_widget.select_down()  # redirect because axes are flipped
-            else:
-                self.navigation_widget.select_right()
-        elif event.key() == Qt.Key_Up:
-            if self.mode == "lineage":
-                self.navigation_widget.select_right()  # redirect because axes are flipped
-                self.tree_widget.autoRange()  # autorange when jumping between lineages but not when staying on the same lineage
-            else:
-                self.navigation_widget.select_up()
-        elif event.key() == Qt.Key_Down:
-            if self.mode == "lineage":
-                self.navigation_widget.select_left()  # redirect because axes are flipped
-                self.tree_widget.autoRange()  # autorange when jumping between lineages but not when staying on the same lineage
-            else:
-                self.navigation_widget.select_down()
+        else:
+            if event.key() not in direction_map:
+                return
+            self.navigation_widget.select_next_node(direction_map[event.key()])
 
     def _reset_plotting_data(self) -> None:
         """Reset the plotting data if it had been generated before"""
