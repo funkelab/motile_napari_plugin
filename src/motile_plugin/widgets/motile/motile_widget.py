@@ -177,6 +177,8 @@ class MotileWidget(QScrollArea):
             output_segmentation = self.relabel_segmentation(
                 graph, run.input_segmentation
             )
+        else:
+            output_segmentation = None
         run.tracks = Tracks(
             graph=graph, segmentation=output_segmentation, scale=run.scale
         )
