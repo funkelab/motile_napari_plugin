@@ -64,7 +64,6 @@ class TreeWidget(QWidget):
         self.graph = None
         self.mode = "all"  # options: "all", "lineage"
         self.view_direction = "vertical"  # options: "horizontal", "vertical"
-        self.pins = []
 
         # initialize empty graph data objects
         self._reset_plotting_data()
@@ -332,20 +331,10 @@ class TreeWidget(QWidget):
                         self.lineage_df["node_id"] == parent
                     ]
                     if not parent_df.empty:
-
                         adj.append([parent_df.index[0], i])
-                        if (
-                            parent_df["node_id"].values[0],
-                            node["node_id"],
-                        ) in self.pins:
-                            adj_colors.append(
-                                [255, 0, 0, 255, 255, 1]
-                            )  # pinned edges displayed in red
-                        else:
-                            adj_colors.append(
-                                parent_df["color"].values[0].tolist()
-                                + [255, 1]
-                            )
+                        adj_colors.append(
+                            parent_df["color"].values[0].tolist() + [255, 1]
+                        )
 
         self.lineage_pos = np.array(pos)
         self.lineage_adj = np.array(adj)
@@ -393,19 +382,9 @@ class TreeWidget(QWidget):
                     ]
                     if not parent_df.empty:
                         adj.append([parent_df.index[0], i])
-
-                        if (
-                            parent_df["node_id"].values[0],
-                            node["node_id"],
-                        ) in self.pins:
-                            adj_colors.append(
-                                [255, 0, 0, 255, 255, 1]
-                            )  # pinned edges displayed in red
-                        else:
-                            adj_colors.append(
-                                parent_df["color"].values[0].tolist()
-                                + [255, 1]
-                            )
+                        adj_colors.append(
+                            parent_df["color"].values[0].tolist() + [255, 1]
+                        )
 
         self.pos = np.array(pos)
         self.adj = np.array(adj)
