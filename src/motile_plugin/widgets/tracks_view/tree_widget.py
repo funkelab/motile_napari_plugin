@@ -404,11 +404,11 @@ class TreeWidget(QWidget):
             pg.mkPen(QColor(150, 150, 150))
         )  # first reset the pen to avoid problems with length mismatch between the different properties
         self.g.scatter.setSize(10)
-        self.g.scatter.clear()
 
         if self.mode == "lineage":
             self._update_lineage_df()
             self._create_lineage_pyqtgraph_content()
+
             if len(self.lineage_pos) > 0:
                 self.g.setData(
                     pos=self.lineage_pos,
@@ -418,8 +418,13 @@ class TreeWidget(QWidget):
                     pen=self.lineage_pen,
                     data=self.lineage_node_ids,
                 )
-                self.g.scatter.setPen(self.lineage_outline_pen)
-                self.g.scatter.setSize(self.lineage_size)
+            else:
+                self.g.setData(
+                    pos=[], adj=[], symbol=[], symbolBrush=[], pen=[], data=[]
+                )  # plot empty data
+
+            self.g.scatter.setPen(self.lineage_outline_pen)
+            self.g.scatter.setSize(self.lineage_size)
 
             self.tree_widget.setLabel("bottom", text="Time Point")
             self.tree_widget.setLabel("left", text="")
