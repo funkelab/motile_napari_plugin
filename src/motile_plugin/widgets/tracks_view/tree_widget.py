@@ -138,10 +138,10 @@ class TreeWidget(QWidget):
 
         if event.key() == Qt.Key_L:
             self.mode_widget._toggle_display_mode()
-        elif event.key() == Qt.Key_X:  # restrict mouse zoom scrolling in X
-            self.tree_widget.setMouseEnabled(x=False, y=True)
-        elif event.key() == Qt.Key_Y:  # restrict mouse zoom scrolling in Y
+        elif event.key() == Qt.Key_X:  # only allow mouse zoom scrolling in X
             self.tree_widget.setMouseEnabled(x=True, y=False)
+        elif event.key() == Qt.Key_Y:  # only allow mouse zoom scrolling in Y
+            self.tree_widget.setMouseEnabled(x=False, y=True)
         else:
             if event.key() not in direction_map:
                 return
