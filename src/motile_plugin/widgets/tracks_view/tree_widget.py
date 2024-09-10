@@ -308,6 +308,9 @@ class TreeWidget(QWidget):
         self.lineage_df = self.track_df[
             self.track_df["node_id"].isin(visible)
         ].reset_index()
+        self.lineage_df["x_axis_pos"] = (
+            self.lineage_df["x_axis_pos"].rank(method="dense").astype(int) - 1
+        )
         self.navigation_widget.lineage_df = self.lineage_df
 
     def _create_lineage_pyqtgraph_content(self) -> None:
