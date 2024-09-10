@@ -69,7 +69,6 @@ class TreeWidget(QWidget):
         self._reset_plotting_data()
 
         self.tracks_viewer = TracksViewer.get_instance(viewer)
-        self.colormap = self.tracks_viewer.colormap
         self.selected_nodes = self.tracks_viewer.selected_nodes
         self.selected_nodes.list_updated.connect(self._show_selected)
         self.tracks_viewer.tracks_updated.connect(self._update_track_data)
@@ -108,7 +107,8 @@ class TreeWidget(QWidget):
 
         self.setLayout(layout)
 
-        # check if the tracks_viewer already holds any tracks, if so, immediately call the update_tracks function
+        # check if the tracks_viewer already holds any tracks, if so,
+        # immediately call the update_tracks function
         if self.tracks_viewer.tracks is not None:
             self._update_track_data()
 
@@ -166,19 +166,19 @@ class TreeWidget(QWidget):
         """Called when the TracksViewer emits the tracks_updated signal, indicating
         that a new set of tracks should be viewed.
         """
-        self.track_df = extract_sorted_tracks(
-            self.tracks_viewer.tracks, self.tracks_viewer.colormap
-        )
-        self.lineage_df = pd.DataFrame()
-        self.navigation_widget.track_df = (
-            self.track_df
-        )  # also update the navagiation widget
-        self.navigation_widget.lineage_df = self.lineage_df
-        tracks = self.tracks_viewer.tracks
-        if tracks is None or tracks.graph is None:
+        if self.tracks_viewer.tracks is None:
+            self.track_df = pd.DataFrame()
             self.graph = None
         else:
+            self.track_df = extract_sorted_tracks(
+                self.tracks_viewer.tracks, self.tracks_viewer.colormap
+            )
             self.graph = self.tracks_viewer.tracks.graph
+
+        self.lineage_df = pd.DataFrame()
+        # also update the navigation widget
+        self.navigation_widget.track_df = self.track_df
+        self.navigation_widget.lineage_df = self.lineage_df
 
         # set mode back to all and view to vertical
         self.mode = "all"
