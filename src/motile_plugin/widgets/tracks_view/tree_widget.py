@@ -138,10 +138,20 @@ class TreeWidget(QWidget):
 
         if event.key() == Qt.Key_L:
             self.mode_widget._toggle_display_mode()
+        elif event.key() == Qt.Key_X:  # restrict mouse zoom scrolling in X
+            self.tree_widget.setMouseEnabled(x=False, y=True)
+        elif event.key() == Qt.Key_Y:  # restrict mouse zoom scrolling in Y
+            self.tree_widget.setMouseEnabled(x=True, y=False)
         else:
             if event.key() not in direction_map:
                 return
             self.navigation_widget.move(direction_map[event.key()])
+
+    def keyReleaseEvent(self, ev):
+        """Reset the mouse scrolling when releasing the X/Y key"""
+
+        if ev.key() == Qt.Key_X or ev.key() == Qt.Key_Y:
+            self.tree_widget.setMouseEnabled(x=True, y=True)
 
     def _reset_plotting_data(self) -> None:
         """Reset the plotting data if it had been generated before"""
