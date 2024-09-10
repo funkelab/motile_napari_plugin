@@ -87,7 +87,10 @@ class TreeWidget(QWidget):
 
         # Add navigation widget
         self.navigation_widget = NavigationWidget(
-            self.track_df, self.view_direction, self.selected_nodes
+            self.track_df,
+            self.lineage_df,
+            self.view_direction,
+            self.selected_nodes,
         )
 
         # Construct a toolbar and set main layout
@@ -164,6 +167,7 @@ class TreeWidget(QWidget):
         self.navigation_widget.track_df = (
             self.track_df
         )  # also update the navagiation widget
+        self.navigation_widget.lineage_df = self.lineage_df
         tracks = self.tracks_viewer.tracks
         if tracks is None or tracks.graph is None:
             self.graph = None
@@ -208,9 +212,9 @@ class TreeWidget(QWidget):
         if self.mode == "lineage":
 
             # check whether we have switched to a new lineage that needs to be computed or if we are still on the same lineage and can skip this step
-            if not all(
-                node in self.selected_nodes
-                for node in np.unique(self.lineage_df["node_id"].values)
+            if any(
+                node not in np.unique(self.lineage_df["node_id"].values)
+                for node in self.selected_nodes
             ):
                 self._create_lineage_df()
                 self._create_lineage_pyqtgraph_content()
@@ -289,6 +293,7 @@ class TreeWidget(QWidget):
         self.lineage_df = self.track_df[
             self.track_df["node_id"].isin(visible)
         ].reset_index()
+        self.navigation_widget.lineage_df = self.lineage_df
 
     def _create_lineage_pyqtgraph_content(self) -> None:
         """Create graph data for a specific lineage"""
@@ -461,6 +466,7 @@ class TreeWidget(QWidget):
             self.tree_widget.invertY(True)  # to show tracks from top to bottom
 
         self.tree_widget.autoRange()
+        self._show_selected()
 
     def _center_view(self, center_x: int, center_y: int):
         """Center the Viewbox on given coordinates"""

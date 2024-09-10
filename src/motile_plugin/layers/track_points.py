@@ -64,6 +64,18 @@ class TrackPoints(napari.layers.Points):
                     append = "Shift" in event.modifiers
                     self.selected_nodes.add(node_id, append)
 
+        # listen to updates in the selected data (from the point selection tool) to update the nodes in self.selected_nodes
+        self.selected_data.events.items_changed.connect(self._update_selection)
+
+    def _update_selection(self):
+        """Replaces the list of selected_nodes with the selection provided by the user"""
+
+        selected_points = self.selected_data
+        self.selected_nodes.reset()
+        for point in selected_points:
+            node_id = self.nodes[point]
+            self.selected_nodes.add(node_id, True)
+
     def get_symbols(
         self, tracks: Tracks, symbolmap: dict[NodeType, str]
     ) -> list[str]:

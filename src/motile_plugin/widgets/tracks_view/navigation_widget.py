@@ -13,6 +13,7 @@ class NavigationWidget(QWidget):
     def __init__(
         self,
         track_df: pd.DataFrame,
+        lineage_df: pd.DataFrame,
         view_direction: str,
         selected_nodes: NodeSelectionList,
     ):
@@ -26,6 +27,7 @@ class NavigationWidget(QWidget):
 
         super().__init__()
         self.track_df = track_df
+        self.lineage_df = lineage_df
         self.view_direction = view_direction
         self.selected_nodes = selected_nodes
 
@@ -66,20 +68,30 @@ class NavigationWidget(QWidget):
             if self.view_direction == "horizontal":
                 self.select_predecessor()
             else:
-                self.select_next_track(forward=False)
+                self.select_next_track(df=self.track_df, forward=False)
         elif direction == "right":
             if self.view_direction == "horizontal":
                 self.select_successor()
             else:
-                self.select_next_track()
+                self.select_next_track(df=self.track_df)
         elif direction == "up":
             if self.view_direction == "horizontal":
-                self.select_next_track()
+                if len(self.selected_nodes) == 1:
+                    self.select_next_track(df=self.track_df)
+                else:
+                    self.select_next_track(df=self.lineage_df)
             else:
                 self.select_predecessor()
         elif direction == "down":
             if self.view_direction == "horizontal":
-                self.select_next_track(forward=False)
+                if len(self.selected_nodes) == 1:
+                    self.select_next_track(
+                        df=self.track_df, forward=False
+                    )  # to enable jumping to the next node outside the current tree view content
+                else:
+                    self.select_next_track(
+                        df=self.lineage_df, forward=False
+                    )  # only enable navigation within the current lineage_df content since it is showing data for multiple lineages
             else:
                 self.select_successor()
         else:
@@ -87,30 +99,28 @@ class NavigationWidget(QWidget):
                 f"Direction must be one of 'left', 'right', 'up', 'down', got {direction}"
             )
 
-    def select_next_track(self, forward=True) -> None:
+    def select_next_track(self, df: pd.DataFrame, forward=True) -> None:
         """Select the node at the same time point in an adjacent track.
 
         Args:
+            df: the dataframe to be used. It can either be the full track_df, or the subset lineage_df
             forward (bool, optional): If true, pick the next track (right/down).
                 Otherwise, pick the previous track (left/up). Defaults to True.
         """
+
         if len(self.selected_nodes) > 0:
             node_id = self.selected_nodes[0]
-            x_axis_pos = self.track_df.loc[
-                self.track_df["node_id"] == node_id, "x_axis_pos"
-            ].values[0]
-            t = self.track_df.loc[
-                self.track_df["node_id"] == node_id, "t"
-            ].values[0]
+            x_axis_pos = df.loc[df["node_id"] == node_id, "x_axis_pos"].values[
+                0
+            ]
+            t = df.loc[df["node_id"] == node_id, "t"].values[0]
             if forward:
-                neighbors = self.track_df.loc[
-                    (self.track_df["x_axis_pos"] > x_axis_pos)
-                    & (self.track_df["t"] == t)
+                neighbors = df.loc[
+                    (df["x_axis_pos"] > x_axis_pos) & (df["t"] == t)
                 ]
             else:
-                neighbors = self.track_df.loc[
-                    (self.track_df["x_axis_pos"] < x_axis_pos)
-                    & (self.track_df["t"] == t)
+                neighbors = df.loc[
+                    (df["x_axis_pos"] < x_axis_pos) & (df["t"] == t)
                 ]
             if not neighbors.empty:
                 # Find the closest index label
