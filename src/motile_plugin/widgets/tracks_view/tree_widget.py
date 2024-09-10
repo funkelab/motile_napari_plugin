@@ -430,19 +430,17 @@ class TreeWidget(QWidget):
         if self.mode == "all":
             if self.pos is None:
                 self._create_pyqtgraph_content()
-            if len(self.pos) > 0:
-                self.g.setData(
-                    pos=self.pos,
-                    adj=self.adj,
-                    symbol=self.symbols,
-                    symbolBrush=self.symbolBrush,
-                    pen=self.pen,
-                    data=self.node_ids,
-                )
-                self.g.scatter.setPen(self.outline_pen)
-                self.g.scatter.setSize(self.size)
-            else:
-                self.g.scatter.clear()
+
+            self.g.setData(
+                pos=self.pos,
+                adj=self.adj,
+                symbol=self.symbols,
+                symbolBrush=self.symbolBrush,
+                pen=self.pen,
+                data=self.node_ids,
+            )
+            self.g.scatter.setPen(self.outline_pen)
+            self.g.scatter.setSize(self.size)
 
             self.tree_widget.setLabel("left", text="Time Point")
             self.tree_widget.setLabel("bottom", text="")
