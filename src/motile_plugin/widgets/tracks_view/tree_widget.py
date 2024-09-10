@@ -316,27 +316,27 @@ class TreeWidget(QWidget):
     def _create_lineage_pyqtgraph_content(self) -> None:
         """Create graph data for a specific lineage"""
 
-        pos = []
-        pos_colors = []
-        adj = []
-        adj_colors = []
-        symbols = []
-        sizes = []
+        self.lineage_pos = []
+        self.lineage_symbolBrush = []
+        self.lineage_adj = []
+        self.lineage_pen = []
+        self.lineage_symbols = []
+        self.lineage_size = []
         self.lineage_node_ids = []
 
         if not self.lineage_df.empty:
             for i, node in self.lineage_df.iterrows():
                 if node["symbol"] == "triangle_up":
-                    symbols.append("t1")
+                    self.lineage_symbols.append("t1")
                 elif node["symbol"] == "x":
-                    symbols.append("x")
+                    self.lineage_symbols.append("x")
                 else:
-                    symbols.append("o")
-                pos_colors.append(node["color"])
+                    self.lineage_symbols.append("o")
+                self.lineage_symbolBrush.append(node["color"])
                 self.lineage_node_ids.append(node["node_id"])
-                sizes.append(8)
+                self.lineage_size.append(8)
 
-                pos.append([node["t"], node["x_axis_pos"]])
+                self.lineage_pos.append([node["t"], node["x_axis_pos"]])
 
                 parent = node["parent_id"]
                 if parent != 0:
@@ -344,17 +344,16 @@ class TreeWidget(QWidget):
                         self.lineage_df["node_id"] == parent
                     ]
                     if not parent_df.empty:
-                        adj.append([parent_df.index[0], i])
-                        adj_colors.append(
+                        self.lineage_adj.append([parent_df.index[0], i])
+                        self.lineage_pen.append(
                             parent_df["color"].values[0].tolist() + [255, 1]
                         )
 
-        self.lineage_pos = np.array(pos)
-        self.lineage_adj = np.array(adj)
-        self.lineage_symbols = symbols
-        self.lineage_symbolBrush = np.array(pos_colors)
-        self.lineage_pen = np.array(adj_colors)
-        self.lineage_size = np.array(sizes)
+            self.lineage_pos = np.array(self.lineage_pos)
+            self.lineage_adj = np.array(self.lineage_adj)
+            self.lineage_symbolBrush = np.array(self.lineage_symbolBrush)
+            self.lineage_pen = np.array(self.lineage_pen)
+            self.lineage_size = np.array(self.lineage_size)
 
         self.lineage_outline_pen = np.array(
             [
@@ -366,27 +365,27 @@ class TreeWidget(QWidget):
     def _create_pyqtgraph_content(self) -> None:
         """Calculate the pyqtgraph data for plotting"""
 
-        pos = []
-        pos_colors = []
-        adj = []
-        adj_colors = []
-        symbols = []
-        sizes = []
+        self.pos = []
+        self.symbolBrush = []
+        self.adj = []
+        self.pen = []
+        self.symbols = []
+        self.size = []
         self.node_ids = []
 
         if self.track_df is not None:
             for i, node in self.track_df.iterrows():
                 if node["symbol"] == "triangle_up":
-                    symbols.append("t1")
+                    self.symbols.append("t1")
                 elif node["symbol"] == "x":
-                    symbols.append("x")
+                    self.symbols.append("x")
                 else:
-                    symbols.append("o")
+                    self.symbols.append("o")
 
-                pos_colors.append(node["color"])
-                sizes.append(8)
+                self.symbolBrush.append(node["color"])
+                self.size.append(8)
 
-                pos.append([node["x_axis_pos"], node["t"]])
+                self.pos.append([node["x_axis_pos"], node["t"]])
                 self.node_ids.append(node["node_id"])
                 parent = node["parent_id"]
                 if parent != 0:
@@ -394,17 +393,16 @@ class TreeWidget(QWidget):
                         self.track_df["node_id"] == parent
                     ]
                     if not parent_df.empty:
-                        adj.append([parent_df.index[0], i])
-                        adj_colors.append(
+                        self.adj.append([parent_df.index[0], i])
+                        self.pen.append(
                             parent_df["color"].values[0].tolist() + [255, 1]
                         )
 
-        self.pos = np.array(pos)
-        self.adj = np.array(adj)
-        self.symbols = symbols
-        self.symbolBrush = np.array(pos_colors)
-        self.pen = np.array(adj_colors)
-        self.size = np.array(sizes)
+            self.pos = np.array(self.pos)
+            self.adj = np.array(self.adj)
+            self.symbolBrush = np.array(self.symbolBrush)
+            self.pen = np.array(self.pen)
+            self.size = np.array(self.size)
 
         self.outline_pen = np.array(
             [pg.mkPen(QColor(150, 150, 150)) for i in range(len(self.pos))]
@@ -422,19 +420,14 @@ class TreeWidget(QWidget):
             self._update_lineage_df()
             self._create_lineage_pyqtgraph_content()
 
-            if len(self.lineage_pos) > 0:
-                self.g.setData(
-                    pos=self.lineage_pos,
-                    adj=self.lineage_adj,
-                    symbol=self.lineage_symbols,
-                    symbolBrush=self.lineage_symbolBrush,
-                    pen=self.lineage_pen,
-                    data=self.lineage_node_ids,
-                )
-            else:
-                self.g.setData(
-                    pos=[], adj=[], symbol=[], symbolBrush=[], pen=[], data=[]
-                )  # plot empty data
+            self.g.setData(
+                pos=self.lineage_pos,
+                adj=self.lineage_adj,
+                symbol=self.lineage_symbols,
+                symbolBrush=self.lineage_symbolBrush,
+                pen=self.lineage_pen,
+                data=self.lineage_node_ids,
+            )
 
             self.g.scatter.setPen(self.lineage_outline_pen)
             self.g.scatter.setSize(self.lineage_size)
