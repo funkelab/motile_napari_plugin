@@ -63,93 +63,111 @@ class NavigationWidget(QWidget):
             direction (str): The direction to move. Options: "up", "down",
                 "left", "right"
         """
+        if len(self.selected_nodes) == 0:
+            return
+        node_id = self.selected_nodes[0]
 
         if direction == "left":
             if self.view_direction == "horizontal":
-                self.select_predecessor()
+                next_node = self.get_predecessor(node_id)
             else:
-                self.select_next_track(df=self.track_df, forward=False)
+                next_node = self.get_next_track_node(
+                    self.track_df, node_id, forward=False
+                )
         elif direction == "right":
             if self.view_direction == "horizontal":
-                self.select_successor()
+                next_node = self.get_successor(node_id)
             else:
-                self.select_next_track(df=self.track_df)
+                next_node = self.get_next_track_node(self.track_df, node_id)
         elif direction == "up":
             if self.view_direction == "horizontal":
-                if len(self.selected_nodes) == 1:
-                    self.select_next_track(df=self.track_df)
-                else:
-                    self.select_next_track(df=self.lineage_df)
+                next_node = self.get_next_track_node(self.lineage_df, node_id)
+                if next_node is None:
+                    next_node = self.get_next_track_node(
+                        self.track_df, node_id
+                    )
             else:
-                self.select_predecessor()
+                next_node = self.get_predecessor(node_id)
         elif direction == "down":
             if self.view_direction == "horizontal":
-                if len(self.selected_nodes) == 1:
-                    self.select_next_track(
-                        df=self.track_df, forward=False
-                    )  # to enable jumping to the next node outside the current tree view content
-                else:
-                    self.select_next_track(
-                        df=self.lineage_df, forward=False
-                    )  # only enable navigation within the current lineage_df content since it is showing data for multiple lineages
+                # try navigation within the current lineage_df first
+                next_node = self.get_next_track_node(
+                    self.lineage_df, node_id, forward=False
+                )
+                # if not found, look in the whole dataframe
+                # to enable jumping to the next node outside the current tree view content
+                if next_node is None:
+                    next_node = self.get_next_track_node(
+                        self.track_df, node_id, forward=False
+                    )
             else:
-                self.select_successor()
+                next_node = self.get_successor(node_id)
         else:
             raise ValueError(
                 f"Direction must be one of 'left', 'right', 'up', 'down', got {direction}"
             )
 
-    def select_next_track(self, df: pd.DataFrame, forward=True) -> None:
-        """Select the node at the same time point in an adjacent track.
+        self.selected_nodes.add(next_node)
+
+    def get_next_track_node(
+        self, df: pd.DataFrame, node_id: str, forward=True
+    ) -> str | None:
+        """Get the node at the same time point in an adjacent track.
 
         Args:
-            df: the dataframe to be used. It can either be the full track_df, or the subset lineage_df
+            df (pd.DataFrame): the dataframe to be used. It can either be the
+                full track_df, or the subset lineage_df
+            node_id (str): The current node id to get the next from
             forward (bool, optional): If true, pick the next track (right/down).
                 Otherwise, pick the previous track (left/up). Defaults to True.
         """
-
-        if len(self.selected_nodes) > 0:
-            node_id = self.selected_nodes[0]
-            x_axis_pos = df.loc[df["node_id"] == node_id, "x_axis_pos"].values[
-                0
+        x_axis_pos = df.loc[df["node_id"] == node_id, "x_axis_pos"].values[0]
+        t = df.loc[df["node_id"] == node_id, "t"].values[0]
+        if forward:
+            neighbors = df.loc[
+                (df["x_axis_pos"] > x_axis_pos) & (df["t"] == t)
             ]
-            t = df.loc[df["node_id"] == node_id, "t"].values[0]
-            if forward:
-                neighbors = df.loc[
-                    (df["x_axis_pos"] > x_axis_pos) & (df["t"] == t)
-                ]
-            else:
-                neighbors = df.loc[
-                    (df["x_axis_pos"] < x_axis_pos) & (df["t"] == t)
-                ]
-            if not neighbors.empty:
-                # Find the closest index label
-                closest_index_label = (
-                    (neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
-                )
-                neighbor = neighbors.loc[closest_index_label, "node_id"]
-                self.selected_nodes.add(neighbor)
-
-    def select_predecessor(self) -> None:
-        """Jump one node up"""
-
-        if len(self.selected_nodes) > 0:
-            node_id = self.selected_nodes[0]
-            parent_id = self.track_df.loc[
-                self.track_df["node_id"] == node_id, "parent_id"
-            ].values[0]
-            parent_row = self.track_df.loc[
-                self.track_df["node_id"] == parent_id
+        else:
+            neighbors = df.loc[
+                (df["x_axis_pos"] < x_axis_pos) & (df["t"] == t)
             ]
-            if not parent_row.empty:
-                self.selected_nodes.add(parent_row["node_id"].values[0])
+        if not neighbors.empty:
+            # Find the closest index label
+            closest_index_label = (
+                (neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
+            )
+            neighbor = neighbors.loc[closest_index_label, "node_id"]
+            return neighbor
 
-    def select_successor(self) -> None:
-        """Jump one node down"""
+    def get_predecessor(self, node_id: str) -> str | None:
+        """Get the predecessor node of the given node_id
 
-        if len(self.selected_nodes) > 0:
-            node_id = self.selected_nodes[0]
-            children = self.track_df.loc[self.track_df["parent_id"] == node_id]
-            if not children.empty:
-                child = children.to_dict("records")[0]
-                self.selected_nodes.add(child["node_id"])
+        Args:
+            node_id (str): the node id to get the predecessor of
+
+        Returns:
+            str | None: THe node id of the predecessor, or none if no predecessor
+            is found
+        """
+        parent_id = self.track_df.loc[
+            self.track_df["node_id"] == node_id, "parent_id"
+        ].values[0]
+        parent_row = self.track_df.loc[self.track_df["node_id"] == parent_id]
+        if not parent_row.empty:
+            return parent_row["node_id"].values[0]
+
+    def get_successor(self, node_id: str) -> str | None:
+        """Get the successor node of the given node_id. If there are two children,
+        picks one arbitrarily.
+
+        Args:
+            node_id (str): the node id to get the successor of
+
+        Returns:
+            str | None: THe node id of the successor, or none if no successor
+            is found
+        """
+        children = self.track_df.loc[self.track_df["parent_id"] == node_id]
+        if not children.empty:
+            child = children.to_dict("records")[0]
+            return child["node_id"]

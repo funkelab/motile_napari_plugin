@@ -57,8 +57,10 @@ class TreeWidget(QWidget):
 
     def __init__(self, viewer: napari.Viewer):
         super().__init__()
-        self.track_df = pd.DataFrame()
-        self.lineage_df = pd.DataFrame()
+        self.track_df = pd.DataFrame()  # all tracks
+        self.lineage_df = (
+            pd.DataFrame()
+        )  # the currently viewed subset of lineages
         self.graph = None
         self.mode = "all"  # options: "all", "lineage"
         self.view_direction = "vertical"  # options: "horizontal", "vertical"
@@ -112,7 +114,9 @@ class TreeWidget(QWidget):
             self._update_track_data()
 
     def _get_tree_widget(self) -> pg.PlotWidget:
-        """Construct the pyqtgraph treewidget"""
+        """Construct the pyqtgraph treewidget. This is the actual canvas
+        on which the tree view is drawn.
+        """
 
         vb = CustomViewBox()
         tree_widget = pg.PlotWidget(viewBox=vb)
@@ -160,10 +164,13 @@ class TreeWidget(QWidget):
         self.lineage_node_ids = None
 
     def _update_track_data(self) -> None:
-
+        """Called when the TracksViewer emits the tracks_updated signal, indicating
+        that a new set of tracks should be viewed.
+        """
         self.track_df = extract_sorted_tracks(
             self.tracks_viewer.tracks, self.tracks_viewer.colormap
         )
+        self.lineage_df = pd.DataFrame()
         self.navigation_widget.track_df = (
             self.track_df
         )  # also update the navagiation widget
@@ -216,7 +223,7 @@ class TreeWidget(QWidget):
                 node not in np.unique(self.lineage_df["node_id"].values)
                 for node in self.selected_nodes
             ):
-                self._create_lineage_df()
+                self._update_lineage_df()
                 self._create_lineage_pyqtgraph_content()
                 update_view = (
                     True  # only update the view when a new lineage is selected
@@ -284,9 +291,8 @@ class TreeWidget(QWidget):
             self.g.scatter.setPen(outlines)
             self.g.scatter.setSize(size)
 
-    def _create_lineage_df(self) -> None:
+    def _update_lineage_df(self) -> None:
         """Subset dataframe to include only nodes belonging to the current lineage"""
-
         visible = []
         for node_id in self.selected_nodes:
             visible += extract_lineage_tree(self.graph, node_id)
@@ -422,7 +428,7 @@ class TreeWidget(QWidget):
         self.g.scatter.clear()
 
         if self.mode == "lineage":
-            self._create_lineage_df()
+            self._update_lineage_df()
             self._create_lineage_pyqtgraph_content()
             if len(self.lineage_pos) > 0:
                 self.g.setData(
