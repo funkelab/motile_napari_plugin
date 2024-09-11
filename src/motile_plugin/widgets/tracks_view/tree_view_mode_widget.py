@@ -45,13 +45,10 @@ class TreeViewModeWidget(QWidget):
         """Toggle display mode"""
 
         if self.mode == "lineage":
-            self.mode = "all"
-            self.change_mode.emit("all")
+            self._set_mode("all")
             self.show_all_radio.setChecked(True)
         else:
             self._set_mode("lineage")
-            self.mode = "lineage"
-            self.change_mode.emit("lineage")
             self.show_lineage_radio.setChecked(True)
 
     def _set_mode(self, mode: str):

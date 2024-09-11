@@ -9,7 +9,7 @@ from matplotlib.colors import to_rgba
 from motile_plugin.core import NodeType, Tracks
 from napari import Viewer
 from napari.utils import Colormap, DirectLabelColormap
-from PyQt5.QtCore import Qt
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QPushButton
 
 
@@ -65,13 +65,13 @@ def extract_sorted_tracks(
             pos = tracks.get_location(node)
             if node in parent_nodes:
                 state = NodeType.SPLIT
-                symbol = "triangle_up"
+                symbol = "t1"
             elif node in end_nodes:
                 state = NodeType.END
                 symbol = "x"
             else:
                 state = NodeType.CONTINUE
-                symbol = "disc"
+                symbol = "o"
 
             track_id = solution_nx_graph.nodes[node]["tracklet_id"]
             track_dict = {
