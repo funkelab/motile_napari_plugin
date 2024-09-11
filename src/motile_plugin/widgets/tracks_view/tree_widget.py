@@ -185,6 +185,7 @@ class TreePlot(pg.PlotWidget):
         self.symbolBrush = []
         self.pen = []
         self.sizes = []
+        self.node_ids = []
 
         if track_df is not None and not track_df.empty:
             self.symbols = track_df["symbol"].to_list()
@@ -422,9 +423,9 @@ class TreeWidget(QWidget):
             self.view_direction = "vertical"
             df = self.track_df
         elif mode == "lineage":
-            if len(self.selected_nodes) == 0:
-                # don't change the mode
-                pass
+            # if len(self.selected_nodes) == 0:
+            #     # don't change the mode
+            #     pass
             self.view_direction = "horizontal"
             self._update_lineage_df()
             df = self.lineage_df
