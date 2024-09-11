@@ -58,6 +58,10 @@ def solve(
             solver_params.max_edge_distance,
             iou=solver_params.iou_cost is not None,
         )
+
+    # 1. add the hyperedges using that function
+    # 2. make the motile.TrackGraph here
+    # 3. add the area attribute with the other function
     logger.debug("Cand graph has %d nodes", cand_graph.number_of_nodes())
     solver = construct_solver(cand_graph, solver_params)
     start_time = time.time()
@@ -88,7 +92,8 @@ def construct_solver(
     solver = Solver(
         TrackGraph(cand_graph, frame_attribute=NodeAttr.TIME.value)
     )
-    solver.add_constraints(MaxChildren(solver_params.max_children))
+    # 4. Set max children to 1 (because its actuall max out edges)
+    solver.add_constraints(MaxChildren(solver_params.max_children)) 
     solver.add_constraints(MaxParents(1))
 
     # Using EdgeDistance instead of EdgeSelection for the constant cost because
@@ -115,6 +120,14 @@ def construct_solver(
             ),
             name="distance",
         )
+    # 5. Add an Edge Selection cost with the area diff (hard code the weight)
+    solver.add_costs(
+        EdgeSelection(
+            weight= # hard code the weight
+            attribute="area_diff",
+        ),
+        name="area",
+    )
     if solver_params.iou_cost is not None:
         solver.add_costs(
             EdgeSelection(
