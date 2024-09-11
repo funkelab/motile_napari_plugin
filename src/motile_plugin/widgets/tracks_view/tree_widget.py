@@ -423,9 +423,6 @@ class TreeWidget(QWidget):
             self.view_direction = "vertical"
             df = self.track_df
         elif mode == "lineage":
-            # if len(self.selected_nodes) == 0:
-            #     # don't change the mode
-            #     pass
             self.view_direction = "horizontal"
             self._update_lineage_df()
             df = self.lineage_df
