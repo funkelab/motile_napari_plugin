@@ -14,6 +14,7 @@ from motile_toolbox.candidate_graph import (
     get_candidate_graph_from_points_list,
     graph_to_nx,
 )
+from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
 
 from .solver_params import SolverParams
 
@@ -66,7 +67,7 @@ def solve(
 
     solution_graph = solver.get_selected_subgraph(solution=solution)
     solution_nx_graph = graph_to_nx(solution_graph)
-
+    solution_nx_graph, _ = assign_tracklet_ids(solution_nx_graph)
     return solution_nx_graph
 
 

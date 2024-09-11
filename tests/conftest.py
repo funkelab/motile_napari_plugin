@@ -71,7 +71,7 @@ def graph_2d():
         (
             "0_1",
             {
-                NodeAttr.POS.value: (50, 50),
+                NodeAttr.POS.value: [50, 50],
                 NodeAttr.TIME.value: 0,
                 NodeAttr.SEG_ID.value: 1,
             },
@@ -79,7 +79,7 @@ def graph_2d():
         (
             "1_1",
             {
-                NodeAttr.POS.value: (20, 80),
+                NodeAttr.POS.value: [20, 80],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_ID.value: 1,
             },
@@ -87,7 +87,7 @@ def graph_2d():
         (
             "1_2",
             {
-                NodeAttr.POS.value: (60, 45),
+                NodeAttr.POS.value: [60, 45],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_ID.value: 2,
             },
@@ -117,7 +117,7 @@ def multi_hypothesis_graph_2d():
         (
             "0_0_1",
             {
-                NodeAttr.POS.value: (50, 50),
+                NodeAttr.POS.value: [50, 50],
                 NodeAttr.TIME.value: 0,
                 NodeAttr.SEG_HYPO.value: 0,
                 NodeAttr.SEG_ID.value: 1,
@@ -126,7 +126,7 @@ def multi_hypothesis_graph_2d():
         (
             "0_1_1",
             {
-                NodeAttr.POS.value: (45, 45),
+                NodeAttr.POS.value: [45, 45],
                 NodeAttr.TIME.value: 0,
                 NodeAttr.SEG_HYPO.value: 1,
                 NodeAttr.SEG_ID.value: 1,
@@ -135,7 +135,7 @@ def multi_hypothesis_graph_2d():
         (
             "1_0_1",
             {
-                NodeAttr.POS.value: (20, 80),
+                NodeAttr.POS.value: [20, 80],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_HYPO.value: 0,
                 NodeAttr.SEG_ID.value: 1,
@@ -144,7 +144,7 @@ def multi_hypothesis_graph_2d():
         (
             "1_1_1",
             {
-                NodeAttr.POS.value: (15, 75),
+                NodeAttr.POS.value: [15, 75],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_HYPO.value: 1,
                 NodeAttr.SEG_ID.value: 1,
@@ -153,7 +153,7 @@ def multi_hypothesis_graph_2d():
         (
             "1_0_2",
             {
-                NodeAttr.POS.value: (60, 45),
+                NodeAttr.POS.value: [60, 45],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_HYPO.value: 0,
                 NodeAttr.SEG_ID.value: 2,
@@ -162,7 +162,7 @@ def multi_hypothesis_graph_2d():
         (
             "1_1_2",
             {
-                NodeAttr.POS.value: (55, 40),
+                NodeAttr.POS.value: [55, 40],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_HYPO.value: 1,
                 NodeAttr.SEG_ID.value: 2,
@@ -286,7 +286,7 @@ def graph_3d():
         (
             "0_1",
             {
-                NodeAttr.POS.value: (50, 50, 50),
+                NodeAttr.POS.value: [50, 50, 50],
                 NodeAttr.TIME.value: 0,
                 NodeAttr.SEG_ID.value: 1,
             },
@@ -294,7 +294,7 @@ def graph_3d():
         (
             "1_1",
             {
-                NodeAttr.POS.value: (20, 50, 80),
+                NodeAttr.POS.value: [20, 50, 80],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_ID.value: 1,
             },
@@ -302,7 +302,7 @@ def graph_3d():
         (
             "1_2",
             {
-                NodeAttr.POS.value: (60, 50, 45),
+                NodeAttr.POS.value: [60, 50, 45],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_ID.value: 2,
             },
@@ -324,7 +324,7 @@ def multi_hypothesis_graph_3d():
         (
             "0_0_1",
             {
-                NodeAttr.POS.value: (50, 50, 50),
+                NodeAttr.POS.value: [50, 50, 50],
                 NodeAttr.TIME.value: 0,
                 NodeAttr.SEG_HYPO.value: 0,
                 NodeAttr.SEG_ID.value: 1,
@@ -333,7 +333,7 @@ def multi_hypothesis_graph_3d():
         (
             "0_1_1",
             {
-                NodeAttr.POS.value: (45, 50, 55),
+                NodeAttr.POS.value: [45, 50, 55],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_HYPO.value: 1,
                 NodeAttr.SEG_ID.value: 1,
@@ -342,7 +342,7 @@ def multi_hypothesis_graph_3d():
         (
             "1_0_1",
             {
-                NodeAttr.POS.value: (20, 50, 80),
+                NodeAttr.POS.value: [20, 50, 80],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_HYPO.value: 0,
                 NodeAttr.SEG_ID.value: 1,
@@ -351,7 +351,7 @@ def multi_hypothesis_graph_3d():
         (
             "1_0_2",
             {
-                NodeAttr.POS.value: (60, 50, 45),
+                NodeAttr.POS.value: [60, 50, 45],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_HYPO.value: 0,
                 NodeAttr.SEG_ID.value: 2,
@@ -360,7 +360,7 @@ def multi_hypothesis_graph_3d():
         (
             "1_1_1",
             {
-                NodeAttr.POS.value: (15, 50, 70),
+                NodeAttr.POS.value: [15, 50, 70],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_HYPO.value: 1,
                 NodeAttr.SEG_ID.value: 1,

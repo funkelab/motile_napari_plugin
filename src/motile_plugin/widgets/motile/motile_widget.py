@@ -1,12 +1,13 @@
 import logging
 
-from motile_toolbox.utils import relabel_segmentation
-from motile_toolbox.visualization import to_napari_tracks_layer
+import networkx as nx
+import numpy as np
+from motile_toolbox.candidate_graph import NodeAttr
 from napari import Viewer
-from napari.layers import Labels, Tracks
-from qtpy.QtCore import Signal
+from psygnal import Signal
 from qtpy.QtWidgets import (
     QLabel,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -14,6 +15,8 @@ from superqt.utils import thread_worker
 
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.backend.solve import solve
+from motile_plugin.core import Tracks
+from motile_plugin.widgets.tracks_view.tracks_viewer import TracksViewer
 
 from .run_editor import RunEditor
 from .run_viewer import RunViewer
@@ -22,22 +25,24 @@ from .runs_list import RunsList
 logger = logging.getLogger(__name__)
 
 
-class MotileWidget(QWidget):
-    """The main widget for the motile napari plugin. Coordinates sub-widgets
-    and calls the back-end motile solver.
+class MotileWidget(QScrollArea):
+    """A widget that controls the backend components of the motile napari plugin.
+    Recieves user input about solver parameters, runs motile, and passes
+    results to the TrackingViewController.
     """
 
     # A signal for passing events from the motile solver to the run view widget
     # To provide updates on progress of the solver
     solver_update = Signal()
+    view_tracks = Signal(Tracks, str)
+    remove_layers = Signal()
 
     def __init__(self, viewer: Viewer):
         super().__init__()
         self.viewer: Viewer = viewer
-
-        # Declare napari layers for displaying outputs (managed by the widget)
-        self.output_seg_layer: Labels | None = None
-        self.tracks_layer: Tracks | None = None
+        tracks_viewer = TracksViewer.get_instance(self.viewer)
+        self.view_tracks.connect(tracks_viewer.update_tracks)
+        self.remove_layers.connect(tracks_viewer.remove_napari_layers)
 
         # Create sub-widgets and connect signals
         self.edit_run_widget = RunEditor(self.viewer)
@@ -49,7 +54,7 @@ class MotileWidget(QWidget):
         self.solver_update.connect(self.view_run_widget.solver_event_update)
 
         self.run_list_widget = RunsList()
-        self.run_list_widget.view_run.connect(self.view_run_napari)
+        self.run_list_widget.view_run.connect(self.view_run)
 
         # Create main layout
         main_layout = QVBoxLayout()
@@ -57,53 +62,12 @@ class MotileWidget(QWidget):
         main_layout.addWidget(self.view_run_widget)
         main_layout.addWidget(self.edit_run_widget)
         main_layout.addWidget(self.run_list_widget)
-        self.setLayout(main_layout)
+        main_widget = QWidget()
+        main_widget.setLayout(main_layout)
+        self.setWidget(main_widget)
+        self.setWidgetResizable(True)
 
-    def remove_napari_layers(self) -> None:
-        """Remove the currently stored layers from the napari viewer, if present"""
-        if (
-            self.output_seg_layer
-            and self.output_seg_layer in self.viewer.layers
-        ):
-            self.viewer.layers.remove(self.output_seg_layer)
-        if self.tracks_layer and self.tracks_layer in self.viewer.layers:
-            self.viewer.layers.remove(self.tracks_layer)
-
-    def update_napari_layers(self, run: MotileRun) -> None:
-        """Remove the old napari layers and update them according to the run output.
-        Will create new segmentation and tracks layers and add them to the viewer.
-
-        Args:
-            run (MotileRun): The run outputs to visualize in napari.
-        """
-        # Remove old layers if necessary
-        self.remove_napari_layers()
-
-        # Create new layers
-        if run.output_segmentation is not None:
-            self.output_seg_layer = Labels(
-                run.output_segmentation[:, 0], name=run.run_name + "_seg"
-            )
-            self.viewer.add_layer(self.output_seg_layer)
-        else:
-            self.output_seg_layer = None
-
-        if run.tracks is None or run.tracks.number_of_nodes() == 0:
-            self.tracks_layer = None
-        else:
-            track_data, track_props, track_edges = to_napari_tracks_layer(
-                run.tracks
-            )
-            self.tracks_layer = Tracks(
-                track_data,
-                properties=track_props,
-                graph=track_edges,
-                name=run.run_name + "_tracks",
-                tail_length=3,
-            )
-            self.viewer.add_layer(self.tracks_layer)
-
-    def view_run_napari(self, run: MotileRun) -> None:
+    def view_run(self, run: MotileRun) -> None:
         """Populates the run viewer and the napari layers with the output
         of the provided run.
 
@@ -113,7 +77,7 @@ class MotileWidget(QWidget):
         self.view_run_widget.update_run(run)
         self.edit_run_widget.hide()
         self.view_run_widget.show()
-        self.update_napari_layers(run)
+        self.view_tracks.emit(run.tracks, run.run_name)
 
     def edit_run(self, run: MotileRun | None):
         """Create or edit a new run in the run editor. Also removes solution layers
@@ -127,7 +91,7 @@ class MotileWidget(QWidget):
         if run:
             self.edit_run_widget.new_run(run)
         self.run_list_widget.runs_list.clearSelection()
-        self.remove_napari_layers()
+        self.remove_layers.emit()
 
     def _generate_tracks(self, run: MotileRun) -> None:
         """Called when we start solving a new run. Switches from run editor to run viewer
@@ -141,6 +105,47 @@ class MotileWidget(QWidget):
         worker = self.solve_with_motile(run)
         worker.returned.connect(self._on_solve_complete)
         worker.start()
+
+    def relabel_segmentation(
+        self,
+        solution_nx_graph: nx.DiGraph,
+        segmentation: np.ndarray,
+    ) -> np.ndarray:
+        """Relabel a segmentation based on tracking results so that nodes in same
+        track share the same id. IDs do change at division.
+
+        Args:
+            solution_nx_graph (nx.DiGraph): Networkx graph with the solution to use
+                for relabeling. Nodes not in graph will be removed from seg. Original
+                segmentation ids and hypothesis ids have to be stored in the graph so we
+                can map them back.
+            segmentation (np.ndarray): Original (potentially multi-hypothesis)
+                segmentation with dimensions (t,h,[z],y,x), where h is 1 for single
+                input segmentation.
+
+        Returns:
+            np.ndarray: Relabeled segmentation array where nodes in same track share same
+                id with shape (t,1,[z],y,x)
+        """
+        output_shape = (segmentation.shape[0], 1, *segmentation.shape[2:])
+        tracked_masks = np.zeros_like(segmentation, shape=output_shape)
+        for node, _data in solution_nx_graph.nodes(data=True):
+            time_frame = solution_nx_graph.nodes[node][NodeAttr.TIME.value]
+            previous_seg_id = solution_nx_graph.nodes[node][
+                NodeAttr.SEG_ID.value
+            ]
+            tracklet_id = solution_nx_graph.nodes[node]["tracklet_id"]
+            if NodeAttr.SEG_HYPO.value in solution_nx_graph.nodes[node]:
+                hypothesis_id = solution_nx_graph.nodes[node][
+                    NodeAttr.SEG_HYPO.value
+                ]
+            else:
+                hypothesis_id = 0
+            previous_seg_mask = (
+                segmentation[time_frame, hypothesis_id] == previous_seg_id
+            )
+            tracked_masks[time_frame, 0][previous_seg_mask] = tracklet_id
+        return tracked_masks
 
     @thread_worker
     def solve_with_motile(self, run: MotileRun) -> MotileRun:
@@ -163,15 +168,20 @@ class MotileWidget(QWidget):
             input_data = run.input_points
         else:
             raise ValueError("Must have one of input segmentation or points")
-        run.tracks = solve(
+        graph = solve(
             run.solver_params,
             input_data,
             lambda event_data: self._on_solver_event(run, event_data),
         )
         if run.input_segmentation is not None:
-            run.output_segmentation = relabel_segmentation(
-                run.tracks, run.input_segmentation
+            output_segmentation = self.relabel_segmentation(
+                graph, run.input_segmentation
             )
+        else:
+            output_segmentation = None
+        run.tracks = Tracks(
+            graph=graph, segmentation=output_segmentation, scale=run.scale
+        )
         return run
 
     def _on_solver_event(self, run: MotileRun, event_data: dict) -> None:
@@ -210,7 +220,7 @@ class MotileWidget(QWidget):
         """
         run.status = "done"
         self.solver_update.emit()
-        self.view_run_napari(run)
+        self.view_run(run)
 
     def _title_widget(self) -> QWidget:
         """Create the title and intro paragraph widget, with links to docs

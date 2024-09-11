@@ -12,6 +12,9 @@ by framing the task as an Integer Linear Program (ILP).
 See the motile [documentation](https://funkelab.github.io/motile)
 for more details on the concepts and method.
 
+Browsing tracking data with interactive lineage tree
+![](docs/images/motile_napari_tree_view.gif)
+
 ----------------------------------
 
 ## Installation
