@@ -106,8 +106,8 @@ class NavigationWidget(QWidget):
             raise ValueError(
                 f"Direction must be one of 'left', 'right', 'up', 'down', got {direction}"
             )
-
-        self.selected_nodes.add(next_node)
+        if next_node is not None:
+            self.selected_nodes.add(next_node)
 
     def get_next_track_node(
         self, df: pd.DataFrame, node_id: str, forward=True

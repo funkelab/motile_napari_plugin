@@ -349,11 +349,13 @@ class TreeWidget(QWidget):
 
         if event.key() == Qt.Key_L:
             self.mode_widget._toggle_display_mode()
-        elif event.key() == Qt.Key_Y:  # only zoom in Y
-            self.tree_widget.setMouseEnabled(x=False, y=True)
-        elif event.key() == Qt.Key_X:  # Only zoom in X
+        elif event.key() == Qt.Key_X:  # only allow mouse zoom scrolling in X
             self.tree_widget.setMouseEnabled(x=True, y=False)
-        elif event.key() in direction_map:
+        elif event.key() == Qt.Key_Y:  # only allow mouse zoom scrolling in Y
+            self.tree_widget.setMouseEnabled(x=False, y=True)
+        else:
+            if event.key() not in direction_map:
+                return
             self.navigation_widget.move(direction_map[event.key()])
 
     def keyReleaseEvent(self, ev):
@@ -430,4 +432,7 @@ class TreeWidget(QWidget):
         self.lineage_df = self.track_df[
             self.track_df["node_id"].isin(visible)
         ].reset_index()
+        self.lineage_df["x_axis_pos"] = (
+            self.lineage_df["x_axis_pos"].rank(method="dense").astype(int) - 1
+        )
         self.navigation_widget.lineage_df = self.lineage_df
