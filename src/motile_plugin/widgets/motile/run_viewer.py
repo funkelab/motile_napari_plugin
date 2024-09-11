@@ -140,7 +140,7 @@ class RunViewer(QGroupBox):
         collapsable_plot = QCollapsible("Graph of solver gap")
         collapsable_plot.layout().setContentsMargins(0, 0, 0, 0)
         collapsable_plot.addWidget(self.gap_plot)
-        collapsable_plot.expand(animate=False)
+        collapsable_plot.collapse(animate=False)
 
         layout.addWidget(self.solver_label)
         layout.addWidget(collapsable_plot)
