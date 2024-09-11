@@ -1,4 +1,3 @@
-import time
 from typing import Any
 
 import napari
@@ -101,7 +100,15 @@ class TreePlot(pg.PlotWidget):
         self._update_viewed_data()  # this can be expensive
         self.set_selection(selected_nodes)
 
-    def set_view(self, view_direction):
+    def set_view(self, view_direction: str):
+        """Set the view direction, saving the new value as an attribute and
+        changing the axes labels. Shortcuts if the view direction is already
+        correct. Does not actually update the rendered graph (need to call
+        _update_viewed_data).
+
+        Args:
+            view_direction (str): "horizontal" or "vertical"
+        """
         if view_direction == self.view_direction:
             return
         self.view_direction = view_direction
@@ -131,14 +138,18 @@ class TreePlot(pg.PlotWidget):
         append = Qt.ShiftModifier == modifiers
         self.node_clicked.emit(node_id, append)
 
-    def set_data(self, track_df) -> None:
-        """Redraw the pyqtgraph object with the given tracks dataframe"""
-        print("setting data")
+    def set_data(self, track_df: pd.DataFrame) -> None:
+        """Updates the stored pyqtgraph content based on the given dataframe.
+        Does not render the new information (need to call _update_viewed_data).
+
+        Args:
+            track_df (pd.DataFrame): The tracks df to compute the pyqtgraph
+                content for. Can be all lineages or any subset of them.
+        """
         self.track_df = track_df
         self._create_pyqtgraph_content(track_df)
 
     def _update_viewed_data(self):
-        start_time = time.time()
         self.g.scatter.setPen(
             pg.mkPen(QColor(150, 150, 150))
         )  # first reset the pen to avoid problems with length mismatch between the different properties
@@ -159,63 +170,55 @@ class TreePlot(pg.PlotWidget):
         self.g.scatter.setPen(self.outline_pen)
         self.g.scatter.setSize(self.sizes)
         self.autoRange()
-        end_time = time.time()
-        print(f"Setting plot data took {end_time - start_time} seconds")
 
-    def _create_pyqtgraph_content(self, track_df) -> None:
-        """Calculate the pyqtgraph data for plotting"""
-        start_time = time.time()
-        pos = []
-        pos_colors = []
-        symbols = []
-        sizes = []
-        self.node_ids = []
+    def _create_pyqtgraph_content(self, track_df: pd.DataFrame) -> None:
+        """Parse the given track_df into the format that pyqtgraph expects
+        and save the information as attributes.
+
+        Args:
+            track_df (pd.DataFrame): The dataframe containing the graph to be
+                rendered in the tree view. Can be all lineages or a subset.
+        """
+        self._pos = []
+        self.adj = []
+        self.symbols = []
+        self.symbolBrush = []
+        self.pen = []
+        self.sizes = []
 
         if track_df is not None and not track_df.empty:
-            # print(track_df.info())
-            symbols = track_df["symbol"].to_list()
-            pos_colors = track_df["color"].to_list()
-            pos = track_df[["x_axis_pos", "t"]].to_numpy()
+            self.symbols = track_df["symbol"].to_list()
+            self.symbolBrush = track_df["color"].to_numpy()
+            self._pos = track_df[["x_axis_pos", "t"]].to_numpy()
             self.node_ids = track_df["node_id"].to_list()
+            self.sizes = np.array(
+                [
+                    8,
+                ]
+                * len(self.symbols)
+            )
+
+            valid_edges_df = track_df[track_df["parent_id"] != 0]
             node_ids_to_index = {
                 node_id: index for index, node_id in enumerate(self.node_ids)
             }
-            sizes = [
-                8,
-            ] * len(symbols)
-            # have - list of (node_id, parent_id)
-            valid_edges_df = track_df[track_df["parent_id"] != 0]
             edges_df = valid_edges_df[["node_id", "parent_id"]]
-            edge_colors = valid_edges_df["color"].to_list()
-            print(edges_df)
-            # want - list of (node_id_index, parent_id_index)
+            self.pen = valid_edges_df["color"].to_numpy()
             edges_df_mapped = edges_df.map(lambda _id: node_ids_to_index[_id])
-            print(edges_df_mapped)
-
-            self._pos = np.array(pos)
             self.adj = edges_df_mapped.to_numpy()
-            self.symbols = symbols
-            self.symbolBrush = np.array(pos_colors)
-            self.pen = np.array(edge_colors)
-            self.sizes = np.array(sizes)
-        else:
-            self._pos = []
-            self.adj = []
-            self.symbols = []
-            self.symbolBrush = []
-            self.pen = []
-            self.sizes = []
 
         self.outline_pen = np.array(
             [pg.mkPen(QColor(150, 150, 150)) for i in range(len(self._pos))]
         )
-        end_time = time.time()
-        print(
-            f"Creating pyqt graph content too {end_time - start_time} seconds"
-        )
 
     def set_selection(self, selected_nodes: list[Any]) -> None:
-        """Update the graph, increasing the size of selected node(s)"""
+        """Set the provided list of nodes to be selected. Increases the size
+        and highlights the outline with blue. Also centers the view
+        if the first selected node is not visible in the current canvas.
+
+        Args:
+            selected_nodes (list[Any]): A list of node ids to be selected.
+        """
 
         # reset to default size and color to avoid problems with the array lengths
         self.g.scatter.setPen(pg.mkPen(QColor(150, 150, 150)))
@@ -365,6 +368,10 @@ class TreeWidget(QWidget):
             self.tree_widget.setMouseEnabled(x=True, y=True)
 
     def _update_selected(self):
+        """Called whenever the selection list is updated. Only re-computes
+        the full graph information when the new selection is not in the
+        lineage df (and in lineage mode)
+        """
         if self.mode == "lineage" and any(
             node not in np.unique(self.lineage_df["node_id"].values)
             for node in self.selected_nodes
