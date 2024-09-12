@@ -62,15 +62,22 @@ def solve(
             iou=solver_params.iou_cost is not None,
         )
 
+    
+
     # 1. add the hyperedges using that function
     cand_graph = add_division_hyperedges(cand_graph)
-    # 2. make the motile.TrackGraph here
-    cand_graph = TrackGraph(cand_graph)
-    # 3. add the area attribute with the other function
-    add_area_diff_attr(cand_graph)
-
+    
+    for (u, v), data in cand_graph.edges.items():
+        if isinstance(u, tuple) and len(u) == 1:
+            raise ValueError(f"BEFORE CALLING TRACK GRAPH2 Node {u} is a tuple of length 1")
     logger.debug("Cand graph has %d nodes", cand_graph.number_of_nodes())
-    solver = construct_solver(cand_graph, solver_params)
+
+    # 2. make the motile.TrackGraph here
+    track_graph = TrackGraph(cand_graph, frame_attribute="time")
+    # 3. add the area attribute with the other function
+    add_area_diff_attr(track_graph)
+
+    solver = construct_solver(track_graph, solver_params)
     start_time = time.time()
     solution = solver.solve(verbose=False, on_event=on_solver_update)
     logger.info("Solution took %.2f seconds", time.time() - start_time)
@@ -93,8 +100,8 @@ def add_area_diff_attr(cand_graph: TrackGraph):
             area_u = cand_graph.nodes[u]["area"]
             area_v = cand_graph.nodes[v]["area"]
 
-    area_diff = np.abs(area_u - area_v)
-    cand_graph.edges[edge]["area_diff"] = area_diff
+        area_diff = np.abs(area_u - area_v)
+        cand_graph.edges[edge]["area_diff"] = area_diff
 
 
 def add_division_hyperedges(candidate_graph: nx.DiGraph) -> nx.DiGraph:
@@ -115,22 +122,24 @@ def add_division_hyperedges(candidate_graph: nx.DiGraph) -> nx.DiGraph:
         for pair in pairs:
             hypernode = str(node) + "_" + str(pair[0]) + "_" + str(pair[1])
             candidate_graph.add_node(hypernode)
+            assert not isinstance(node, tuple)
             candidate_graph.add_edge(
                 node,
+                hypernode
+            )
+            assert not isinstance(hypernode, tuple)
+            candidate_graph.add_edge(
                 hypernode,
+                pair[0]
             )
             candidate_graph.add_edge(
                 hypernode,
-                pair[0],
-            )
-            candidate_graph.add_edge(
-                hypernode,
-                pair[1],
+                pair[1]
             )
     return candidate_graph
 
 def construct_solver(
-    cand_graph: nx.DiGraph, solver_params: SolverParams
+    cand_graph: TrackGraph, solver_params: SolverParams
 ) -> Solver:
     """Construct a motile solver with the parameters specified in the solver
     params object.
@@ -145,16 +154,16 @@ def construct_solver(
             constraints.
     """
     solver = Solver(
-        TrackGraph(cand_graph, frame_attribute=NodeAttr.TIME.value)
+        cand_graph
     )
     # 4. Set max children to 1 (because its actuall max out edges)
-    solver.add_constraints(MaxChildren(solver_params.max_children)) 
-    solver.add_constraints(MaxParents(1))
+    solver.add_constraint(MaxChildren(solver_params.max_children)) 
+    solver.add_constraint(MaxParents(1))
 
     # Using EdgeDistance instead of EdgeSelection for the constant cost because
     # the attribute is not optional for EdgeSelection (yet)
     if solver_params.edge_selection_cost is not None:
-        solver.add_costs(
+        solver.add_cost(
             EdgeDistance(
                 weight=0,
                 position_attribute=NodeAttr.POS.value,
@@ -163,12 +172,12 @@ def construct_solver(
             name="edge_const",
         )
     if solver_params.appear_cost is not None:
-        solver.add_costs(Appear(solver_params.appear_cost))
+        solver.add_cost(Appear(solver_params.appear_cost))
     if solver_params.division_cost is not None:
-        solver.add_costs(Split(constant=solver_params.division_cost))
+        solver.add_cost(Split(constant=solver_params.division_cost))
 
     if solver_params.distance_cost is not None:
-        solver.add_costs(
+        solver.add_cost(
             EdgeDistance(
                 position_attribute=NodeAttr.POS.value,
                 weight=solver_params.distance_cost,
@@ -178,7 +187,7 @@ def construct_solver(
     # 5. Add an Edge Selection cost with the area diff (hard code the weight)
     weight = 10
     print(f"adding edge selection cost with weight {weight}")
-    solver.add_costs(
+    solver.add_cost(
         EdgeSelection(
             weight= weight,
             attribute="area_diff",
@@ -186,7 +195,7 @@ def construct_solver(
         name="area",
     )
     if solver_params.iou_cost is not None:
-        solver.add_costs(
+        solver.add_cost(
             EdgeSelection(
                 weight=solver_params.iou_cost,
                 attribute=EdgeAttr.IOU.value,
