@@ -89,13 +89,13 @@ def construct_solver(
     solver = Solver(
         TrackGraph(cand_graph, frame_attribute=NodeAttr.TIME.value)
     )
-    solver.add_constraints(MaxChildren(solver_params.max_children))
-    solver.add_constraints(MaxParents(1))
+    solver.add_constraint(MaxChildren(solver_params.max_children))
+    solver.add_constraint(MaxParents(1))
 
     # Using EdgeDistance instead of EdgeSelection for the constant cost because
     # the attribute is not optional for EdgeSelection (yet)
     if solver_params.edge_selection_cost is not None:
-        solver.add_costs(
+        solver.add_cost(
             EdgeDistance(
                 weight=0,
                 position_attribute=NodeAttr.POS.value,
@@ -104,12 +104,12 @@ def construct_solver(
             name="edge_const",
         )
     if solver_params.appear_cost is not None:
-        solver.add_costs(Appear(solver_params.appear_cost))
+        solver.add_cost(Appear(solver_params.appear_cost))
     if solver_params.division_cost is not None:
-        solver.add_costs(Split(constant=solver_params.division_cost))
+        solver.add_cost(Split(constant=solver_params.division_cost))
 
     if solver_params.distance_cost is not None:
-        solver.add_costs(
+        solver.add_cost(
             EdgeDistance(
                 position_attribute=NodeAttr.POS.value,
                 weight=solver_params.distance_cost,
@@ -117,7 +117,7 @@ def construct_solver(
             name="distance",
         )
     if solver_params.iou_cost is not None:
-        solver.add_costs(
+        solver.add_cost(
             EdgeSelection(
                 weight=solver_params.iou_cost,
                 attribute=EdgeAttr.IOU.value,
