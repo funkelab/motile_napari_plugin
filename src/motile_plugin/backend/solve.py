@@ -15,6 +15,8 @@ from motile_toolbox.candidate_graph import (
     graph_to_nx,
 )
 
+from itertools import combinations
+
 from .solver_params import SolverParams
 
 logger = logging.getLogger(__name__)
@@ -60,8 +62,12 @@ def solve(
         )
 
     # 1. add the hyperedges using that function
+    cand_graph = add_division_hyperedges(cand_graph)
     # 2. make the motile.TrackGraph here
+    cand_graph = TrackGraph(cand_graph)
     # 3. add the area attribute with the other function
+    add_area_diff_attr(cand_graph)
+
     logger.debug("Cand graph has %d nodes", cand_graph.number_of_nodes())
     solver = construct_solver(cand_graph, solver_params)
     start_time = time.time()
@@ -73,6 +79,54 @@ def solve(
 
     return solution_nx_graph
 
+def add_area_diff_attr(cand_graph: TrackGraph):
+    for edge in cand_graph.edges:
+        if cand_graph.is_hyperedge(edge):
+            us, vs = edge
+            u = us[0]  # assume always one "source" node
+            v1, v2 = vs  # assume always two "target" nodes
+            area_u = cand_graph.nodes[u]["area"]
+            area_v = cand_graph.nodes[v1]["area"] + cand_graph.nodes[v2]["area"]
+        else:
+            u, v = edge
+            area_u = cand_graph.nodes[u]["area"]
+            area_v = cand_graph.nodes[v]["area"]
+
+    area_diff = np.abs(area_u - area_v)
+    cand_graph.edges[edge]["area_diff"] = area_diff
+
+
+def add_division_hyperedges(candidate_graph: nx.DiGraph) -> nx.DiGraph:
+    """Add hyper edges representing specific divisions to the graph
+
+    Args:
+        candidate_graph (nx.DiGraph): A candidate graph already populated with
+            normal nodes and edges.
+
+    Returns:
+        nx.DiGraph: The candidate graph with additional hypernodes for each
+            possible division
+    """
+    nodes_original = list(candidate_graph.nodes)
+    for node in nodes_original:
+        successors = candidate_graph.successors(node)
+        pairs = list(combinations(successors, 2))
+        for pair in pairs:
+            hypernode = str(node) + "_" + str(pair[0]) + "_" + str(pair[1])
+            candidate_graph.add_node(hypernode)
+            candidate_graph.add_edge(
+                node,
+                hypernode,
+            )
+            candidate_graph.add_edge(
+                hypernode,
+                pair[0],
+            )
+            candidate_graph.add_edge(
+                hypernode,
+                pair[1],
+            )
+    return candidate_graph
 
 def construct_solver(
     cand_graph: nx.DiGraph, solver_params: SolverParams
@@ -121,9 +175,11 @@ def construct_solver(
             name="distance",
         )
     # 5. Add an Edge Selection cost with the area diff (hard code the weight)
+    weight = 10
+    print(f"adding edge selection cost with weight {weight}")
     solver.add_costs(
         EdgeSelection(
-            weight= # hard code the weight
+            weight= weight,
             attribute="area_diff",
         ),
         name="area",
