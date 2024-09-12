@@ -76,6 +76,7 @@ def solve(
     track_graph = TrackGraph(cand_graph, frame_attribute="time")
     # 3. add the area attribute with the other function
     add_area_diff_attr(track_graph)
+    add_dist_attr(track_graph)
 
     solver = construct_solver(track_graph, solver_params)
     start_time = time.time()
@@ -102,6 +103,30 @@ def add_area_diff_attr(cand_graph: TrackGraph):
 
         area_diff = np.abs(area_u - area_v)
         cand_graph.edges[edge]["area_diff"] = area_diff
+
+def get_location(graph, node, pos_attr):
+    if isinstance(pos_attr, str):
+        return np.array(graph.nodes[node][pos_attr])
+    else:
+        return np.array([graph.nodes[node][dim] for dim in pos_attr])
+
+def add_dist_attr(cand_graph: TrackGraph):
+    for edge in cand_graph.edges:
+        if cand_graph.is_hyperedge(edge):
+            us, vs = edge
+            u = us[0]  # assume always one "source" node
+            v1, v2 = vs  # assume always two "target" nodes
+            pos_u = get_location(cand_graph, u, NodeAttr.POS.value)
+            pos_v = (get_location(cand_graph, v1, NodeAttr.POS.value) + get_location(cand_graph, v2, NodeAttr.POS.value)) / 2
+        else:
+            u, v = edge
+            
+            pos_u = get_location(cand_graph, u, NodeAttr.POS.value)
+            
+            pos_v = get_location(cand_graph, v, NodeAttr.POS.value)
+
+        dist = np.linalg.norm(pos_u - pos_v)
+        cand_graph.edges[edge]["dist"] = dist
 
 
 def add_division_hyperedges(candidate_graph: nx.DiGraph) -> nx.DiGraph:
@@ -164,9 +189,9 @@ def construct_solver(
     # the attribute is not optional for EdgeSelection (yet)
     if solver_params.edge_selection_cost is not None:
         solver.add_cost(
-            EdgeDistance(
+            EdgeSelection(
                 weight=0,
-                position_attribute=NodeAttr.POS.value,
+                attribute="dist",
                 constant=solver_params.edge_selection_cost,
             ),
             name="edge_const",
@@ -178,8 +203,8 @@ def construct_solver(
 
     if solver_params.distance_cost is not None:
         solver.add_cost(
-            EdgeDistance(
-                position_attribute=NodeAttr.POS.value,
+            EdgeSelection(
+                attribute="dist",
                 weight=solver_params.distance_cost,
             ),
             name="distance",
