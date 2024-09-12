@@ -1,12 +1,13 @@
 import logging
 import time
+from itertools import combinations
 from typing import Callable
 
 import networkx as nx
 import numpy as np
 from motile import Solver, TrackGraph
 from motile.constraints import MaxChildren, MaxParents
-from motile.costs import Appear, EdgeDistance, EdgeSelection, Split
+from motile.costs import Appear, EdgeSelection, Split
 from motile_toolbox.candidate_graph import (
     EdgeAttr,
     NodeAttr,
@@ -15,8 +16,6 @@ from motile_toolbox.candidate_graph import (
     graph_to_nx,
 )
 from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
-
-from itertools import combinations
 
 from .solver_params import SolverParams
 
@@ -62,14 +61,14 @@ def solve(
             iou=solver_params.iou_cost is not None,
         )
 
-    
-
     # 1. add the hyperedges using that function
     cand_graph = add_division_hyperedges(cand_graph)
-    
-    for (u, v), data in cand_graph.edges.items():
+
+    for (u, _v), _data in cand_graph.edges.items():
         if isinstance(u, tuple) and len(u) == 1:
-            raise ValueError(f"BEFORE CALLING TRACK GRAPH2 Node {u} is a tuple of length 1")
+            raise ValueError(
+                f"BEFORE CALLING TRACK GRAPH2 Node {u} is a tuple of length 1"
+            )
     logger.debug("Cand graph has %d nodes", cand_graph.number_of_nodes())
 
     # 2. make the motile.TrackGraph here
@@ -88,6 +87,7 @@ def solve(
     solution_nx_graph, _ = assign_tracklet_ids(solution_nx_graph)
     return solution_nx_graph
 
+
 def add_area_diff_attr(cand_graph: TrackGraph):
     for edge in cand_graph.edges:
         if cand_graph.is_hyperedge(edge):
@@ -95,7 +95,9 @@ def add_area_diff_attr(cand_graph: TrackGraph):
             u = us[0]  # assume always one "source" node
             v1, v2 = vs  # assume always two "target" nodes
             area_u = cand_graph.nodes[u]["area"]
-            area_v = cand_graph.nodes[v1]["area"] + cand_graph.nodes[v2]["area"]
+            area_v = (
+                cand_graph.nodes[v1]["area"] + cand_graph.nodes[v2]["area"]
+            )
         else:
             u, v = edge
             area_u = cand_graph.nodes[u]["area"]
@@ -104,11 +106,13 @@ def add_area_diff_attr(cand_graph: TrackGraph):
         area_diff = np.abs(area_u - area_v)
         cand_graph.edges[edge]["area_diff"] = area_diff
 
+
 def get_location(graph, node, pos_attr):
     if isinstance(pos_attr, str):
         return np.array(graph.nodes[node][pos_attr])
     else:
         return np.array([graph.nodes[node][dim] for dim in pos_attr])
+
 
 def add_dist_attr(cand_graph: TrackGraph):
     for edge in cand_graph.edges:
@@ -117,12 +121,15 @@ def add_dist_attr(cand_graph: TrackGraph):
             u = us[0]  # assume always one "source" node
             v1, v2 = vs  # assume always two "target" nodes
             pos_u = get_location(cand_graph, u, NodeAttr.POS.value)
-            pos_v = (get_location(cand_graph, v1, NodeAttr.POS.value) + get_location(cand_graph, v2, NodeAttr.POS.value)) / 2
+            pos_v = (
+                get_location(cand_graph, v1, NodeAttr.POS.value)
+                + get_location(cand_graph, v2, NodeAttr.POS.value)
+            ) / 2
         else:
             u, v = edge
-            
+
             pos_u = get_location(cand_graph, u, NodeAttr.POS.value)
-            
+
             pos_v = get_location(cand_graph, v, NodeAttr.POS.value)
 
         dist = np.linalg.norm(pos_u - pos_v)
@@ -148,20 +155,12 @@ def add_division_hyperedges(candidate_graph: nx.DiGraph) -> nx.DiGraph:
             hypernode = str(node) + "_" + str(pair[0]) + "_" + str(pair[1])
             candidate_graph.add_node(hypernode)
             assert not isinstance(node, tuple)
-            candidate_graph.add_edge(
-                node,
-                hypernode
-            )
+            candidate_graph.add_edge(node, hypernode)
             assert not isinstance(hypernode, tuple)
-            candidate_graph.add_edge(
-                hypernode,
-                pair[0]
-            )
-            candidate_graph.add_edge(
-                hypernode,
-                pair[1]
-            )
+            candidate_graph.add_edge(hypernode, pair[0])
+            candidate_graph.add_edge(hypernode, pair[1])
     return candidate_graph
+
 
 def construct_solver(
     cand_graph: TrackGraph, solver_params: SolverParams
@@ -178,11 +177,9 @@ def construct_solver(
         Solver: A motile solver with the specified graph, costs, and
             constraints.
     """
-    solver = Solver(
-        cand_graph
-    )
+    solver = Solver(cand_graph)
     # 4. Set max children to 1 (because its actuall max out edges)
-    solver.add_constraint(MaxChildren(solver_params.max_children)) 
+    solver.add_constraint(MaxChildren(solver_params.max_children))
     solver.add_constraint(MaxParents(1))
 
     # Using EdgeDistance instead of EdgeSelection for the constant cost because
@@ -214,7 +211,7 @@ def construct_solver(
     print(f"adding edge selection cost with weight {weight}")
     solver.add_cost(
         EdgeSelection(
-            weight= weight,
+            weight=weight,
             attribute="area_diff",
         ),
         name="area",
