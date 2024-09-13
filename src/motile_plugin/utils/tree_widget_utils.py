@@ -80,6 +80,9 @@ def extract_sorted_tracks(
                 "symbol": symbol,
             }
 
+            if tracks.get_area(node) is not None:
+                track_dict["area"] = tracks.get_area(node)
+
             if len(pos) == 3:
                 track_dict["z"] = pos[0]
 
