@@ -34,7 +34,7 @@ class MotileRun(BaseModel):
     input_points: np.ndarray | None = None
     tracks: Tracks | None = None
     time: datetime = datetime.now()
-    gaps: list[float] = []
+    gaps: list[float] | None = None
     status: str = "done"
     scale: list[float] | None = None
     # pydantic does not check numpy arrays
@@ -144,7 +144,7 @@ class MotileRun(BaseModel):
             run_dir, required=output_required
         )
         tracks = Tracks(graph=tracks_graph, segmentation=output_segmentation)
-        gaps = cls._load_list(run_dir=run_dir, filename=GAPS_FILENAME)
+        gaps = cls._load_list(run_dir=run_dir, filename=GAPS_FILENAME, required=False)
         scale = cls._load_list(run_dir=run_dir, filename=SCALE_FILENAME, required=False)
         return cls(
             run_name=run_name,
