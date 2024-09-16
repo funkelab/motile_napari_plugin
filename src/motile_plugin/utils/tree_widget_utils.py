@@ -117,8 +117,11 @@ def extract_sorted_tracks(
     for node in track_list:
         node["x_axis_pos"] = x_axis_order.index(node["track_id"])
 
-    return pd.DataFrame(track_list)
-
+    df = pd.DataFrame(track_list)
+    if 'area' in df.columns:
+        df['area'] = df['area'].fillna(0)
+    
+    return df
 
 def sort_track_ids(track_list: List[Dict]) -> List[Dict]:
     """
