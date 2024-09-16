@@ -145,7 +145,7 @@ class MotileRun(BaseModel):
         )
         tracks = Tracks(graph=tracks_graph, segmentation=output_segmentation)
         gaps = cls._load_list(run_dir=run_dir, filename=GAPS_FILENAME)
-        scale = cls._load_list(run_dir=run_dir, filename=SCALE_FILENAME)
+        scale = cls._load_list(run_dir=run_dir, filename=SCALE_FILENAME, required=False)
         return cls(
             run_name=run_name,
             solver_params=params,
