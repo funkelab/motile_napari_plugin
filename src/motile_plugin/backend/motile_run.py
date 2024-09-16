@@ -273,7 +273,12 @@ class MotileRun(BaseModel):
         else:
             return None
 
-    def _save_list(self, list_to_save: list, run_dir: Path, filename: str):
+    def _save_list(
+        self, list_to_save: list | None, run_dir: Path, filename: str
+    ):
+
+        if list_to_save is None:
+            return
         list_file = run_dir / filename
         with open(list_file, "w") as f:
             f.write(",".join(map(str, list_to_save)))
@@ -287,13 +292,13 @@ class MotileRun(BaseModel):
             with open(list_file) as f:
                 file_content = f.read()
             if file_content == "":
-                return []
-            gaps = list(map(float, file_content.split(",")))
-            return gaps
+                return None
+            list_values = list(map(float, file_content.split(",")))
+            return list_values
         elif required:
             raise FileNotFoundError(f"No content found at {list_file}")
         else:
-            return []
+            return None
 
     def delete(self, base_path: str | Path):
         """Delete this run from the file system. Will look inside base_path
