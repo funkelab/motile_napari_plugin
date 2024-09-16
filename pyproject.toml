@@ -1,41 +1,64 @@
 [build-system]
-requires = ["setuptools>=64", "wheel", "setuptools_scm>=8"]
+requires = ["setuptools>=70", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "motile-plugin"
+dynamic = ["version"]
+description = "Tracking with motile"
+readme = "README.md"
+license = { text = "BSD 3-Clause License" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Caroline Malin-Mayor", email = "malinmayorc@janelia.hhmi.org" },
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Framework :: napari",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+
+dependencies =[
+    "napari[all]",
+    "numpy",
+    "magicgui",
+    "qtpy",
+    "scikit-image",
+    "motile >= 0.3",
+    "motile_toolbox >=0.3.3",
+    "pydantic",
+    "tifffile[all]",
+    "fonticon-fontawesome6",
+    "pyqtgraph",
+    "lxml_html_clean",  # only to deal with napari dependencies being broken
+]
+[project.optional-dependencies]
+testing =["napari", "pyqt5", "pytest", "pytest-cov", "pytest-qt"]
+docs = ["myst-parser", "sphinx", "sphinx-autoapi", "sphinx_rtd_theme", "sphinxcontrib-video"]
+
+[project.entry-points."napari.manifest"]
+motile-plugin = "motile_plugin:napari.yaml"
+
+[project.urls]
+"Bug Tracker" = "https://github.com/funkelab/motile-napari-plugin/issues"
+"Documentation" ="https://funkelab.github.io/motile_napari_plugin/"
 
 [tool.setuptools_scm]
 
-[tool.black]
-line-length = 79
-target-version = ['py38', 'py39', 'py310']
-
 [tool.ruff]
-line-length = 79
-
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".mypy_cache",
-    ".pants.d",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-    "*vendored*",
-    "*_vendor*",
-]
-
-target-version = "py38"
+line-length = 88
+target-version = "py310"
 fix = true
 
+[tool.ruff.lint]
 select = [
     "E", "F", "W", #flake8
     "UP", # pyupgrade
@@ -51,10 +74,15 @@ select = [
 ]
 
 ignore = [
-    "E501", # line too long. let black handle this
     "UP006", "UP007", # type annotation. As using magicgui require runtime type annotation then we disable this.
-    "SIM117", # flake8-simplify - some of merged with statements are not looking great with black, reanble after drop python 3.9
+    "ISC001", # implicit string concatenation
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*.py" = ["F"]
+
+# https://docs.astral.sh/ruff/formatter/
+[tool.ruff.format]
 
 [tool.mypy]
 ignore_missing_imports = true
