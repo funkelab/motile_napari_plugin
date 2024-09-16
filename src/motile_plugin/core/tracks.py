@@ -79,3 +79,21 @@ class Tracks(BaseModel):
             int: The time frame that the node is in
         """
         return self.graph.nodes[node][self.time_attr]
+
+    def get_area(self, node: Any) -> int:
+        """Get the area/volume of a given node. Raises an error if the node
+        is not in the graph. Returns None if area is not an attribute.
+
+        Args:
+            node (Any): The node id to get the area/volume for
+
+        Returns:
+            int: The area/volume of the node
+        """
+        
+        # Check if the node exists in the graph
+        if node not in self.graph.nodes:
+            raise ValueError(f"Node {node} is not in the graph.")
+
+        # Return the area attribute if it exists, otherwise None
+        return self.graph.nodes[node].get("area")

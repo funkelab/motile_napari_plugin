@@ -208,6 +208,8 @@ class MotileWidget(QScrollArea):
         elif event_type in ["MIPSOL", "BESTSOLFOUND"]:
             run.status = "solving"
             gap = event_data["gap"]
+            if run.gaps is None:
+                run.gaps = []
             run.gaps.append(gap)
             self.solver_update.emit()
 

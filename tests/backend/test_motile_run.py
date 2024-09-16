@@ -10,10 +10,12 @@ def test_save_load(tmp_path, graph_2d):
         segmentation[i][0:5, 0:5] = i
 
     run_name = "test"
+    scale = [1.0, 2.0, 3.0]
     run = MotileRun(
         run_name=run_name,
         solver_params=SolverParams(),
         tracks=Tracks(graph=graph_2d, segmentation=segmentation),
+        scale=scale,
     )
     path = run.save(tmp_path)
     newrun = MotileRun.load(path)
@@ -24,4 +26,5 @@ def test_save_load(tmp_path, graph_2d):
     assert run.run_name == newrun.run_name
     assert run.time.replace(microsecond=0) == newrun.time
     assert run.gaps == newrun.gaps
+    assert run.scale == newrun.scale
     assert run.solver_params == newrun.solver_params

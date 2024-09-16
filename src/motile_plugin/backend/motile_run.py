@@ -17,6 +17,7 @@ IN_POINTS_FILEANME = "input_points.npy"
 OUT_SEG_FILEANME = "output_segmentation.npy"
 TRACKS_FILENAME = "tracks.json"
 GAPS_FILENAME = "gaps.txt"
+SCALE_FILENAME = "scale.txt"
 
 
 class MotileRun(BaseModel):
@@ -33,7 +34,7 @@ class MotileRun(BaseModel):
     input_points: np.ndarray | None = None
     tracks: Tracks | None = None
     time: datetime = datetime.now()
-    gaps: list[float] = []
+    gaps: list[float] | None = None
     status: str = "done"
     scale: list[float] | None = None
     # pydantic does not check numpy arrays
@@ -99,7 +100,12 @@ class MotileRun(BaseModel):
                 )
             if self.tracks.graph is not None:
                 self._save_tracks_graph(run_dir, self.tracks.graph)
-        self._save_gaps(run_dir)
+        self._save_list(
+            list_to_save=self.gaps, run_dir=run_dir, filename=GAPS_FILENAME
+        )
+        self._save_list(
+            list_to_save=self.scale, run_dir=run_dir, filename=SCALE_FILENAME
+        )
         return run_dir
 
     @classmethod
@@ -138,7 +144,8 @@ class MotileRun(BaseModel):
             run_dir, required=output_required
         )
         tracks = Tracks(graph=tracks_graph, segmentation=output_segmentation)
-        gaps = cls._load_gaps(run_dir)
+        gaps = cls._load_list(run_dir=run_dir, filename=GAPS_FILENAME, required=False)
+        scale = cls._load_list(run_dir=run_dir, filename=SCALE_FILENAME, required=False)
         return cls(
             run_name=run_name,
             solver_params=params,
@@ -147,6 +154,7 @@ class MotileRun(BaseModel):
             tracks=tracks,
             time=time,
             gaps=gaps,
+            scale=scale,
         )
 
     def _save_params(self, run_dir: Path):
@@ -265,25 +273,32 @@ class MotileRun(BaseModel):
         else:
             return None
 
-    def _save_gaps(self, run_dir: Path):
-        gaps_file = run_dir / GAPS_FILENAME
-        with open(gaps_file, "w") as f:
-            f.write(",".join(map(str, self.gaps)))
+    def _save_list(
+        self, list_to_save: list | None, run_dir: Path, filename: str
+    ):
+
+        if list_to_save is None:
+            return
+        list_file = run_dir / filename
+        with open(list_file, "w") as f:
+            f.write(",".join(map(str, list_to_save)))
 
     @staticmethod
-    def _load_gaps(run_dir, required: bool = True) -> list[float]:
-        gaps_file = run_dir / GAPS_FILENAME
-        if gaps_file.is_file():
-            with open(gaps_file) as f:
+    def _load_list(
+        run_dir: Path, filename: str, required: bool = True
+    ) -> list[float]:
+        list_file = run_dir / filename
+        if list_file.is_file():
+            with open(list_file) as f:
                 file_content = f.read()
             if file_content == "":
-                return []
-            gaps = list(map(float, file_content.split(",")))
-            return gaps
+                return None
+            list_values = list(map(float, file_content.split(",")))
+            return list_values
         elif required:
-            raise FileNotFoundError(f"No gaps found at {gaps_file}")
+            raise FileNotFoundError(f"No content found at {list_file}")
         else:
-            return []
+            return None
 
     def delete(self, base_path: str | Path):
         """Delete this run from the file system. Will look inside base_path
@@ -301,4 +316,5 @@ class MotileRun(BaseModel):
         (run_dir / OUT_SEG_FILEANME).unlink()
         (run_dir / TRACKS_FILENAME).unlink()
         (run_dir / GAPS_FILENAME).unlink()
+        (run_dir / SCALE_FILENAME).unlink()
         run_dir.rmdir()
