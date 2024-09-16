@@ -42,7 +42,7 @@ class TreeViewFeatureWidget(QWidget):
     def _toggle_feature_mode(self, event=None) -> None:
         """Toggle display mode"""
 
-        if self.show_area_radio_button.enabled: # if button is disabled, toggle is not allowed
+        if self.show_area_radio.isEnabled: # if button is disabled, toggle is not allowed
             if self.feature == "area":
                 self._set_feature("tree")
                 self.show_tree_radio.setChecked(True)
