@@ -16,6 +16,7 @@ class NavigationWidget(QWidget):
         lineage_df: pd.DataFrame,
         view_direction: str,
         selected_nodes: NodeSelectionList,
+        feature: str,
     ):
         """Widget for controlling navigation in the tree widget
 
@@ -23,6 +24,7 @@ class NavigationWidget(QWidget):
             track_df (pd.DataFrame): The dataframe holding the track information
             view_direction (str): The view direction of the tree widget. Options: "vertical", "horizontal".
             selected_nodes (NodeSelectionList): The list of selected nodes.
+            feature (str): The feature currently being displayed
         """
 
         super().__init__()
@@ -30,6 +32,7 @@ class NavigationWidget(QWidget):
         self.lineage_df = lineage_df
         self.view_direction = view_direction
         self.selected_nodes = selected_nodes
+        self.feature = feature
 
         navigation_box = QGroupBox("Navigation [\u2b05 \u27a1 \u2b06 \u2b07]")
         navigation_layout = QHBoxLayout()
@@ -115,26 +118,36 @@ class NavigationWidget(QWidget):
         """Get the node at the same time point in an adjacent track.
 
         Args:
-            df (pd.DataFrame): the dataframe to be used. It can either be the
-                full track_df, or the subset lineage_df
-            node_id (str): The current node id to get the next from
+            df (pd.DataFrame): The dataframe to be used (full track_df or subset lineage_df).
+            node_id (str): The current node ID to get the next from.
             forward (bool, optional): If true, pick the next track (right/down).
                 Otherwise, pick the previous track (left/up). Defaults to True.
         """
-        x_axis_pos = df.loc[df["node_id"] == node_id, "x_axis_pos"].values[0]
-        t = df.loc[df["node_id"] == node_id, "t"].values[0]
+        # Determine which axis to use for finding neighbors
+        axis_label = "area" if self.feature == "area" else "x_axis_pos"
+
+        if df.empty:
+            return None
+        node_data = df.loc[df["node_id"] == node_id]
+        if node_data.empty:
+            return None
+
+        # Fetch the axis value for the given node ID
+        axis_label_value = node_data[axis_label].iloc[0]
+        t = node_data["t"].iloc[0]
+
         if forward:
             neighbors = df.loc[
-                (df["x_axis_pos"] > x_axis_pos) & (df["t"] == t)
+                (df[axis_label] > axis_label_value) & (df["t"] == t)
             ]
         else:
             neighbors = df.loc[
-                (df["x_axis_pos"] < x_axis_pos) & (df["t"] == t)
+                (df[axis_label] < axis_label_value) & (df["t"] == t)
             ]
         if not neighbors.empty:
             # Find the closest index label
             closest_index_label = (
-                (neighbors["x_axis_pos"] - x_axis_pos).abs().idxmin()
+                (neighbors[axis_label] - axis_label_value).abs().idxmin()
             )
             neighbor = neighbors.loc[closest_index_label, "node_id"]
             return neighbor
