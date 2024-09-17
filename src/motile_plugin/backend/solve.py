@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Callable
+from collections.abc import Callable
 
 import networkx as nx
 import numpy as np
@@ -25,6 +25,7 @@ def solve(
     solver_params: SolverParams,
     input_data: np.ndarray,
     on_solver_update: Callable | None = None,
+    scale: list | None = None,
 ) -> nx.DiGraph:
     """Get a tracking solution for the given segmentation and parameters.
 
@@ -51,13 +52,14 @@ def solve(
     """
     if input_data.ndim == 2:
         cand_graph = get_candidate_graph_from_points_list(
-            input_data, solver_params.max_edge_distance
+            input_data, solver_params.max_edge_distance, scale=scale
         )
     else:
         cand_graph, _ = get_candidate_graph(
             input_data,
             solver_params.max_edge_distance,
             iou=solver_params.iou_cost is not None,
+            scale=scale,
         )
     logger.debug("Cand graph has %d nodes", cand_graph.number_of_nodes())
     solver = construct_solver(cand_graph, solver_params)
@@ -71,9 +73,7 @@ def solve(
     return solution_nx_graph
 
 
-def construct_solver(
-    cand_graph: nx.DiGraph, solver_params: SolverParams
-) -> Solver:
+def construct_solver(cand_graph: nx.DiGraph, solver_params: SolverParams) -> Solver:
     """Construct a motile solver with the parameters specified in the solver
     params object.
 
@@ -86,9 +86,7 @@ def construct_solver(
         Solver: A motile solver with the specified graph, costs, and
             constraints.
     """
-    solver = Solver(
-        TrackGraph(cand_graph, frame_attribute=NodeAttr.TIME.value)
-    )
+    solver = Solver(TrackGraph(cand_graph, frame_attribute=NodeAttr.TIME.value))
     solver.add_constraint(MaxChildren(solver_params.max_children))
     solver.add_constraint(MaxParents(1))
 

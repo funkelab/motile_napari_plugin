@@ -17,21 +17,20 @@ class TrackPoints(napari.layers.Points):
         selected_nodes: NodeSelectionList,
         symbolmap: dict[NodeType, str],
         colormap: napari.utils.Colormap,
-        scale: tuple,
     ):
         self.colormap = colormap
         self.symbolmap = symbolmap
 
         self.nodes = list(tracks.graph.nodes)
         self.node_index_dict = dict(
-            zip(self.nodes, [self.nodes.index(node) for node in self.nodes])
+            zip(
+                self.nodes,
+                [self.nodes.index(node) for node in self.nodes],
+                strict=False,
+            )
         )
-        points = [
-            tracks.get_location(node, incl_time=True) for node in self.nodes
-        ]
-        track_ids = [
-            tracks.graph.nodes[node]["tracklet_id"] for node in self.nodes
-        ]
+        points = [tracks.get_location(node, incl_time=True) for node in self.nodes]
+        track_ids = [tracks.graph.nodes[node]["tracklet_id"] for node in self.nodes]
         colors = [colormap.map(track_id) for track_id in track_ids]
         symbols = self.get_symbols(tracks, symbolmap)
 
@@ -43,7 +42,6 @@ class TrackPoints(napari.layers.Points):
             size=5,
             properties={"node_id": self.nodes, "track_id": track_ids},
             border_color=[1, 1, 1, 1],
-            scale=scale,
         )
 
         self.viewer = viewer
@@ -76,18 +74,13 @@ class TrackPoints(napari.layers.Points):
             node_id = self.nodes[point]
             self.selected_nodes.add(node_id, True)
 
-    def get_symbols(
-        self, tracks: Tracks, symbolmap: dict[NodeType, str]
-    ) -> list[str]:
+    def get_symbols(self, tracks: Tracks, symbolmap: dict[NodeType, str]) -> list[str]:
         statemap = {
             0: NodeType.END,
             1: NodeType.CONTINUE,
             2: NodeType.SPLIT,
         }
-        symbols = [
-            symbolmap[statemap[degree]]
-            for _, degree in tracks.graph.out_degree
-        ]
+        symbols = [symbolmap[statemap[degree]] for _, degree in tracks.graph.out_degree]
         return symbols
 
     def update_point_outline(self, visible: list[int] | str) -> None:
