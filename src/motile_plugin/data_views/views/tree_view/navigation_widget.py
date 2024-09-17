@@ -1,12 +1,11 @@
 import pandas as pd
+from motile_plugin.utils.node_selection import NodeSelectionList
 from qtpy.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QPushButton,
     QWidget,
 )
-
-from motile_plugin.utils.node_selection import NodeSelectionList
 
 
 class NavigationWidget(QWidget):
@@ -86,9 +85,7 @@ class NavigationWidget(QWidget):
             if self.view_direction == "horizontal":
                 next_node = self.get_next_track_node(self.lineage_df, node_id)
                 if next_node is None:
-                    next_node = self.get_next_track_node(
-                        self.track_df, node_id
-                    )
+                    next_node = self.get_next_track_node(self.track_df, node_id)
             else:
                 next_node = self.get_predecessor(node_id)
         elif direction == "down":
@@ -137,13 +134,9 @@ class NavigationWidget(QWidget):
         t = node_data["t"].iloc[0]
 
         if forward:
-            neighbors = df.loc[
-                (df[axis_label] > axis_label_value) & (df["t"] == t)
-            ]
+            neighbors = df.loc[(df[axis_label] > axis_label_value) & (df["t"] == t)]
         else:
-            neighbors = df.loc[
-                (df[axis_label] < axis_label_value) & (df["t"] == t)
-            ]
+            neighbors = df.loc[(df[axis_label] < axis_label_value) & (df["t"] == t)]
         if not neighbors.empty:
             # Find the closest index label
             closest_index_label = (

@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 
 import napari
-from psygnal import Signal
-
 from motile_plugin.core import NodeType, Tracks
 from motile_plugin.layers.track_graph import TrackGraph
 from motile_plugin.layers.track_labels import TrackLabels
@@ -11,6 +9,7 @@ from motile_plugin.utils.node_selection import NodeSelectionList
 from motile_plugin.utils.tree_widget_utils import (
     extract_lineage_tree,
 )
+from psygnal import Signal
 
 
 @dataclass

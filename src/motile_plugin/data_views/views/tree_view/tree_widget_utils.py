@@ -95,9 +95,7 @@ def extract_sorted_tracks(
                 track_dict["parent_id"] = parent_id
 
                 if parent_track_id is None:
-                    parent_track_id = solution_nx_graph.nodes[parent_id][
-                        "tracklet_id"
-                    ]
+                    parent_track_id = solution_nx_graph.nodes[parent_id]["tracklet_id"]
                 track_dict["parent_track_id"] = parent_track_id
 
             else:
@@ -118,10 +116,11 @@ def extract_sorted_tracks(
         node["x_axis_pos"] = x_axis_order.index(node["track_id"])
 
     df = pd.DataFrame(track_list)
-    if 'area' in df.columns:
-        df['area'] = df['area'].fillna(0)
-    
+    if "area" in df.columns:
+        df["area"] = df["area"].fillna(0)
+
     return df
+
 
 def sort_track_ids(track_list: List[Dict]) -> List[Dict]:
     """
@@ -135,9 +134,7 @@ def sort_track_ids(track_list: List[Dict]) -> List[Dict]:
         list: Ordered list of track IDs for the x-axis.
     """
 
-    roots = [
-        node["track_id"] for node in track_list if node["parent_track_id"] == 0
-    ]
+    roots = [node["track_id"] for node in track_list if node["parent_track_id"] == 0]
     x_axis_order = list(roots)
 
     # Find the children of each of the starting points, and work down the tree.

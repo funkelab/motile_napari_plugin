@@ -1,13 +1,16 @@
 import napari
 import numpy as np
-
 from motile_plugin.core import NodeType, Tracks
 
 from ..utils.node_selection import NodeSelectionList
 
 
 class TrackPoints(napari.layers.Points):
-    """Extended points layer that holds the track information and emits and responds to dynamics visualization signals"""
+    """Extended points layer that holds the track information and emits and
+    responds to dynamics visualization signals
+    TODO: Get access to TracksController, call it to add a node when you add a node to the layer
+    (can also delete nodes from here)
+    """
 
     def __init__(
         self,

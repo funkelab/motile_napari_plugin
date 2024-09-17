@@ -4,6 +4,13 @@ import napari
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
+from motile_plugin.utils.tree_widget_utils import (
+    extract_lineage_tree,
+    extract_sorted_tracks,
+)
+from motile_plugin.widgets.tracks_view.tracks_viewer import (
+    TracksViewer,
+)
 from psygnal import Signal
 from pyqtgraph.Qt import QtCore
 from qtpy.QtCore import Qt
@@ -12,14 +19,6 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
     QWidget,
-)
-
-from motile_plugin.utils.tree_widget_utils import (
-    extract_lineage_tree,
-    extract_sorted_tracks,
-)
-from motile_plugin.widgets.tracks_view.tracks_viewer import (
-    TracksViewer,
 )
 
 from .navigation_widget import NavigationWidget
@@ -47,10 +46,7 @@ class CustomViewBox(pg.ViewBox):
             # Otherwise, disable rectangular zoom mode
             self.setMouseMode(self.PanMode)
 
-        if (
-            axis is not None
-            and ev.button() == QtCore.Qt.MouseButton.RightButton
-        ):
+        if axis is not None and ev.button() == QtCore.Qt.MouseButton.RightButton:
             ev.ignore()
         else:
             pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
@@ -188,9 +184,7 @@ class TreePlot(pg.PlotWidget):
         self.g.scatter.setSize(self.sizes)
         self.autoRange()
 
-    def _create_pyqtgraph_content(
-        self, track_df: pd.DataFrame, feature: str
-    ) -> None:
+    def _create_pyqtgraph_content(self, track_df: pd.DataFrame, feature: str) -> None:
         """Parse the given track_df into the format that pyqtgraph expects
         and save the information as attributes.
 
@@ -320,9 +314,7 @@ class TreeWidget(QWidget):
     def __init__(self, viewer: napari.Viewer):
         super().__init__()
         self.track_df = pd.DataFrame()  # all tracks
-        self.lineage_df = (
-            pd.DataFrame()
-        )  # the currently viewed subset of lineages
+        self.lineage_df = pd.DataFrame()  # the currently viewed subset of lineages
         self.graph = None
         self.mode = "all"  # options: "all", "lineage"
         self.feature = "tree"  # options: "tree", "area"
@@ -489,9 +481,7 @@ class TreeWidget(QWidget):
             feature (str): The feature to plot. Options are "tree" or "area"
         """
         if feature not in ["tree", "area"]:
-            raise ValueError(
-                f"Feature must be 'tree' or 'area', got {feature}"
-            )
+            raise ValueError(f"Feature must be 'tree' or 'area', got {feature}")
 
         self.feature = feature
         if feature == "tree" and self.mode == "all":

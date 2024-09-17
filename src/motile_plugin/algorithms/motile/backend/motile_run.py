@@ -4,9 +4,8 @@ from pathlib import Path
 
 import networkx as nx
 import numpy as np
-from pydantic import BaseModel
-
 from motile_plugin.core import Tracks
+from pydantic import BaseModel
 
 from .solver_params import SolverParams
 
@@ -95,14 +94,10 @@ class MotileRun(BaseModel):
             self._save_array(run_dir, IN_POINTS_FILEANME, self.input_points)
         if self.tracks is not None:
             if self.tracks.segmentation is not None:
-                self._save_array(
-                    run_dir, OUT_SEG_FILEANME, self.tracks.segmentation
-                )
+                self._save_array(run_dir, OUT_SEG_FILEANME, self.tracks.segmentation)
             if self.tracks.graph is not None:
                 self._save_tracks_graph(run_dir, self.tracks.graph)
-        self._save_list(
-            list_to_save=self.gaps, run_dir=run_dir, filename=GAPS_FILENAME
-        )
+        self._save_list(list_to_save=self.gaps, run_dir=run_dir, filename=GAPS_FILENAME)
         self._save_list(
             list_to_save=self.scale, run_dir=run_dir, filename=SCALE_FILENAME
         )
@@ -127,12 +122,8 @@ class MotileRun(BaseModel):
             run_dir = Path(run_dir)
         time, run_name = cls._unpack_id(run_dir.stem)
         params = cls._load_params(run_dir)
-        input_segmentation = cls._load_array(
-            run_dir, IN_SEG_FILEANME, required=False
-        )
-        input_points = cls._load_array(
-            run_dir, IN_POINTS_FILEANME, required=False
-        )
+        input_segmentation = cls._load_array(run_dir, IN_SEG_FILEANME, required=False)
+        input_points = cls._load_array(run_dir, IN_POINTS_FILEANME, required=False)
         if output_required and input_segmentation is not None:
             output_seg_required = True
         else:
@@ -140,9 +131,7 @@ class MotileRun(BaseModel):
         output_segmentation = cls._load_array(
             run_dir, OUT_SEG_FILEANME, required=output_seg_required
         )
-        tracks_graph = cls._load_tracks_graph(
-            run_dir, required=output_required
-        )
+        tracks_graph = cls._load_tracks_graph(run_dir, required=output_required)
         tracks = Tracks(graph=tracks_graph, segmentation=output_segmentation)
         gaps = cls._load_list(run_dir=run_dir, filename=GAPS_FILENAME, required=False)
         scale = cls._load_list(run_dir=run_dir, filename=SCALE_FILENAME, required=False)
@@ -244,9 +233,7 @@ class MotileRun(BaseModel):
             json.dump(nx.node_link_data(graph), f)
 
     @staticmethod
-    def _load_tracks_graph(
-        run_dir: Path, required: bool = True
-    ) -> nx.DiGraph | None:
+    def _load_tracks_graph(run_dir: Path, required: bool = True) -> nx.DiGraph | None:
         """Load tracks from file. Currently uses networkx node link data
         format.
 
@@ -273,10 +260,7 @@ class MotileRun(BaseModel):
         else:
             return None
 
-    def _save_list(
-        self, list_to_save: list | None, run_dir: Path, filename: str
-    ):
-
+    def _save_list(self, list_to_save: list | None, run_dir: Path, filename: str):
         if list_to_save is None:
             return
         list_file = run_dir / filename
@@ -284,9 +268,7 @@ class MotileRun(BaseModel):
             f.write(",".join(map(str, list_to_save)))
 
     @staticmethod
-    def _load_list(
-        run_dir: Path, filename: str, required: bool = True
-    ) -> list[float]:
+    def _load_list(run_dir: Path, filename: str, required: bool = True) -> list[float]:
         list_file = run_dir / filename
         if list_file.is_file():
             with open(list_file) as f:

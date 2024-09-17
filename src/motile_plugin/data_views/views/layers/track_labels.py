@@ -3,9 +3,8 @@ from typing import Dict, List
 
 import napari
 import numpy as np
-from napari.utils import CyclicLabelColormap, DirectLabelColormap
-
 from motile_plugin.core import Tracks
+from napari.utils import CyclicLabelColormap, DirectLabelColormap
 
 from ..utils.node_selection import NodeSelectionList
 
@@ -49,8 +48,7 @@ class TrackLabels(napari.layers.Labels):
         props = {
             "node_id": self.nodes,
             "track_id": [
-                data["tracklet_id"]
-                for _, data in tracks.graph.nodes(data=True)
+                data["tracklet_id"] for _, data in tracks.graph.nodes(data=True)
             ],
             "t": [tracks.get_time(node) for node in self.nodes],
         }

@@ -1,3 +1,4 @@
+from motile_plugin.backend.solver_params import SolverParams
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QGroupBox,
@@ -6,8 +7,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
-from motile_plugin.backend.solver_params import SolverParams
 
 from .param_values import StaticParamValue
 
@@ -84,14 +83,10 @@ class SolverParamsViewer(QWidget):
         }
         main_layout = QVBoxLayout()
         main_layout.addWidget(
-            self._params_group(
-                title="Hyperparameters", param_category="hyperparams"
-            )
+            self._params_group(title="Hyperparameters", param_category="hyperparams")
         )
         main_layout.addWidget(
-            self._params_group(
-                title="Constant Costs", param_category="constant_costs"
-            )
+            self._params_group(title="Constant Costs", param_category="constant_costs")
         )
         main_layout.addWidget(
             self._params_group(

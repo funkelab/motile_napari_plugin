@@ -1,6 +1,7 @@
 from functools import partial
 from types import NoneType
 
+from motile_plugin.backend.solver_params import SolverParams
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -10,8 +11,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
-from motile_plugin.backend.solver_params import SolverParams
 
 from .param_values import EditableParamValue
 
@@ -146,25 +145,17 @@ class SolverParamsEditor(QWidget):
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(
-            self._params_group(
-                "Hyperparameters", "hyperparams", negative=False
-            )
+            self._params_group("Hyperparameters", "hyperparams", negative=False)
         )
         main_layout.addWidget(
-            self._params_group(
-                "Constant Costs", "constant_costs", negative=True
-            )
+            self._params_group("Constant Costs", "constant_costs", negative=True)
         )
         main_layout.addWidget(
-            self._params_group(
-                "Attribute Weights", "attribute_costs", negative=True
-            )
+            self._params_group("Attribute Weights", "attribute_costs", negative=True)
         )
         self.setLayout(main_layout)
 
-    def _params_group(
-        self, title: str, param_category: str, negative: bool
-    ) -> QWidget:
+    def _params_group(self, title: str, param_category: str, negative: bool) -> QWidget:
         widget = QGroupBox(title)
         layout = QVBoxLayout()
         # layout.setContentsMargins(0, 0, 0, 0)
@@ -176,9 +167,7 @@ class SolverParamsEditor(QWidget):
                 if issubclass(NoneType, field.annotation)
                 else EditableParam
             )
-            param_row = param_cls(
-                param_name, self.solver_params, negative=negative
-            )
+            param_row = param_cls(param_name, self.solver_params, negative=negative)
             param_row.param_value.valueChanged.connect(
                 partial(self.solver_params.__setattr__, param_name)
             )

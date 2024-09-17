@@ -90,7 +90,7 @@ class Tracks(BaseModel):
         Returns:
             int: The area/volume of the node
         """
-        
+
         # Check if the node exists in the graph
         if node not in self.graph.nodes:
             raise ValueError(f"Node {node} is not in the graph.")

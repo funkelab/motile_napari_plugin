@@ -4,6 +4,7 @@ from warnings import warn
 
 import pyqtgraph as pg
 from fonticon_fa6 import FA6S
+from motile_plugin.backend.motile_run import MotileRun
 from motile_toolbox.candidate_graph import NodeAttr
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
@@ -17,8 +18,6 @@ from qtpy.QtWidgets import (
 )
 from superqt import QCollapsible
 from superqt.fonticon import icon as qticon
-
-from motile_plugin.backend.motile_run import MotileRun
 
 from .params_viewer import SolverParamsViewer
 

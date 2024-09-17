@@ -1,6 +1,7 @@
 from functools import partial
 from warnings import warn
 
+from motile_plugin.backend.motile_run import MotileRun
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
@@ -14,8 +15,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
-from motile_plugin.backend.motile_run import MotileRun
 
 
 class RunButton(QWidget):
