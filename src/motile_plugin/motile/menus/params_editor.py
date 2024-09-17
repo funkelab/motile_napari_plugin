@@ -1,7 +1,7 @@
 from functools import partial
 from types import NoneType
 
-from motile_plugin.backend.solver_params import SolverParams
+from motile_plugin.motile.backend import SolverParams
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QCheckBox,

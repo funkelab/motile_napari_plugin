@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from psygnal import Signal
 from PyQt5.QtCore import QObject
 

@@ -1,11 +1,14 @@
+from __future__ import annotations
+
 import copy
 
 import napari
 import networkx as nx
 import numpy as np
-from motile_plugin.core import Tracks
 from motile_toolbox.visualization import to_napari_tracks_layer
 from napari.utils import CyclicLabelColormap
+
+from motile_plugin.data_model import Tracks
 
 
 class TrackGraph(napari.layers.Tracks):

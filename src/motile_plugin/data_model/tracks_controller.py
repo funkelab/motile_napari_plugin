@@ -14,32 +14,32 @@ class TracksController:
         self.tracks = tracks
 
     def add_nodes(
-        nodes: np.ndarray[int],
+        nodes: np.ndarray,
         attributes: np.ndarray,
-        segmentations: Optional(np.ndarray) = None,
+        segmentations: Optional[np.ndarray] = None,
     ):
         """_summary_
 
         Args:
-            nodes (np.ndarray[int]): _description_
+            nodes (np.ndarray): _description_
             attributes (np.ndarray): _description_
             segmentations (np.ndarray | None, optional): _description_. Defaults to None.
         """
         # TODO: Implement in minimal editing example
 
-    def delete_nodes(nodes: np.ndarray[int]):
+    def delete_nodes(nodes: np.ndarray):
         """_summary_
 
         Args:
-            nodes (np.ndarray[int]): _description_
+            nodes (np.ndarray): _description_
         """
 
         # TODO: Implement in minimal editing example
 
-    def update_nodes(nodes: np.ndarray[int], attributes: np.ndarray):
+    def update_nodes(nodes: np.ndarray, attributes: np.ndarray):
         pass
 
-    def add_edges(edges: np.array[int], attributes: np.ndarray):
+    def add_edges(edges: np.array, attributes: np.ndarray):
         # TODO: Implement in minimal editing example
         pass
 
@@ -47,10 +47,10 @@ class TracksController:
         # TODO: Implement in minimal editing example
         pass
 
-    def update_edges(edges: np.ndarray[int], attributes: np.ndarray):
+    def update_edges(edges: np.ndarray, attributes: np.ndarray):
         pass
 
-    def update_segmentations(nodes: np.ndarray[int], updated_values: Any):
+    def update_segmentations(nodes: np.ndarray, updated_values: Any):
         pass
 
     def add_node_attribute(name: str, values: any):

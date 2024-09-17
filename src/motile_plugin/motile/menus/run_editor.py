@@ -7,7 +7,7 @@ from warnings import warn
 
 import napari.layers
 import numpy as np
-from motile_plugin.backend.motile_run import MotileRun
+from motile_plugin.motile.backend import MotileRun
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QComboBox,

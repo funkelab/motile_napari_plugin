@@ -1,7 +1,7 @@
 from functools import partial
 from warnings import warn
 
-from motile_plugin.backend.motile_run import MotileRun
+from motile_plugin.motile.backend import MotileRun
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (

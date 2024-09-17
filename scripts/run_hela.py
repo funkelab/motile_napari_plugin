@@ -4,7 +4,8 @@ from pathlib import Path
 import napari
 import zarr
 from appdirs import AppDirs
-from motile_plugin.widgets import MotileWidget, TreeWidget
+from motile_plugin.data_views.views import TreeWidget
+from motile_plugin.motile.menus import MotileWidget
 from napari.utils.theme import _themes
 
 logging.basicConfig(

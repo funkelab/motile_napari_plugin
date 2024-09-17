@@ -1,16 +1,11 @@
+from __future__ import annotations
+
 from typing import Any
 
 import napari
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
-from motile_plugin.utils.tree_widget_utils import (
-    extract_lineage_tree,
-    extract_sorted_tracks,
-)
-from motile_plugin.widgets.tracks_view.tracks_viewer import (
-    TracksViewer,
-)
 from psygnal import Signal
 from pyqtgraph.Qt import QtCore
 from qtpy.QtCore import Qt
@@ -21,9 +16,15 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
+
 from .navigation_widget import NavigationWidget
 from .tree_view_feature_widget import TreeViewFeatureWidget
 from .tree_view_mode_widget import TreeViewModeWidget
+from .tree_widget_utils import (
+    extract_lineage_tree,
+    extract_sorted_tracks,
+)
 
 
 class CustomViewBox(pg.ViewBox):

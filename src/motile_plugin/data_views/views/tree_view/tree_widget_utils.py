@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from typing import Dict, List
 
 import napari.layers
 import networkx as nx
 import pandas as pd
-from motile_plugin.core import NodeType, Tracks
+
+from motile_plugin.data_model import NodeType, Tracks
 
 
 def extract_sorted_tracks(

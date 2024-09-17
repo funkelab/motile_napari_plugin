@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 import logging
 
 import networkx as nx
 import numpy as np
-from motile_plugin.backend.motile_run import MotileRun
-from motile_plugin.backend.solve import solve
-from motile_plugin.core import Tracks
-from motile_plugin.widgets.tracks_view.tracks_viewer import TracksViewer
+from motile_plugin.data_model import Tracks
+from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
+from motile_plugin.motile.backend import MotileRun, solve
 from motile_toolbox.candidate_graph import NodeAttr
 from napari import Viewer
 from psygnal import Signal

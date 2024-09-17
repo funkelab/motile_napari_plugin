@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from functools import partial
 from pathlib import Path
 from warnings import warn
 
 import pyqtgraph as pg
 from fonticon_fa6 import FA6S
-from motile_plugin.backend.motile_run import MotileRun
+from motile_plugin.motile.backend import MotileRun
 from motile_toolbox.candidate_graph import NodeAttr
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (

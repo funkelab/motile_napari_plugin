@@ -13,6 +13,8 @@ class ParamValue(QWidget):
 This "interface" is only enforced by duck typing, as is the pythonic way.
 """
 
+from __future__ import annotations
+
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QDoubleSpinBox, QLabel
 

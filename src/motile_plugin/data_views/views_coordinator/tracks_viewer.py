@@ -1,15 +1,16 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 import napari
-from motile_plugin.core import NodeType, Tracks
-from motile_plugin.layers.track_graph import TrackGraph
-from motile_plugin.layers.track_labels import TrackLabels
-from motile_plugin.layers.track_points import TrackPoints
-from motile_plugin.utils.node_selection import NodeSelectionList
-from motile_plugin.utils.tree_widget_utils import (
-    extract_lineage_tree,
-)
 from psygnal import Signal
+
+from motile_plugin.data_model import NodeType, Tracks
+from motile_plugin.data_views.views.layers.track_graph import TrackGraph
+from motile_plugin.data_views.views.layers.track_labels import TrackLabels
+from motile_plugin.data_views.views.layers.track_points import TrackPoints
+
+from .node_selection_list import NodeSelectionList
 
 
 @dataclass
@@ -134,6 +135,7 @@ class TracksViewer:
                 name=name + "_tracks",
                 colormap=self.colormap,
             )
+
             self.tracking_layers.points_layer = TrackPoints(
                 viewer=self.viewer,
                 tracks=tracks,
@@ -141,6 +143,10 @@ class TracksViewer:
                 selected_nodes=self.selected_nodes,
                 symbolmap=self.symbolmap,
                 colormap=self.colormap,
+            )
+            # listen to updates in the selected data (from the point selection tool) to update the nodes in self.selected_nodes
+            self.tracking_layers.points_layer.selected_data.events.items_changed.connect(
+                self._update_selection
             )
 
         self.tracks_updated.emit()
@@ -217,9 +223,7 @@ class TracksViewer:
             self.viewer.dims.current_step = step
 
             # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
-            example_layer = (
-                self.tracking_layers.points_layer
-            )  # the points layer is not scaled by the 'scale' attribute, because it directly reads the scaled coordinates. Therefore, no rescaling is necessary to compute the camera center
+            example_layer = self.tracking_layers.points_layer  # the points layer is not scaled by the 'scale' attribute, because it directly reads the scaled coordinates. Therefore, no rescaling is necessary to compute the camera center
             corner_coordinates = example_layer.corner_pixels
 
             # check which dimensions are shown, the first dimension is displayed on the x axis, and the second on the y_axis
@@ -248,3 +252,12 @@ class TracksViewer:
                     ],  # camera center is calculated in scaled coordinates, and the optional labels layer is scaled by the layer.scale attribute
                     location[x_dim],
                 )
+
+    def _update_selection(self):
+        """Replaces the list of selected_nodes with the selection provided by the user"""
+
+        selected_points = self.tracking_layers.points_layer.selected_data
+        self.selected_nodes.reset()
+        for point in selected_points:
+            node_id = self.nodes[point]
+            self.selected_nodes.add(node_id, True)

@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import json
 from datetime import datetime
 from pathlib import Path
 
 import networkx as nx
 import numpy as np
-from motile_plugin.core import Tracks
+from motile_plugin.data_model import Tracks
 from pydantic import BaseModel
 
 from .solver_params import SolverParams

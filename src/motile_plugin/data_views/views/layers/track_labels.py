@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 import copy
-from typing import Dict, List
+from typing import TYPE_CHECKING, Dict, List
 
 import napari
 import numpy as np
-from motile_plugin.core import Tracks
 from napari.utils import CyclicLabelColormap, DirectLabelColormap
 
-from ..utils.node_selection import NodeSelectionList
+from motile_plugin.data_model import Tracks
+
+if TYPE_CHECKING:
+    from motile_plugin.data_views import NodeSelectionList
 
 
 def create_selection_label_cmap(

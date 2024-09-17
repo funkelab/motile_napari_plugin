@@ -1,11 +1,17 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pandas as pd
-from motile_plugin.utils.node_selection import NodeSelectionList
 from qtpy.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QPushButton,
     QWidget,
 )
+
+if TYPE_CHECKING:
+    from motile_plugin.data_views import NodeSelectionList
 
 
 class NavigationWidget(QWidget):

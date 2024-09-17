@@ -1,8 +1,14 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import napari
 import numpy as np
-from motile_plugin.core import NodeType, Tracks
 
-from ..utils.node_selection import NodeSelectionList
+from motile_plugin.data_model import NodeType, Tracks
+
+if TYPE_CHECKING:
+    from motile_plugin.views_coordinator import NodeSelectionList
 
 
 class TrackPoints(napari.layers.Points):
