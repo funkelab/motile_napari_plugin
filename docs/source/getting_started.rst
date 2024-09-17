@@ -124,6 +124,17 @@ is a good idea, since these are stored in memory. Runs that were saved in
 previous sessions do not appear here until you load them from disk with the
 ``Load Run`` button.
 
+The tracking results can also be visualized as a lineage tree.
+You can open the lineage tree widget via ``Plugins`` > ``Motile`` > ``Lineage View``.
+Clicking on individual nodes in the tree widget or in the napari Points or Labels layer will select that node,
+highlighting it both in the tree view and in the napari layers, and centering the view if necessary.
+You can navigate and select nodes in the tree view using the arrow keys (make sure to click on the tree widget first).
+Optionally, you can display only selected lineages in the tree view and/or napari layers (press ``L`` in the tree widget or ``T`` in the napari viewer, respectively).
+If you used a Labels layer as input for tracking, you will also have the option to plot the object sizes (area or volume) in calibrated units
+(make sure that your input layer has the correct scaling before starting the tracking).
+Please visit :doc:`key bindings <key_bindings>` page for a complete list of available key bindings in the napari viewer and in the tree view.
 
+
+.. _here: docs/source/key_bindings.rst
 .. _Issue #48: https://github.com/funkelab/motile_napari_plugin/issues/48
 .. _Cell Tracking Challenge: https://celltrackingchallenge.net/
