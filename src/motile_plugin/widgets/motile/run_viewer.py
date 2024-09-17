@@ -224,7 +224,7 @@ class RunViewer(QGroupBox):
         self._set_solver_label(self.run.status)
         self.gap_plot.getPlotItem().clear()
         gaps = self.run.gaps
-        if len(gaps) > 0:
+        if gaps is not None and len(gaps) > 0:
             self.gap_plot.getPlotItem().plot(range(len(gaps)), gaps)
 
     def reset_progress(self):
