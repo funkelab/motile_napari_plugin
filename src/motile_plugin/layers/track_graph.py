@@ -19,7 +19,6 @@ class TrackGraph(napari.layers.Tracks):
         tracks: Tracks,
         name: str,
         colormap: CyclicLabelColormap,
-        scale: tuple,
     ):
         if tracks is None or tracks.graph is None:
             graph = nx.DiGraph()
@@ -37,15 +36,12 @@ class TrackGraph(napari.layers.Tracks):
             name=name,
             tail_length=3,
             color_by="track_id",
-            scale=scale,
         )
 
         self.viewer = viewer
         self.colormaps_dict["track_id"] = colormap
 
-        self.tracks_layer_graph = copy.deepcopy(
-            self.graph
-        )  # for restoring graph later
+        self.tracks_layer_graph = copy.deepcopy(self.graph)  # for restoring graph later
 
     def update_track_visibility(self, visible: list[int] | str) -> None:
         """Optionally show only the tracks of a current lineage"""

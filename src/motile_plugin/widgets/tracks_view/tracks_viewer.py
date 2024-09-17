@@ -134,7 +134,6 @@ class TracksViewer:
                 tracks=tracks,
                 name=name + "_tracks",
                 colormap=self.colormap,
-                scale=self.tracks.scale,
             )
             self.tracking_layers.points_layer = TrackPoints(
                 viewer=self.viewer,
@@ -143,7 +142,6 @@ class TracksViewer:
                 selected_nodes=self.selected_nodes,
                 symbolmap=self.symbolmap,
                 colormap=self.colormap,
-                scale=self.tracks.scale,
             )
 
         self.tracks_updated.emit()
@@ -187,10 +185,7 @@ class TracksViewer:
             if self.tracks is None or self.tracks.graph is None:
                 return []
             return list(
-                {
-                    self.tracks.graph.nodes[node]["tracklet_id"]
-                    for node in visible
-                }
+                {self.tracks.graph.nodes[node]["tracklet_id"] for node in visible}
             )
         else:
             return "all"
@@ -216,13 +211,17 @@ class TracksViewer:
 
             step = list(self.viewer.dims.current_step)
             for dim in self.viewer.dims.not_displayed:
-                step[dim] = int(location[dim] + 0.5)
+                step[dim] = int(
+                    location[dim] + 0.5
+                )  # use the scaled location, since the 'step' in viewer.dims.range already accounts for the scaling
 
             self.viewer.dims.current_step = step
 
             # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
-            example_layer = self.tracking_layers.points_layer
-            corner_pixels = example_layer.corner_pixels
+            example_layer = (
+                self.tracking_layers.points_layer
+            )  # the points layer is not scaled by the 'scale' attribute, because it directly reads the scaled coordinates. Therefore, no rescaling is necessary to compute the camera center
+            corner_coordinates = example_layer.corner_pixels
 
             # check which dimensions are shown, the first dimension is displayed on the x axis, and the second on the y_axis
             dims_displayed = self.viewer.dims.displayed
@@ -230,12 +229,12 @@ class TracksViewer:
             y_dim = dims_displayed[-2]
 
             # find corner pixels for the displayed axes
-            _min_x = corner_pixels[0][x_dim]
-            _max_x = corner_pixels[1][x_dim]
-            _min_y = corner_pixels[0][y_dim]
-            _max_y = corner_pixels[1][y_dim]
+            _min_x = corner_coordinates[0][x_dim]
+            _max_x = corner_coordinates[1][x_dim]
+            _min_y = corner_coordinates[0][y_dim]
+            _max_y = corner_coordinates[1][y_dim]
 
-            # check whether the node location falls within the corner pixel range
+            # check whether the node location falls within the corner spatial range
             if not (
                 (location[x_dim] > _min_x and location[x_dim] < _max_x)
                 and (location[y_dim] > _min_y and location[y_dim] < _max_y)
@@ -245,6 +244,8 @@ class TracksViewer:
                 # set the center y and x to the center of the node, by using the index of the currently displayed dimensions
                 self.viewer.camera.center = (
                     camera_center[0],
-                    location[y_dim] * self.tracks.scale[y_dim],
-                    location[x_dim] * self.tracks.scale[x_dim],
+                    location[
+                        y_dim
+                    ],  # camera center is calculated in scaled coordinates, and the optional labels layer is scaled by the layer.scale attribute
+                    location[x_dim],
                 )

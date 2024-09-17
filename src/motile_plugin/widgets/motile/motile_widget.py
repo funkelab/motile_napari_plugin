@@ -131,14 +131,10 @@ class MotileWidget(QScrollArea):
         tracked_masks = np.zeros_like(segmentation, shape=output_shape)
         for node, _data in solution_nx_graph.nodes(data=True):
             time_frame = solution_nx_graph.nodes[node][NodeAttr.TIME.value]
-            previous_seg_id = solution_nx_graph.nodes[node][
-                NodeAttr.SEG_ID.value
-            ]
+            previous_seg_id = solution_nx_graph.nodes[node][NodeAttr.SEG_ID.value]
             tracklet_id = solution_nx_graph.nodes[node]["tracklet_id"]
             if NodeAttr.SEG_HYPO.value in solution_nx_graph.nodes[node]:
-                hypothesis_id = solution_nx_graph.nodes[node][
-                    NodeAttr.SEG_HYPO.value
-                ]
+                hypothesis_id = solution_nx_graph.nodes[node][NodeAttr.SEG_HYPO.value]
             else:
                 hypothesis_id = 0
             previous_seg_mask = (
@@ -172,6 +168,7 @@ class MotileWidget(QScrollArea):
             run.solver_params,
             input_data,
             lambda event_data: self._on_solver_event(run, event_data),
+            scale=run.scale,
         )
         if run.input_segmentation is not None:
             output_segmentation = self.relabel_segmentation(
@@ -196,14 +193,9 @@ class MotileWidget(QScrollArea):
             event_data (dict): The solver event data from ilpy.EventData
         """
         event_type = event_data["event_type"]
-        if (
-            event_type in ["PRESOLVE", "PRESOLVEROUND"]
-            and run.status != "presolving"
-        ):
+        if event_type in ["PRESOLVE", "PRESOLVEROUND"] and run.status != "presolving":
             run.status = "presolving"
-            run.gaps = (
-                []
-            )  # try this to remove the weird initial gap for gurobi
+            run.gaps = []  # try this to remove the weird initial gap for gurobi
             self.solver_update.emit()
         elif event_type in ["MIPSOL", "BESTSOLFOUND"]:
             run.status = "solving"
