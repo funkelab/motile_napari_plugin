@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from motile_toolbox.candidate_graph import NodeAttr
+from psygnal import Signal
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
@@ -34,6 +35,8 @@ class Tracks(BaseModel):
 
     """
 
+    refresh = Signal()
+
     graph: nx.DiGraph
     segmentation: np.ndarray | None = None
     time_attr: str = NodeAttr.TIME.value
@@ -58,7 +61,7 @@ class Tracks(BaseModel):
                 of dimensions.
         """
         data = self.graph.nodes[node]
-        if isinstance(self.pos_attr, (tuple, list)):
+        if isinstance(self.pos_attr, tuple | list):
             pos = [data[dim] for dim in self.pos_attr]
         else:
             pos = data[self.pos_attr]
