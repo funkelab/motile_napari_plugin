@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from motile_toolbox.candidate_graph import NodeAttr
 from psygnal import Signal
@@ -35,7 +35,7 @@ class Tracks(BaseModel):
 
     """
 
-    refresh = Signal()
+    refresh: ClassVar[Signal] = Signal()
 
     graph: nx.DiGraph
     segmentation: np.ndarray | None = None
