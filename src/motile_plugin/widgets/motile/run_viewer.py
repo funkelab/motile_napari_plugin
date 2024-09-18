@@ -183,10 +183,11 @@ class RunViewer(QGroupBox):
 
     def export_tracks(self):
         """Export the tracks from this run to a csv with the following columns:
-        t,[z],y,x,id,parent_id
+        t,[z],y,x,id,parent_id,[seg_id]
         Cells without a parent_id will have an empty string for the parent_id.
         Whether or not to include z is inferred from the length of an
-        arbitrary node's position attribute.
+        arbitrary node's position attribute. If the nodes have a "seg_id" attribute,
+        the "seg_id" column is included.
         """
         default_name = self.run._make_id()
         default_name = f"{default_name}_tracks.csv"
@@ -194,22 +195,26 @@ class RunViewer(QGroupBox):
         self.export_tracks_dialog.selectFile(str(base_path / default_name))
         if self.export_tracks_dialog.exec_():
             outfile = self.export_tracks_dialog.selectedFiles()[0]
-            header = ["t", "z", "y", "x", "id", "parent_id"]
-            tracks = self.run.tracks
+            header = ["t", "z", "y", "x", "id", "parent_id", "seg_id"]
+            tracks = self.run.tracks.graph
             _, sample_data = next(iter(tracks.nodes(data=True)))
             ndim = len(sample_data[NodeAttr.POS.value])
             if ndim == 2:
                 header = [header[0]] + header[2:]  # remove z
+            if "seg_id" not in sample_data:
+                header = [header[0:-1]]  # remove seg_id
             with open(outfile, "w") as f:
                 f.write(",".join(header))
                 for node_id, data in tracks.nodes(data=True):
                     parents = list(tracks.predecessors(node_id))
                     parent_id = "" if len(parents) == 0 else parents[0]
+                    seg_id = data.get("seg_id", "")
                     row = [
                         data[NodeAttr.TIME.value],
                         *data[NodeAttr.POS.value],
                         node_id,
                         parent_id,
+                        seg_id,
                     ]
                     f.write("\n")
                     f.write(",".join(map(str, row)))
