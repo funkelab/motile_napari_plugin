@@ -378,6 +378,10 @@ class TreeWidget(QWidget):
             Qt.Key_Down: "down",
         }
 
+        if event.key() == Qt.Key_Delete:
+            self.tracks_viewer.tracks_controller.delete_nodes(
+                np.array(self.selected_nodes._list)
+            )
         if event.key() == Qt.Key_L:
             self.mode_widget._toggle_display_mode()
         if event.key() == Qt.Key_A:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING
 
 import napari
 import numpy as np
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 def create_selection_label_cmap(
-    color_dict_rgb: Dict, visible: List[int] | str, highlighted: List[int]
+    color_dict_rgb: dict, visible: list[int] | str, highlighted: list[int]
 ) -> DirectLabelColormap:
     """Generates a label colormap with three possible opacity values (0 for invisibible labels, 0.6 for visible labels, and 1 for selected labels)"""
 
@@ -25,10 +25,11 @@ def create_selection_label_cmap(
                 color_dict_rgb_temp[key][-1] = 0.6  # set opacity to 0.6
     else:
         for label in visible:
-            color_dict_rgb_temp[label][-1] = 0.6  # set opacity to 0.6
+            if label in color_dict_rgb_temp:
+                color_dict_rgb_temp[label][-1] = 0.6  # set opacity to 0.6
 
     for label in highlighted:
-        if label != 0:
+        if label != 0 and label in color_dict_rgb_temp:
             color_dict_rgb_temp[label][-1] = 1  # set opacity to full
 
     return DirectLabelColormap(color_dict=color_dict_rgb_temp)
@@ -96,8 +97,8 @@ class TrackLabels(napari.layers.Labels):
                     self.selected_nodes.add(node_id, append)
 
     def create_label_color_dict(
-        self, labels: List[int], colormap: CyclicLabelColormap
-    ) -> Dict:
+        self, labels: list[int], colormap: CyclicLabelColormap
+    ) -> dict:
         """Extract the label colors to generate a base colormap, but keep opacity at 0"""
 
         color_dict_rgb = {None: [0.0, 0.0, 0.0, 0.0]}

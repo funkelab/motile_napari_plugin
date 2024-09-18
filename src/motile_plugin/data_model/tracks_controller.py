@@ -27,6 +27,7 @@ class TracksController:
             segmentations (Any, optional): A segmentation for each node (not
                 currently implemented). Defaults to None.
         """
+
         for idx, node in enumerate(nodes):
             attrs = {attr: val[idx] for attr, val in attributes.items()}
             self.tracks.graph.add_node(node, **attrs)

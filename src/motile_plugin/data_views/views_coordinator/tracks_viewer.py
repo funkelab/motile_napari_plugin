@@ -6,9 +6,13 @@ import napari
 from psygnal import Signal
 
 from motile_plugin.data_model import NodeType, Tracks
+from motile_plugin.data_model.tracks_controller import TracksController
 from motile_plugin.data_views.views.layers.track_graph import TrackGraph
 from motile_plugin.data_views.views.layers.track_labels import TrackLabels
 from motile_plugin.data_views.views.layers.track_points import TrackPoints
+from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
+    extract_lineage_tree,
+)
 
 from .node_selection_list import NodeSelectionList
 
@@ -97,6 +101,7 @@ class TracksViewer:
         """
         self.selected_nodes._list = []
         self.tracks = tracks
+        self.tracks_controller = TracksController(self.tracks)
         # Remove old layers if necessary
         self.remove_napari_layers()
 
@@ -138,16 +143,15 @@ class TracksViewer:
 
             self.tracking_layers.points_layer = TrackPoints(
                 viewer=self.viewer,
-                tracks=tracks,
                 name=name + "_points",
-                selected_nodes=self.selected_nodes,
                 symbolmap=self.symbolmap,
                 colormap=self.colormap,
+                tracks_viewer=self,
             )
             # listen to updates in the selected data (from the point selection tool) to update the nodes in self.selected_nodes
-            self.tracking_layers.points_layer.selected_data.events.items_changed.connect(
-                self._update_selection
-            )
+            # self.tracking_layers.points_layer.selected_data.events.items_changed.connect(
+            #     self._update_selection
+            # )
 
         self.tracks_updated.emit()
         self.add_napari_layers()
@@ -253,11 +257,11 @@ class TracksViewer:
                     location[x_dim],
                 )
 
-    def _update_selection(self):
-        """Replaces the list of selected_nodes with the selection provided by the user"""
+    # def _update_selection(self):
+    #     """Replaces the list of selected_nodes with the selection provided by the user"""
 
-        selected_points = self.tracking_layers.points_layer.selected_data
-        self.selected_nodes.reset()
-        for point in selected_points:
-            node_id = self.nodes[point]
-            self.selected_nodes.add(node_id, True)
+    #     selected_points = self.tracking_layers.points_layer.selected_data
+    #     self.selected_nodes.reset()
+    #     for point in selected_points:
+    #         node_id = self.nodes[point]
+    #         self.selected_nodes.add(node_id, True)

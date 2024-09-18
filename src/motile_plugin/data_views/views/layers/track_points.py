@@ -3,12 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import napari
+import networkx as nx
 import numpy as np
+from motile_toolbox.candidate_graph import NodeAttr
 
 from motile_plugin.data_model import NodeType, Tracks
 
 if TYPE_CHECKING:
-    from motile_plugin.views_coordinator import NodeSelectionList
+    from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 
 class TrackPoints(napari.layers.Points):
@@ -21,16 +23,15 @@ class TrackPoints(napari.layers.Points):
     def __init__(
         self,
         viewer: napari.Viewer,
-        tracks: Tracks,
         name: str,
-        selected_nodes: NodeSelectionList,
         symbolmap: dict[NodeType, str],
         colormap: napari.utils.Colormap,
+        tracks_viewer: TracksViewer,
     ):
         self.colormap = colormap
         self.symbolmap = symbolmap
 
-        self.nodes = list(tracks.graph.nodes)
+        self.nodes = list(tracks_viewer.tracks.graph.nodes)
         self.node_index_dict = dict(
             zip(
                 self.nodes,
@@ -38,10 +39,15 @@ class TrackPoints(napari.layers.Points):
                 strict=False,
             )
         )
-        points = [tracks.get_location(node, incl_time=True) for node in self.nodes]
-        track_ids = [tracks.graph.nodes[node]["tracklet_id"] for node in self.nodes]
+        points = [
+            tracks_viewer.tracks.get_location(node, incl_time=True)
+            for node in self.nodes
+        ]
+        track_ids = [
+            tracks_viewer.tracks.graph.nodes[node]["tracklet_id"] for node in self.nodes
+        ]
         colors = [colormap.map(track_id) for track_id in track_ids]
-        symbols = self.get_symbols(tracks, symbolmap)
+        symbols = self.get_symbols(tracks_viewer.tracks, symbolmap)
 
         super().__init__(
             data=points,
@@ -54,7 +60,7 @@ class TrackPoints(napari.layers.Points):
         )
 
         self.viewer = viewer
-        self.selected_nodes = selected_nodes
+        self.tracks_viewer = tracks_viewer
 
         @self.mouse_drag_callbacks.append
         def click(layer, event):
@@ -69,19 +75,111 @@ class TrackPoints(napari.layers.Points):
                 if point_index is not None:
                     node_id = self.nodes[point_index]
                     append = "Shift" in event.modifiers
-                    self.selected_nodes.add(node_id, append)
+                    self.tracks_viewer.selected_nodes.add(node_id, append)
 
-        # listen to updates in the selected data (from the point selection tool) to update the nodes in self.selected_nodes
+        # listen to updates of the data
+        self.events.data.connect(self._update_data)
+
+        # listen to updates in the selected data (from the point selection tool)
+        # to update the nodes in self.tracks_viewer.selected_nodes
         self.selected_data.events.items_changed.connect(self._update_selection)
+
+        # list to refresh signals from the tracks_viewer
+        self.tracks_viewer.tracks.refresh.connect(self._refresh)
+
+    def _refresh(self):
+        """Refresh the data in the points layer"""
+
+        self.nodes = list(self.tracks_viewer.tracks.graph.nodes)
+
+        self.node_index_dict = dict(
+            zip(
+                self.nodes,
+                [self.nodes.index(node) for node in self.nodes],
+                strict=False,
+            )
+        )
+
+        track_ids = [
+            self.tracks_viewer.tracks.graph.nodes[node]["tracklet_id"]
+            for node in self.nodes
+        ]
+        self.data = [
+            self.tracks_viewer.tracks.get_location(node, incl_time=True)
+            for node in self.nodes
+        ]
+        self.symbol = self.get_symbols(self.tracks_viewer.tracks, self.symbolmap)
+        self.face_color = [self.colormap.map(track_id) for track_id in track_ids]
+        self.properties = {"node_id": self.nodes, "track_id": track_ids}
+        self.size = 5
+        self.border_color = [1, 1, 1, 1]
+
+        self.tracks_viewer.tracks_updated.emit()  # this is to notify the treewidget
+
+    def _create_node_attrs(self, new_point: np.array) -> tuple[np.array, dict]:
+        """Create a node_id and attributes for a new node at given time point"""
+
+        t = int(new_point[0])
+        nodes_with_time_t = [
+            n
+            for n, attr in self.tracks_viewer.tracks.graph.nodes(data=True)
+            if attr.get(NodeAttr.TIME.value) == t
+        ]
+        max_id = max([int(str(node).split("_")[1]) for node in nodes_with_time_t])
+        node_id = str(t) + "_" + str(max_id + 1)
+        tracklet_id = (
+            max(
+                nx.get_node_attributes(
+                    self.tracks_viewer.tracks.graph, "tracklet_id"
+                ).values()
+            )
+            + 1
+        )
+        seg_id = (
+            max(
+                nx.get_node_attributes(
+                    self.tracks_viewer.tracks.graph, "seg_id"
+                ).values()
+            )
+            + 1
+        )
+        area = 0
+
+        nodes = np.array([node_id])
+        attributes = {
+            NodeAttr.POS.value: np.array([new_point[1:]]),
+            NodeAttr.TIME.value: np.array([t]),
+            "tracklet_id": np.array([tracklet_id]),
+            "area": np.array([area]),
+            "seg_id": np.array([seg_id]),
+        }
+        return nodes, attributes
+
+    def _update_data(self, event):
+        """Calls the tracks controller with to update the data in the Tracks object and dispatch the update"""
+
+        if event.action == "added":
+            new_point = event.value[-1]
+            nodes, attributes = self._create_node_attrs(new_point)
+            self.tracks_viewer.tracks_controller.add_nodes(nodes, attributes)
+
+        if event.action == "removed":
+            print("these points are removed", self.tracks_viewer.selected_nodes._list)
+            self.tracks_viewer.tracks_controller.delete_nodes(
+                np.array(self.tracks_viewer.selected_nodes._list)
+            )
+
+        if event.action == "changed":
+            print("a point was updated")
 
     def _update_selection(self):
         """Replaces the list of selected_nodes with the selection provided by the user"""
 
         selected_points = self.selected_data
-        self.selected_nodes.reset()
+        self.tracks_viewer.selected_nodes.reset()
         for point in selected_points:
             node_id = self.nodes[point]
-            self.selected_nodes.add(node_id, True)
+            self.tracks_viewer.selected_nodes.add(node_id, True)
 
     def get_symbols(self, tracks: Tracks, symbolmap: dict[NodeType, str]) -> list[str]:
         statemap = {
@@ -111,7 +209,7 @@ class TrackPoints(napari.layers.Points):
         # set border color for selected item
         self.border_color = [1, 1, 1, 1]
         self.size = 5
-        for node in self.selected_nodes:
+        for node in self.tracks_viewer.selected_nodes:
             index = self.node_index_dict[node]
             self.border_color[index] = (
                 0,
