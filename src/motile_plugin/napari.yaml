@@ -7,15 +7,15 @@ categories: ["Utilities"]
 contributions:
   commands:
     - id: motile-plugin.motile_widget
-      python_name: motile_plugin.widgets.motile.motile_widget:MotileWidget
+      python_name: motile_plugin.motile.menus.motile_widget:MotileWidget
       title: "Start the motile widget"
       short_title: "motile widget"
     - id: motile-plugin.tree_widget
-      python_name: motile_plugin.widgets.tracks_view.tree_widget:TreeWidget
+      python_name: motile_plugin.data_views.views.tree_view.tree_widget:TreeWidget
       title: "Open the lineage view widget"
       short_title: "lineage view"
     - id: motile-plugin.solve
-      python_name: motile_plugin.backend.solve:solve
+      python_name: motile_plugin.motile.backend.solve:solve
       title: "Run motile tracking (backend only)"
     - id: motile-plugin.Fluo_N2DL_HeLa
       python_name: motile_plugin.example_data:Fluo_N2DL_HeLa
