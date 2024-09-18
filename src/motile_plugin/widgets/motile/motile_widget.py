@@ -1,8 +1,5 @@
 import logging
 
-import networkx as nx
-import numpy as np
-from motile_toolbox.candidate_graph import NodeAttr
 from napari import Viewer
 from psygnal import Signal
 from qtpy.QtWidgets import (
@@ -16,6 +13,7 @@ from superqt.utils import thread_worker
 from motile_plugin.backend.motile_run import MotileRun
 from motile_plugin.backend.solve import solve
 from motile_plugin.core import Tracks
+from motile_plugin.utils.relabel_segmentation import relabel_segmentation
 from motile_plugin.widgets.tracks_view.tracks_viewer import TracksViewer
 
 from .run_editor import RunEditor
@@ -94,8 +92,8 @@ class MotileWidget(QScrollArea):
         self.remove_layers.emit()
 
     def _generate_tracks(self, run: MotileRun) -> None:
-        """Called when we start solving a new run. Switches from run editor to run viewer
-        and starts solving of the new run in a separate thread to avoid blocking
+        """Called when we start solving a new run. Switches from run editor to run
+        viewer and starts solving of the new run in a separate thread to avoid blocking
 
         Args:
             run (MotileRun): Start solving this motile run.
@@ -105,43 +103,6 @@ class MotileWidget(QScrollArea):
         worker = self.solve_with_motile(run)
         worker.returned.connect(self._on_solve_complete)
         worker.start()
-
-    def relabel_segmentation(
-        self,
-        solution_nx_graph: nx.DiGraph,
-        segmentation: np.ndarray,
-    ) -> np.ndarray:
-        """Relabel a segmentation based on tracking results so that nodes in same
-        track share the same id. IDs do change at division.
-
-        Args:
-            solution_nx_graph (nx.DiGraph): Networkx graph with the solution to use
-                for relabeling. Nodes not in graph will be removed from seg. Original
-                segmentation ids and hypothesis ids have to be stored in the graph so we
-                can map them back.
-            segmentation (np.ndarray): Original (potentially multi-hypothesis)
-                segmentation with dimensions (t,h,[z],y,x), where h is 1 for single
-                input segmentation.
-
-        Returns:
-            np.ndarray: Relabeled segmentation array where nodes in same track share same
-                id with shape (t,1,[z],y,x)
-        """
-        output_shape = (segmentation.shape[0], 1, *segmentation.shape[2:])
-        tracked_masks = np.zeros_like(segmentation, shape=output_shape)
-        for node, _data in solution_nx_graph.nodes(data=True):
-            time_frame = solution_nx_graph.nodes[node][NodeAttr.TIME.value]
-            previous_seg_id = solution_nx_graph.nodes[node][NodeAttr.SEG_ID.value]
-            tracklet_id = solution_nx_graph.nodes[node]["tracklet_id"]
-            if NodeAttr.SEG_HYPO.value in solution_nx_graph.nodes[node]:
-                hypothesis_id = solution_nx_graph.nodes[node][NodeAttr.SEG_HYPO.value]
-            else:
-                hypothesis_id = 0
-            previous_seg_mask = (
-                segmentation[time_frame, hypothesis_id] == previous_seg_id
-            )
-            tracked_masks[time_frame, 0][previous_seg_mask] = tracklet_id
-        return tracked_masks
 
     @thread_worker
     def solve_with_motile(self, run: MotileRun) -> MotileRun:
@@ -171,9 +132,7 @@ class MotileWidget(QScrollArea):
             scale=run.scale,
         )
         if run.input_segmentation is not None:
-            output_segmentation = self.relabel_segmentation(
-                graph, run.input_segmentation
-            )
+            output_segmentation = relabel_segmentation(graph, run.input_segmentation)
         else:
             output_segmentation = None
         run.tracks = Tracks(
@@ -227,7 +186,7 @@ class MotileWidget(QScrollArea):
         <a href="https://funkelab.github.io/motile/"><font color=yellow>motile</font></a> library to
         track objects with global optimization. See the
         <a href="https://funkelab.github.io/motile_napari_plugin/"><font color=yellow>user guide</font></a>
-        for a tutorial to the plugin functionality."""
+        for a tutorial to the plugin functionality."""  # noqa
         label = QLabel(richtext)
         label.setWordWrap(True)
         label.setOpenExternalLinks(True)
