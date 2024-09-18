@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
 import napari
+import numpy as np
+from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
 from psygnal import Signal
 
 from motile_plugin.core import NodeType, Tracks
@@ -8,6 +10,7 @@ from motile_plugin.layers.track_graph import TrackGraph
 from motile_plugin.layers.track_labels import TrackLabels
 from motile_plugin.layers.track_points import TrackPoints
 from motile_plugin.utils.node_selection import NodeSelectionList
+from motile_plugin.utils.relabel_segmentation import relabel_segmentation
 from motile_plugin.utils.tree_widget_utils import (
     extract_lineage_tree,
 )
@@ -87,6 +90,20 @@ class TracksViewer:
         if self.tracking_layers.points_layer is not None:
             self.viewer.add_layer(self.tracking_layers.points_layer)
 
+    def view_external_tracks(self, tracks: Tracks, name: str) -> None:
+        """View tracks created externally. Assigns tracklet ids, adds a hypothesis
+        dimension to the segmentation, and relabels the segmentation based on the
+        assigned track ids. Then calls update_tracks.
+
+        Args:
+            tracks (Tracks): A tracks object to view, created externally from the plugin
+            name (str): The name to display in napari layers
+        """
+        tracks.graph, _ = assign_tracklet_ids(tracks.graph)
+        tracks.segmentation = np.expand_dims(tracks.segmentation, axis=1)
+        tracks.segmentation = relabel_segmentation(tracks.graph, tracks.segmentation)
+        self.update_tracks(tracks, name)
+
     def update_tracks(self, tracks: Tracks, name: str) -> None:
         """Stop viewing a previous set of tracks and replace it with a new one.
         Will create new segmentation and tracks layers and add them to the viewer.
@@ -157,7 +174,12 @@ class TracksViewer:
             self.set_display_mode("lineage")
 
     def set_display_mode(self, mode: str) -> None:
-        """Update the display mode and call to update colormaps for points, labels, and tracks"""
+        """Update the display mode and call to update colormaps for points, labels,
+        and tracks
+
+        Args:
+            mode (str): "all" or "lineage"
+        """
 
         # toggle between 'all' and 'lineage'
         if mode == "lineage":
@@ -201,29 +223,34 @@ class TracksViewer:
         self.tracking_layers.tracks_layer.update_track_visibility(visible)
 
     def set_napari_view(self) -> None:
-        """Adjust the current_step of the viewer to jump to the last item of the selected_nodes list"""
+        """Adjust the current_step of the viewer to jump to the last item of the
+        selected_nodes list"""
         if len(self.selected_nodes) > 0:
             node = self.selected_nodes[-1]
             location = self.tracks.get_location(node, incl_time=True)
-            assert (
-                len(location) == self.viewer.dims.ndim
-            ), f"Location {location} does not match viewer number of dims {self.viewer.dims.ndim}"
+            assert len(location) == self.viewer.dims.ndim, (
+                f"Location {location} does not match viewer number of dims"
+                f"{self.viewer.dims.ndim}"
+            )
 
             step = list(self.viewer.dims.current_step)
             for dim in self.viewer.dims.not_displayed:
-                step[dim] = int(
-                    location[dim] + 0.5
-                )  # use the scaled location, since the 'step' in viewer.dims.range already accounts for the scaling
+                # use the scaled location, since the 'step' in viewer.dims.range already
+                # accounts for the scaling
+                step[dim] = int(location[dim] + 0.5)
 
             self.viewer.dims.current_step = step
 
-            # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
-            example_layer = (
-                self.tracking_layers.points_layer
-            )  # the points layer is not scaled by the 'scale' attribute, because it directly reads the scaled coordinates. Therefore, no rescaling is necessary to compute the camera center
+            # Check whether the new coordinates are inside or outside the field of view,
+            # then adjust the camera if needed.
+            # The points layer is not scaled by the 'scale' attribute, because it
+            # directly reads the scaled coordinates. Therefore, no rescaling is
+            # necessary to compute the camera center
+            example_layer = self.tracking_layers.points_layer
             corner_coordinates = example_layer.corner_pixels
 
-            # check which dimensions are shown, the first dimension is displayed on the x axis, and the second on the y_axis
+            # check which dimensions are shown, the first dimension is displayed on the
+            # x axis, and the second on the y_axis
             dims_displayed = self.viewer.dims.displayed
             x_dim = dims_displayed[-1]
             y_dim = dims_displayed[-2]
@@ -241,11 +268,13 @@ class TracksViewer:
             ):
                 camera_center = self.viewer.camera.center
 
-                # set the center y and x to the center of the node, by using the index of the currently displayed dimensions
+                # set the center y and x to the center of the node, by using the index
+                # of the currently displayed dimensions
                 self.viewer.camera.center = (
                     camera_center[0],
                     location[
                         y_dim
-                    ],  # camera center is calculated in scaled coordinates, and the optional labels layer is scaled by the layer.scale attribute
+                    ],  # camera center is calculated in scaled coordinates, and the
+                    # optional labels layer is scaled by the layer.scale attribute
                     location[x_dim],
                 )
