@@ -1,6 +1,7 @@
 from typing import Any
 
 import numpy as np
+from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
 
 from .tracks import Tracks
 
@@ -41,6 +42,7 @@ class TracksController:
             nodes (np.ndarray): _description_
         """
         self.tracks.graph.remove_nodes_from(nodes)
+        self.tracks.graph, _ = assign_tracklet_ids(self.tracks.graph)
         # TODO: delete the corresponding semgentations, maybe?
         self.tracks.refresh.emit()
 
