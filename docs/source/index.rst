@@ -21,6 +21,7 @@ See the `motile documentation`_ for more details on the concepts and method.
    :maxdepth: 3
 
    getting_started
+   key_bindings
 
 .. _motile: https://github.com/funkelab/motile
 .. _github link: https://github.com/funkelab/motile_napari_plugin
