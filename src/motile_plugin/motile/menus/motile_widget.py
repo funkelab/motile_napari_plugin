@@ -1,4 +1,4 @@
-from __future__ import annotations
+# do not put from __future__ import annotations as it breaks the injection
 
 import logging
 

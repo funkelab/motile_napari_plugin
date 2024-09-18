@@ -1,4 +1,4 @@
-from __future__ import annotations
+# do not put the from __future__ import annotations as it breaks the injection
 
 from typing import Any
 
