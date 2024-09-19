@@ -42,6 +42,10 @@ class TracksController:
             nodes (np.ndarray): _description_
         """
         for node in nodes:
+            # first delete the segmentation if there is one.
+            if self.tracks.segmentation is not None:
+                self._delete_segmentation(node)
+
             preds = list(self.tracks.graph.predecessors(node))
             succs = list(self.tracks.graph.successors(node))
             if len(preds) == 0:  # do nothing - track ids are fine
@@ -62,6 +66,18 @@ class TracksController:
         # remove nodes from the graph
         self.tracks.graph.remove_nodes_from(nodes)
         self.tracks.refresh.emit()
+
+    def _delete_segmentation(self, node: Any) -> None:
+        """Delete the node from the segmentation (set it to 0)
+
+        Args:
+            node (Any): The node to be deleted.
+
+        """
+
+        time = self.tracks.get_time(node)
+        track_id = self.tracks.get_track_id(node)
+        self.tracks.update_segmentation(time, track_id, 0)
 
     def _assign_new_track_id(self, start_node: Any, new_track_id: int):
         """Helper function to assign a new track id to the track starting with start_node.
