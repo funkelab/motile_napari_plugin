@@ -11,7 +11,7 @@ from .tracks import Tracks
 
 def relabel_specific_segmentation(
     changed_nodes: list[Any], graph: nx.DiGraph, segmentation: np.array
-):
+) -> np.ndarray[int]:
     """Relabel the segmentation for the changed nodes.
 
     Args:
@@ -56,7 +56,7 @@ class TracksController:
         nodes: np.ndarray[Any],
         attributes: dict[str, np.ndarray],
         segmentations: Any = None,
-    ):
+    ) -> None:
         """Add a set of nodes to the tracks. Includes all attributes and the segmentation.
 
         Args:
@@ -72,7 +72,7 @@ class TracksController:
         # TODO: Implement segmentations
         self.tracks.refresh.emit()
 
-    def delete_nodes(self, nodes: np.ndarray[Any]):
+    def delete_nodes(self, nodes: np.ndarray[Any]) -> None:
         """_summary_
 
         Args:
@@ -99,6 +99,18 @@ class TracksController:
         # remove nodes from the graph
         self.tracks.graph.remove_nodes_from(nodes)
 
+        self.update_track_ids(prev_tracklet_dict)
+
+        self.tracks.refresh.emit()
+
+    def update_track_ids(self, prev_tracklet_dict: dict[Any, int]) -> None:
+        """Reassign the track_ids and relabel the segmentation if present
+
+        Args:
+            prev_tracklet_dict (dict[Any, int]): dictionary giving the node:tracklet_id mapping
+            before the change was applied.
+        """
+
         # reassign tracklet ids
         self.tracks.graph, _ = assign_tracklet_ids(self.tracks.graph)
 
@@ -122,8 +134,6 @@ class TracksController:
                 segmentation=self.tracks.segmentation,
             )
 
-        self.tracks.refresh.emit()
-
     def update_nodes(self, nodes: np.ndarray[Any], attributes: dict[str, np.ndarray]):
         pass
 
@@ -135,10 +145,20 @@ class TracksController:
             attributes (dict[str, np.ndarray]): dictionary mapping attribute names to
                 an array of values, where the index in the array matches the edge index
         """
+        # store the current node:tracklet_id dictionary
+        prev_tracklet_dict = {
+            node: data["tracklet_id"]
+            for node, data in self.tracks.graph.nodes(data=True)
+            if "tracklet_id" in data
+        }
+
         for idx, edge in enumerate(edges):
+            print(edge)
             attrs = {attr: val[idx] for attr, val in attributes.items()}
-            self.tracks.graph.add_edge(edge, **attrs)
-        # TODO: Implement segmentations
+            self.tracks.graph.add_edge(edge[0], edge[1], **attrs)
+
+        self.update_track_ids(prev_tracklet_dict)
+
         self.tracks.refresh.emit()
 
     def delete_edges(self, edges: np.ndarray):
@@ -147,8 +167,17 @@ class TracksController:
         Args:
             edges (np.ndarray): _description_
         """
+
+        prev_tracklet_dict = {
+            node: data["tracklet_id"]
+            for node, data in self.tracks.graph.nodes(data=True)
+            if "tracklet_id" in data
+        }
+
         self.tracks.graph.remove_edges_from(edges)
-        # TODO: update tracklet IDs?
+
+        self.update_track_ids(prev_tracklet_dict)
+
         self.tracks.refresh.emit()
 
     def update_edges(self, edges: np.ndarray[int], attributes: np.ndarray):
