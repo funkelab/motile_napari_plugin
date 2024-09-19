@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import napari
+from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 from psygnal import Signal
 
 from motile_plugin.data_model import NodeType, Tracks
@@ -193,7 +194,10 @@ class TracksViewer:
             if self.tracks is None or self.tracks.graph is None:
                 return []
             return list(
-                {self.tracks.graph.nodes[node]["tracklet_id"] for node in visible}
+                {
+                    self.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
+                    for node in visible
+                }
             )
         else:
             return "all"

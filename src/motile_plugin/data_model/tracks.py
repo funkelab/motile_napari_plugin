@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from motile_toolbox.candidate_graph import NodeAttr
+from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
 from psygnal import Signal
-from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from typing import Any
@@ -13,10 +13,11 @@ if TYPE_CHECKING:
     import numpy as np
 
 
-class Tracks(BaseModel):
+class Tracks:
     """A set of tracks consisting of a graph and an optional segmentation.
     The graph nodes represent detections and must have a time attribute and
     position attribute. Edges in the graph represent links across time.
+    Each node in the graph has a track_id assigned, if it isn't present in the graph already
 
     Attributes:
         graph (nx.DiGraph): A graph with nodes representing detections and
@@ -37,11 +38,29 @@ class Tracks(BaseModel):
 
     refresh: ClassVar[Signal] = Signal()
 
-    graph: nx.DiGraph
-    segmentation: np.ndarray | None = None
-    time_attr: str = NodeAttr.TIME.value
-    pos_attr: str | tuple[str] | list[str] = NodeAttr.POS.value
-    scale: list[float] | None = None
+    def __init__(
+        self,
+        graph: nx.DiGraph,
+        segmentation: np.ndarray | None = None,
+        time_attr: str = NodeAttr.TIME.value,
+        pos_attr: str | tuple[str] | list[str] = NodeAttr.POS.value,
+        scale: list[float] | None = None,
+    ):
+        self.graph = graph
+        self.segmentation = segmentation
+        self.time_attr = time_attr
+        self.pos_attr = pos_attr
+        self.scale = scale
+
+        if graph.number_of_nodes() != 0:
+            try:  # try to get existing track ids
+                track_ids = [
+                    data[NodeAttr.TRACK_ID.value] for _, data in graph.nodes(data=True)
+                ]
+                self.max_track_id = max(track_ids)
+            except KeyError:
+                _, _, self.max_track_id = assign_tracklet_ids(graph)
+
     # pydantic does not check numpy arrays
     model_config = {"arbitrary_types_allowed": True}
 
@@ -83,6 +102,18 @@ class Tracks(BaseModel):
         """
         return self.graph.nodes[node][self.time_attr]
 
+    def get_track_id(self, node: Any) -> int:
+        """Get the time frame of a given node. Raises an error if the node
+        is not in the graph.
+
+        Args:
+            node (Any): The node id to get the time frame for
+
+        Returns:
+            int: The time frame that the node is in
+        """
+        return self.graph.nodes[node][NodeAttr.TRACK_ID.value]
+
     def get_area(self, node: Any) -> int:
         """Get the area/volume of a given node. Raises an error if the node
         is not in the graph. Returns None if area is not an attribute.
@@ -100,3 +131,12 @@ class Tracks(BaseModel):
 
         # Return the area attribute if it exists, otherwise None
         return self.graph.nodes[node].get("area")
+
+    def get_next_track_id(self) -> int:
+        self.max_track_id += 1
+        return self.max_track_id
+
+    def update_segmentation(self, time, old_label, new_label):
+        frame = self.segmentation[time]
+        mask = frame == old_label
+        self.segmentation[time][mask] = new_label

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import napari
 import numpy as np
+from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 from napari.utils import CyclicLabelColormap, DirectLabelColormap
 
 if TYPE_CHECKING:
@@ -52,7 +53,7 @@ class TrackLabels(napari.layers.Labels):
         props = {
             "node_id": self.nodes,
             "track_id": [
-                data["tracklet_id"]
+                data[NodeAttr.TRACK_ID.value]
                 for _, data in tracks_viewer.tracks.graph.nodes(data=True)
             ],
             "t": [tracks_viewer.tracks.get_time(node) for node in self.nodes],
@@ -108,7 +109,7 @@ class TrackLabels(napari.layers.Labels):
         self.properties = {
             "node_id": self.nodes,
             "track_id": [
-                data["tracklet_id"]
+                data[NodeAttr.TRACK_ID.value]
                 for _, data in self.tracks_viewer.tracks.graph.nodes(data=True)
             ],
             "t": [self.tracks_viewer.tracks.get_time(node) for node in self.nodes],
@@ -151,7 +152,7 @@ class TrackLabels(napari.layers.Labels):
         and optionally hide cells not belonging to the current lineage"""
 
         highlighted = [
-            self.tracks_viewer.tracks.graph.nodes[node]["tracklet_id"]
+            self.tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
             for node in self.tracks_viewer.selected_nodes
             if self.tracks_viewer.tracks.get_time(node)
             == self.viewer.dims.current_step[0]

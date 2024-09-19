@@ -71,7 +71,7 @@ def solve(
 
     solution_graph = solver.get_selected_subgraph(solution=solution)
     solution_nx_graph = graph_to_nx(solution_graph)
-    solution_nx_graph, _ = assign_tracklet_ids(solution_nx_graph)
+    solution_nx_graph, _, _ = assign_tracklet_ids(solution_nx_graph)
     return solution_nx_graph
 
 

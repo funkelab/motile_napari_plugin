@@ -44,7 +44,8 @@ class TrackPoints(napari.layers.Points):
             for node in self.nodes
         ]
         track_ids = [
-            tracks_viewer.tracks.graph.nodes[node]["tracklet_id"] for node in self.nodes
+            tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
+            for node in self.nodes
         ]
         colors = [colormap.map(track_id) for track_id in track_ids]
         symbols = self.get_symbols(tracks_viewer.tracks, symbolmap)
@@ -102,7 +103,7 @@ class TrackPoints(napari.layers.Points):
         )
 
         track_ids = [
-            self.tracks_viewer.tracks.graph.nodes[node]["tracklet_id"]
+            self.tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
             for node in self.nodes
         ]
         self.data = [
@@ -128,14 +129,8 @@ class TrackPoints(napari.layers.Points):
         ]
         max_id = max([int(str(node).split("_")[1]) for node in nodes_with_time_t])
         node_id = str(t) + "_" + str(max_id + 1)
-        tracklet_id = (
-            max(
-                nx.get_node_attributes(
-                    self.tracks_viewer.tracks.graph, "tracklet_id"
-                ).values()
-            )
-            + 1
-        )
+
+        track_id = self.tracks_viewer.tracks.get_next_track_id()
         seg_id = (
             max(
                 nx.get_node_attributes(
@@ -150,9 +145,9 @@ class TrackPoints(napari.layers.Points):
         attributes = {
             NodeAttr.POS.value: np.array([new_point[1:]]),
             NodeAttr.TIME.value: np.array([t]),
-            "tracklet_id": np.array([tracklet_id]),
-            "area": np.array([area]),
-            "seg_id": np.array([seg_id]),
+            NodeAttr.TRACK_ID.value: np.array([track_id]),
+            NodeAttr.AREA.value: np.array([area]),
+            NodeAttr.SEG_ID.value: np.array([seg_id]),
         }
         return nodes, attributes
 

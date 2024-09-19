@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Dict, List
-
 import napari.layers
 import networkx as nx
 import pandas as pd
+from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 
 from motile_plugin.data_model import NodeType, Tracks
 
@@ -35,7 +34,6 @@ def extract_sorted_tracks(
     solution_nx_graph = tracks.graph
 
     track_list = []
-    id_counter = 1
     parent_mapping = []
 
     # Identify parent nodes (nodes with more than one child)
@@ -69,7 +67,7 @@ def extract_sorted_tracks(
                 state = NodeType.CONTINUE
                 symbol = "o"
 
-            track_id = solution_nx_graph.nodes[node]["tracklet_id"]
+            track_id = tracks.get_track_id(node)
             track_dict = {
                 "t": tracks.get_time(node),
                 "node_id": node,
@@ -98,7 +96,9 @@ def extract_sorted_tracks(
                 track_dict["parent_id"] = parent_id
 
                 if parent_track_id is None:
-                    parent_track_id = solution_nx_graph.nodes[parent_id]["tracklet_id"]
+                    parent_track_id = solution_nx_graph.nodes[parent_id][
+                        NodeAttr.TRACK_ID.value
+                    ]
                 track_dict["parent_track_id"] = parent_track_id
 
             else:
@@ -109,9 +109,8 @@ def extract_sorted_tracks(
             track_list.append(track_dict)
 
         parent_mapping.append(
-            {"track_id": id_counter, "parent_track_id": parent_track_id}
+            {"track_id": track_id, "parent_track_id": parent_track_id}
         )
-        id_counter += 1
 
     x_axis_order = sort_track_ids(parent_mapping)
 
@@ -125,7 +124,7 @@ def extract_sorted_tracks(
     return df
 
 
-def sort_track_ids(track_list: List[Dict]) -> List[Dict]:
+def sort_track_ids(track_list: list[dict]) -> list[dict]:
     """
     Sort track IDs such to maintain left-first order in the tree formed by parent-child relationships.
     Used to determine the x-axis order of the tree plot.
@@ -157,7 +156,7 @@ def sort_track_ids(track_list: List[Dict]) -> List[Dict]:
     return x_axis_order
 
 
-def extract_lineage_tree(graph: nx.DiGraph, node_id: str) -> List[str]:
+def extract_lineage_tree(graph: nx.DiGraph, node_id: str) -> list[str]:
     """Extract the entire lineage tree including horizontal relations for a given node"""
 
     # go up the tree to identify the root node
