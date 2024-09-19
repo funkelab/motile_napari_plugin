@@ -49,7 +49,6 @@ class TrackGraph(napari.layers.Tracks):
         self.tracks_viewer = tracks_viewer
 
         self.tracks_layer_graph = copy.deepcopy(self.graph)  # for restoring graph later
-        self.tracks_viewer.tracks.refresh.connect(self._refresh)
 
     def _refresh(self):
         """Refreshes the displayed tracks based on the graph in the current tracks_viewer.tracks"""

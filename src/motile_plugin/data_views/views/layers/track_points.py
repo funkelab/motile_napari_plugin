@@ -85,13 +85,9 @@ class TrackPoints(napari.layers.Points):
         # to update the nodes in self.tracks_viewer.selected_nodes
         self.selected_data.events.items_changed.connect(self._update_selection)
 
-        # listen to refresh signals from the tracks_viewer
-        self.tracks_viewer.tracks.refresh.connect(self._refresh)
-
     def _refresh(self):
         """Refresh the data in the points layer"""
 
-        self.tracks_viewer.selected_nodes.reset()
         self.nodes = list(self.tracks_viewer.tracks.graph.nodes)
 
         self.node_index_dict = dict(
@@ -115,8 +111,6 @@ class TrackPoints(napari.layers.Points):
         self.properties = {"node_id": self.nodes, "track_id": track_ids}
         self.size = 5
         self.border_color = [1, 1, 1, 1]
-
-        self.tracks_viewer.tracks_updated.emit()  # this is to notify the treewidget
 
     def _create_node_attrs(self, new_point: np.array) -> tuple[np.array, dict]:
         """Create a node_id and attributes for a new node at given time point"""

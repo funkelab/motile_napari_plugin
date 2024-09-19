@@ -183,7 +183,6 @@ class TreePlot(pg.PlotWidget):
         )
         self.g.scatter.setPen(self.outline_pen)
         self.g.scatter.setSize(self.sizes)
-        self.autoRange()
 
     def _create_pyqtgraph_content(self, track_df: pd.DataFrame, feature: str) -> None:
         """Parse the given track_df into the format that pyqtgraph expects
@@ -406,6 +405,7 @@ class TreeWidget(QWidget):
         the full graph information when the new selection is not in the
         lineage df (and in lineage mode)
         """
+
         if self.mode == "lineage" and any(
             node not in np.unique(self.lineage_df["node_id"].values)
             for node in self.selected_nodes

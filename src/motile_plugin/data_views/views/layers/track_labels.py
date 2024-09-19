@@ -96,13 +96,9 @@ class TrackLabels(napari.layers.Labels):
                     append = "Shift" in event.modifiers
                     self.tracks_viewer.selected_nodes.add(node_id, append)
 
-        # listen to refresh signals from the tracks_viewer
-        self.tracks_viewer.tracks.refresh.connect(self._refresh)
-
     def _refresh(self):
         """Refresh the data in the labels layer"""
 
-        self.tracks_viewer.selected_nodes.reset()
         self.data = np.squeeze(self.tracks_viewer.tracks.segmentation)
         self.nodes = list(self.tracks_viewer.tracks.graph.nodes)
 
