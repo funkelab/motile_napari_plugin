@@ -133,6 +133,9 @@ class MotileWidget(QScrollArea):
             time_frame = solution_nx_graph.nodes[node][NodeAttr.TIME.value]
             previous_seg_id = solution_nx_graph.nodes[node][NodeAttr.SEG_ID.value]
             tracklet_id = solution_nx_graph.nodes[node]["tracklet_id"]
+            solution_nx_graph.nodes[node][NodeAttr.SEG_ID.value] = (
+                tracklet_id  # assign the new value for future updates
+            )
             if NodeAttr.SEG_HYPO.value in solution_nx_graph.nodes[node]:
                 hypothesis_id = solution_nx_graph.nodes[node][NodeAttr.SEG_HYPO.value]
             else:

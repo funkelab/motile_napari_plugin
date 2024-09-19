@@ -7,16 +7,15 @@ import napari
 import numpy as np
 from napari.utils import CyclicLabelColormap, DirectLabelColormap
 
-from motile_plugin.data_model import Tracks
-
 if TYPE_CHECKING:
-    from motile_plugin.data_views import NodeSelectionList
+    from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 
 def create_selection_label_cmap(
     color_dict_rgb: dict, visible: list[int] | str, highlighted: list[int]
 ) -> DirectLabelColormap:
-    """Generates a label colormap with three possible opacity values (0 for invisibible labels, 0.6 for visible labels, and 1 for selected labels)"""
+    """Generates a label colormap with three possible opacity values
+    (0 for invisibible labels, 0.6 for visible labels, and 1 for selected labels)"""
 
     color_dict_rgb_temp = copy.deepcopy(color_dict_rgb)
     if visible == "all":
@@ -36,7 +35,8 @@ def create_selection_label_cmap(
 
 
 class TrackLabels(napari.layers.Labels):
-    """Extended labels layer that holds the track information and emits and responds to dynamics visualization signals"""
+    """Extended labels layer that holds the track information and emits
+    and responds to dynamics visualization signals"""
 
     def __init__(
         self,
@@ -44,18 +44,18 @@ class TrackLabels(napari.layers.Labels):
         data: np.array,
         name: str,
         colormap: CyclicLabelColormap,
-        tracks: Tracks,
         opacity: float,
-        selected_nodes: NodeSelectionList,
         scale: tuple,
+        tracks_viewer: TracksViewer,
     ):
-        self.nodes = list(tracks.graph.nodes)
+        self.nodes = list(tracks_viewer.tracks.graph.nodes)
         props = {
             "node_id": self.nodes,
             "track_id": [
-                data["tracklet_id"] for _, data in tracks.graph.nodes(data=True)
+                data["tracklet_id"]
+                for _, data in tracks_viewer.tracks.graph.nodes(data=True)
             ],
-            "t": [tracks.get_time(node) for node in self.nodes],
+            "t": [tracks_viewer.tracks.get_time(node) for node in self.nodes],
         }
         super().__init__(
             data=data,
@@ -67,8 +67,7 @@ class TrackLabels(napari.layers.Labels):
         )
 
         self.viewer = viewer
-        self.selected_nodes = selected_nodes
-        self.tracks = tracks
+        self.tracks_viewer = tracks_viewer
 
         self.base_label_color_dict = self.create_label_color_dict(
             np.unique(self.properties["track_id"]), colormap=colormap
@@ -89,12 +88,46 @@ class TrackLabels(napari.layers.Labels):
                     track_ids = self.properties["track_id"]
                     index = np.where(
                         (t_values == event.position[0]) & (track_ids == label)
-                    )[
-                        0
-                    ]  # np.where returns a tuple with an array per dimension, here we apply it to a single dimension so take the first element (an array of indices fulfilling condition)
+                    )[0]  # np.where returns a tuple with an array per dimension,
+                    # here we apply it to a single dimension so take the first element
+                    # (an array of indices fulfilling condition)
                     node_id = self.nodes[index[0]]
                     append = "Shift" in event.modifiers
-                    self.selected_nodes.add(node_id, append)
+                    self.tracks_viewer.selected_nodes.add(node_id, append)
+
+        # listen to refresh signals from the tracks_viewer
+        self.tracks_viewer.tracks.refresh.connect(self._refresh)
+
+    def _refresh(self):
+        """Refresh the data in the labels layer"""
+
+        self.tracks_viewer.selected_nodes.reset()
+        self.data = np.squeeze(self.tracks_viewer.tracks.segmentation)
+        self.nodes = list(self.tracks_viewer.tracks.graph.nodes)
+
+        self.properties = {
+            "node_id": self.nodes,
+            "track_id": [
+                data["tracklet_id"]
+                for _, data in self.tracks_viewer.tracks.graph.nodes(data=True)
+            ],
+            "t": [self.tracks_viewer.tracks.get_time(node) for node in self.nodes],
+        }
+
+        colormap = napari.utils.colormaps.label_colormap(
+            49,
+            seed=0.5,
+            background_value=0,
+        )
+
+        self.base_label_color_dict = self.create_label_color_dict(
+            np.unique(self.properties["track_id"]), colormap=colormap
+        )
+
+        # use 'all' because selected_nodes is now empty so in lineage mode we would see nothing at all.
+        self.tracks_viewer.set_display_mode("all")
+
+        self.refresh()
 
     def create_label_color_dict(
         self, labels: list[int], colormap: CyclicLabelColormap
@@ -114,12 +147,14 @@ class TrackLabels(napari.layers.Labels):
         return color_dict_rgb
 
     def update_label_colormap(self, visible: list[int] | str) -> None:
-        """Updates the opacity of the label colormap to highlight the selected label and optionally hide cells not belonging to the current lineage"""
+        """Updates the opacity of the label colormap to highlight the selected label
+        and optionally hide cells not belonging to the current lineage"""
 
         highlighted = [
-            self.tracks.graph.nodes[node]["tracklet_id"]
-            for node in self.selected_nodes
-            if self.tracks.get_time(node) == self.viewer.dims.current_step[0]
+            self.tracks_viewer.tracks.graph.nodes[node]["tracklet_id"]
+            for node in self.tracks_viewer.selected_nodes
+            if self.tracks_viewer.tracks.get_time(node)
+            == self.viewer.dims.current_step[0]
         ]
 
         if self.base_label_color_dict is not None:

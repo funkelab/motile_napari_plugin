@@ -84,12 +84,13 @@ class TrackPoints(napari.layers.Points):
         # to update the nodes in self.tracks_viewer.selected_nodes
         self.selected_data.events.items_changed.connect(self._update_selection)
 
-        # list to refresh signals from the tracks_viewer
+        # listen to refresh signals from the tracks_viewer
         self.tracks_viewer.tracks.refresh.connect(self._refresh)
 
     def _refresh(self):
         """Refresh the data in the points layer"""
 
+        self.tracks_viewer.selected_nodes.reset()
         self.nodes = list(self.tracks_viewer.tracks.graph.nodes)
 
         self.node_index_dict = dict(

@@ -117,10 +117,9 @@ class TracksViewer:
                 data=tracks.segmentation[:, 0],
                 name=name + "_seg",
                 colormap=self.colormap,
-                tracks=self.tracks,
                 opacity=0.9,
-                selected_nodes=self.selected_nodes,
                 scale=self.tracks.scale,
+                tracks_viewer=self,
             )
 
         else:
