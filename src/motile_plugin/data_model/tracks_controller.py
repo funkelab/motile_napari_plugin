@@ -1,46 +1,9 @@
-import copy
 from typing import Any
 
-import networkx as nx
 import numpy as np
 from motile_toolbox.candidate_graph import NodeAttr
-from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
 
 from .tracks import Tracks
-
-
-def relabel_specific_segmentation(
-    changed_nodes: list[Any], graph: nx.DiGraph, segmentation: np.array
-) -> np.ndarray[int]:
-    """Relabel the segmentation for the changed nodes.
-
-    Args:
-        nodes (np.ndarray[int]):an array of node ids that have changed
-        graph (nx.DiGraph): graph containing the current label values in the SEG_ID
-        and the updated label values in the tracklet_id
-        segmentations (np.ndarray[int]): A segmentation for each node
-
-    Returns:
-        updated_segmentation (np.ndarray[int]): relabeled segmentation
-    """
-
-    updated_segmentation = copy.deepcopy(segmentation)
-    for node in changed_nodes:
-        time_frame = graph.nodes[node][NodeAttr.TIME.value]
-
-        previous_seg_id = graph.nodes[node][NodeAttr.SEG_ID.value]
-        tracklet_id = graph.nodes[node]["tracklet_id"]
-
-        # Update SEG_ID to tracklet_id for future use
-        graph.nodes[node][NodeAttr.SEG_ID.value] = tracklet_id
-
-        # Get the mask for the specific time_frame and seg_id
-        mask = segmentation[time_frame, 0] == previous_seg_id
-
-        # Update the segmentation label
-        updated_segmentation[time_frame, 0][mask] = tracklet_id
-
-    return updated_segmentation
 
 
 class TracksController:
@@ -78,87 +41,117 @@ class TracksController:
         Args:
             nodes (np.ndarray): _description_
         """
+        for node in nodes:
+            preds = list(self.tracks.graph.predecessors(node))
+            succs = list(self.tracks.graph.successors(node))
+            if len(preds) == 0:  # do nothing - track ids are fine
+                continue
+            pred = preds[0]  # assume can't have two preds, no merging (yet)
+            siblings = list(self.tracks.graph.successors(pred))
+            if len(siblings) == 2:
+                # need to relabel the track id of the sibling to match the pred because
+                # you are implicitly deleting a division
+                siblings.remove(node)
+                new_track_id = self.tracks.get_track_id(pred)
+                self._assign_new_track_id(siblings[0], new_track_id)
+            if len(succs) == 1:
+                new_track_id = self.tracks.get_next_track_id()
+                self._assign_new_track_id(succs[0], new_track_id)
 
-        # if we have a segmentation, first check which labels should be converted to zero
-        if self.tracks.segmentation is not None:
-            for node in nodes:
-                time_frame = self.tracks.graph.nodes[node][NodeAttr.TIME.value]
-                current_track_id = self.tracks.graph.nodes[node]["tracklet_id"]
-                mask = self.tracks.segmentation[time_frame, 0] == current_track_id
-                self.tracks.segmentation[time_frame, 0][mask] = (
-                    0  # remove from the segmentation
-                )
-
-        # store the current node:tracklet_id dictionary
-        prev_tracklet_dict = {
-            node: data["tracklet_id"]
-            for node, data in self.tracks.graph.nodes(data=True)
-            if "tracklet_id" in data
-        }
-
+            # if succs == 2, do nothing = the children already have different track ids
         # remove nodes from the graph
         self.tracks.graph.remove_nodes_from(nodes)
-
-        self.update_track_ids(prev_tracklet_dict)
-
         self.tracks.refresh.emit()
 
-    def update_track_ids(self, prev_tracklet_dict: dict[Any, int]) -> None:
-        """Reassign the track_ids and relabel the segmentation if present
+    def _assign_new_track_id(self, start_node: Any, new_track_id: int):
+        """Helper function to assign a new track id to the track starting with start_node.
+        Will also update the self.tracks.segmentation array and seg_id on the
+        self.tracks.graph if a segmentation exists.
 
         Args:
-            prev_tracklet_dict (dict[Any, int]): dictionary giving the node:tracklet_id mapping
-            before the change was applied.
+            start_node (Any): The node ID of the first node in the track. All successors
+                with the same track id as this node will be updated.
+            new_track_id (int): The new track id to assign.
         """
 
-        # reassign tracklet ids
-        self.tracks.graph, _ = assign_tracklet_ids(self.tracks.graph)
+        old_track_id = self.tracks.get_track_id(start_node)
+        curr_node = start_node
+        while self.tracks.get_track_id(curr_node) == old_track_id:
+            # update the track id
+            self.tracks.graph.nodes[curr_node][NodeAttr.TRACK_ID.value] = new_track_id
+            if self.tracks.segmentation is not None:
+                time = self.tracks.get_time(curr_node)
+                # update the segmentation to match the new track id
+                self.tracks.update_segmentation(time, old_track_id, new_track_id)
+                # update the graph seg_id attr to match the new seg id
+                self.tracks.graph.nodes[curr_node][NodeAttr.SEG_ID.value] = new_track_id
+            # getting the next node (picks one if there are two)
+            successors = list(self.tracks.graph.successors(curr_node))
+            if len(successors) == 0:
+                break
+            curr_node = successors[0]
 
-        if self.tracks.segmentation is not None:
-            # check which tracklet_ids have changed
-            new_tracklet_dict = {
-                node: data["tracklet_id"]
-                for node, data in self.tracks.graph.nodes(data=True)
-                if "tracklet_id" in data
-            }
-            changed_nodes = [
-                node
-                for node in new_tracklet_dict
-                if node in prev_tracklet_dict
-                and prev_tracklet_dict[node] != new_tracklet_dict[node]
-            ]
+    def update_track_ids(self, edges_changed: list[Any]) -> None:
+        """Reassign the track_ids and relabel the segmentation and update seg_id attr
+        if present. Assumes that the edges being passed have already been removed or
+        added.
 
-            self.tracks.segmentation = relabel_specific_segmentation(
-                changed_nodes=changed_nodes,
-                graph=self.tracks.graph,
-                segmentation=self.tracks.segmentation,
-            )
+        Args:
+            edges_changed (list[Any]): A list of edges that have been removed or added
+        """
+        for edge in edges_changed:
+            if self.tracks.graph.has_edge(*edge):
+                # edge was added
+                out_degree = self.tracks.graph.out_degree(edge[0])
+                if out_degree == 1:  # joined two segments
+                    # assign the track id of the source node to the target and all out
+                    # edges until end of track
+                    new_track_id = self.tracks.get_track_id(edge[0])
+                    self._assign_new_track_id(edge[1], new_track_id)
+                elif out_degree == 2:  # created a division
+                    # assign a new track id to both child tracks
+                    for successor in self.tracks.graph.successors(edge[0]):
+                        new_track_id = self.tracks.get_next_track_id()
+                        self._assign_new_track_id(successor, new_track_id)
+                else:
+                    raise RuntimeError(
+                        f"Expected degree of 1 or 2 after adding edge, got {out_degree}"
+                    )
+            else:
+                # edge was deleted
+                out_degree = self.tracks.graph.out_degree(edge[0])
+                if out_degree == 0:  # removed a normal (non division) edge
+                    new_track_id = self.tracks.get_next_track_id()
+                    self._assign_new_track_id(edge[1], new_track_id)
+                elif out_degree == 1:  # removed a division edge
+                    sibling = next(iter(self.tracks.graph.successors(edge[0])))
+                    new_track_id = self.tracks.get_track_id(edge[0])
+                    self._assign_new_track_id(sibling, new_track_id)
+                else:
+                    raise RuntimeError(
+                        f"Expected degree of 0 or 1 after removing edge, got {out_degree}"
+                    )
 
     def update_nodes(self, nodes: np.ndarray[Any], attributes: dict[str, np.ndarray]):
         pass
 
     def add_edges(self, edges: np.ndarray[int], attributes: dict[str, np.ndarray]):
-        """Add edges and attributes to the graph
+        """Add edges and attributes to the graph. Also update the track ids and
+        corresponding segmentations if applicable
 
         Args:
-            edges (np.array[int]): An Nx2 array of N edges, each with source and target node ids
+            edges (np.array[int]): An Nx2 array of N edges, each with source and target
+                node ids
             attributes (dict[str, np.ndarray]): dictionary mapping attribute names to
                 an array of values, where the index in the array matches the edge index
         """
-        # store the current node:tracklet_id dictionary
-        prev_tracklet_dict = {
-            node: data["tracklet_id"]
-            for node, data in self.tracks.graph.nodes(data=True)
-            if "tracklet_id" in data
-        }
 
         for idx, edge in enumerate(edges):
             print(edge)
             attrs = {attr: val[idx] for attr, val in attributes.items()}
             self.tracks.graph.add_edge(edge[0], edge[1], **attrs)
 
-        self.update_track_ids(prev_tracklet_dict)
-
+        self.update_track_ids(edges)
         self.tracks.refresh.emit()
 
     def delete_edges(self, edges: np.ndarray):
@@ -167,17 +160,8 @@ class TracksController:
         Args:
             edges (np.ndarray): _description_
         """
-
-        prev_tracklet_dict = {
-            node: data["tracklet_id"]
-            for node, data in self.tracks.graph.nodes(data=True)
-            if "tracklet_id" in data
-        }
-
         self.tracks.graph.remove_edges_from(edges)
-
-        self.update_track_ids(prev_tracklet_dict)
-
+        self.update_track_ids(edges)
         self.tracks.refresh.emit()
 
     def update_edges(self, edges: np.ndarray[int], attributes: np.ndarray):
