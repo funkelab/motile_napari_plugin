@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from typing import TYPE_CHECKING
 
 import napari
 import networkx as nx
@@ -8,7 +9,8 @@ import numpy as np
 from motile_toolbox.visualization import to_napari_tracks_layer
 from napari.utils import CyclicLabelColormap
 
-from motile_plugin.data_model import Tracks
+if TYPE_CHECKING:
+    from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 
 class TrackGraph(napari.layers.Tracks):
@@ -18,17 +20,19 @@ class TrackGraph(napari.layers.Tracks):
     def __init__(
         self,
         viewer: napari.Viewer,
-        tracks: Tracks,
         name: str,
         colormap: CyclicLabelColormap,
+        tracks_viewer: TracksViewer,
     ):
-        if tracks is None or tracks.graph is None:
+        if tracks_viewer.tracks is None or tracks_viewer.tracks.graph is None:
             graph = nx.DiGraph()
         else:
-            graph = tracks.graph
+            graph = tracks_viewer.tracks.graph
 
         track_data, track_props, track_edges = to_napari_tracks_layer(
-            graph, frame_key=tracks.time_attr, location_key=tracks.pos_attr
+            graph,
+            frame_key=tracks_viewer.tracks.time_attr,
+            location_key=tracks_viewer.tracks.pos_attr,
         )
 
         super().__init__(
@@ -42,8 +46,24 @@ class TrackGraph(napari.layers.Tracks):
 
         self.viewer = viewer
         self.colormaps_dict["track_id"] = colormap
+        self.tracks_viewer = tracks_viewer
 
         self.tracks_layer_graph = copy.deepcopy(self.graph)  # for restoring graph later
+        self.tracks_viewer.tracks.refresh.connect(self._refresh)
+
+    def _refresh(self):
+        """Refreshes the displayed tracks based on the graph in the current tracks_viewer.tracks"""
+
+        graph = copy.deepcopy(self.tracks_viewer.tracks.graph)
+        track_data, track_props, track_edges = to_napari_tracks_layer(
+            graph,
+            frame_key=self.tracks_viewer.tracks.time_attr,
+            location_key=self.tracks_viewer.tracks.pos_attr,
+        )
+        self.data = track_data
+        self.graph = track_edges
+        self.properties = track_props
+        self.tracks_layer_graph = copy.deepcopy(self.graph)
 
     def update_track_visibility(self, visible: list[int] | str) -> None:
         """Optionally show only the tracks of a current lineage"""

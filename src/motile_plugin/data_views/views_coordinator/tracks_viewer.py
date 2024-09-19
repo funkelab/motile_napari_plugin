@@ -136,9 +136,9 @@ class TracksViewer:
         else:
             self.tracking_layers.tracks_layer = TrackGraph(
                 viewer=self.viewer,
-                tracks=tracks,
                 name=name + "_tracks",
                 colormap=self.colormap,
+                tracks_viewer=self,
             )
 
             self.tracking_layers.points_layer = TrackPoints(
