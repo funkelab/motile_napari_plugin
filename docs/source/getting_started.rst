@@ -104,8 +104,8 @@ It contains the following:
   If your input was a Points layer, the ``node_id`` is simply the index of the
   node in the list of points.
     - Note: This does not save the output segmentation. If you want to save
-  the relabeled segmentation, you can do so through napari by selecting the
-  layer and then selecting ``File``-> ``Save selected layers``
+    the relabeled segmentation, you can do so through napari by selecting the
+    layer and then selecting ``File``-> ``Save selected layers``
 - The ``Back to editing`` button, which will return you to the ``Run Editor`` in its
   previous state.
 - The ``Edit this run`` button. This button will take you back to the ``Run Editor``,
@@ -126,11 +126,7 @@ previous sessions do not appear here until you load them from disk with the
 
 The tracking results can also be visualized as a lineage tree.
 You can open the lineage tree widget via ``Plugins`` > ``Motile`` > ``Lineage View``.
-For more details, go to `this docs page`_.
+For more details, go to the :doc:`Tree View <tree_view>` documentation.
 
-
-
-.. _here: docs/source/key_bindings.rst
-.. _this docs page: docs/source/tree_view.rst
 .. _Issue #48: https://github.com/funkelab/motile_napari_plugin/issues/48
 .. _Cell Tracking Challenge: https://celltrackingchallenge.net/
