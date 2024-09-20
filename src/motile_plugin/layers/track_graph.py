@@ -20,11 +20,7 @@ class TrackGraph(napari.layers.Tracks):
         name: str,
         colormap: CyclicLabelColormap,
     ):
-        if tracks is None or tracks.graph is None:
-            graph = nx.DiGraph()
-        else:
-            graph = tracks.graph
-
+        graph = nx.DiGraph() if tracks.graph is None else tracks.graph
         track_data, track_props, track_edges = to_napari_tracks_layer(
             graph, frame_key=tracks.time_attr, location_key=tracks.pos_attr
         )
@@ -40,6 +36,7 @@ class TrackGraph(napari.layers.Tracks):
 
         self.viewer = viewer
         self.colormaps_dict["track_id"] = colormap
+        self.colormap = "turbo"  # just to refresh the colormap
 
         self.tracks_layer_graph = copy.deepcopy(self.graph)  # for restoring graph later
 
@@ -63,6 +60,7 @@ class TrackGraph(napari.layers.Tracks):
             self.track_colors[:, 3] = 0
             self.track_colors[track_id_mask, 3] = 1
             if len(self.graph.items()) == 0:
-                self.display_graph = False  # empty dicts to not trigger update (bug?) so disable the graph entirely as a workaround
+                self.display_graph = False  # empty dicts to not trigger update (bug?)
+                # so disable the graph entirely as a workaround
             else:
                 self.display_graph = True
