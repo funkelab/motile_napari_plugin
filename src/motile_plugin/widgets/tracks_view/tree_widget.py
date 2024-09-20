@@ -47,10 +47,7 @@ class CustomViewBox(pg.ViewBox):
             # Otherwise, disable rectangular zoom mode
             self.setMouseMode(self.PanMode)
 
-        if (
-            axis is not None
-            and ev.button() == QtCore.Qt.MouseButton.RightButton
-        ):
+        if axis is not None and ev.button() == QtCore.Qt.MouseButton.RightButton:
             ev.ignore()
         else:
             pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
@@ -99,8 +96,8 @@ class TreePlot(pg.PlotWidget):
             feature (str): The feature to be plotted ('tree' or 'area')
             selected_nodes (list[Any]): The currently selected nodes to be highlighted
         """
-        self.set_data(track_df, feature)
         self.set_view(view_direction, feature)
+        self.set_data(track_df, feature)
         self._update_viewed_data()  # this can be expensive
         self.set_selection(selected_nodes, feature)
 
@@ -112,7 +109,7 @@ class TreePlot(pg.PlotWidget):
 
         Args:
             view_direction (str): "horizontal" or "vertical"
-            feature (str): the feature being displayed, it can be either 'tree' or 'area'
+            feature (str): the feature being displayed, it can be 'tree' or 'area'
         """
 
         if view_direction == self.view_direction and feature == self.feature:
@@ -127,7 +124,7 @@ class TreePlot(pg.PlotWidget):
                 self.setLabel("bottom", text="")
             else:
                 self.getAxis("bottom").setStyle(showValues=True)
-                self.setLabel("bottom", text="Number of pixels")
+                self.setLabel("bottom", text="Area in Scaled Pixels")
             self.invertY(True)  # to show tracks from top to bottom
         elif view_direction == "horizontal":
             self.setLabel("bottom", text="Time Point")
@@ -136,7 +133,7 @@ class TreePlot(pg.PlotWidget):
                 self.setLabel("left", text="")
                 self.getAxis("left").setStyle(showValues=False)
             else:
-                self.setLabel("left", text="Number of pixels")
+                self.setLabel("left", text="Area in Scaled Pixels")
                 self.getAxis("left").setStyle(showValues=True)
             self.invertY(False)
 
@@ -167,9 +164,9 @@ class TreePlot(pg.PlotWidget):
         self._create_pyqtgraph_content(track_df, feature)
 
     def _update_viewed_data(self):
-        self.g.scatter.setPen(
-            pg.mkPen(QColor(150, 150, 150))
-        )  # first reset the pen to avoid problems with length mismatch between the different properties
+        # first reset the pen to avoid problems with length mismatch between the
+        # different properties
+        self.g.scatter.setPen(pg.mkPen(QColor(150, 150, 150)))
         self.g.scatter.setSize(10)
         if len(self._pos) == 0 or self.view_direction == "vertical":
             pos_data = self._pos
@@ -188,9 +185,7 @@ class TreePlot(pg.PlotWidget):
         self.g.scatter.setSize(self.sizes)
         self.autoRange()
 
-    def _create_pyqtgraph_content(
-        self, track_df: pd.DataFrame, feature: str
-    ) -> None:
+    def _create_pyqtgraph_content(self, track_df: pd.DataFrame, feature: str) -> None:
         """Parse the given track_df into the format that pyqtgraph expects
         and save the information as attributes.
 
@@ -320,9 +315,7 @@ class TreeWidget(QWidget):
     def __init__(self, viewer: napari.Viewer):
         super().__init__()
         self.track_df = pd.DataFrame()  # all tracks
-        self.lineage_df = (
-            pd.DataFrame()
-        )  # the currently viewed subset of lineages
+        self.lineage_df = pd.DataFrame()  # the currently viewed subset of lineages
         self.graph = None
         self.mode = "all"  # options: "all", "lineage"
         self.feature = "tree"  # options: "tree", "area"
@@ -436,8 +429,11 @@ class TreeWidget(QWidget):
             )
             self.graph = self.tracks_viewer.tracks.graph
 
-        # check whether we have area measurements and therefore should activate the area button
+        # check whether we have area measurements and therefore should activate the area
+        # button
         if "area" not in self.track_df.columns:
+            if self.feature_widget.feature == "area":
+                self.feature_widget._toggle_feature_mode()
             self.feature_widget.show_area_radio.setEnabled(False)
         else:
             self.feature_widget.show_area_radio.setEnabled(True)
@@ -483,15 +479,14 @@ class TreeWidget(QWidget):
         )
 
     def _set_feature(self, feature: str) -> None:
-        """Set the feature mode to 'tree' or 'area'. For this the view is always horizontal.
+        """Set the feature mode to 'tree' or 'area'. For this the view is always
+        horizontal.
 
         Args:
             feature (str): The feature to plot. Options are "tree" or "area"
         """
         if feature not in ["tree", "area"]:
-            raise ValueError(
-                f"Feature must be 'tree' or 'area', got {feature}"
-            )
+            raise ValueError(f"Feature must be 'tree' or 'area', got {feature}")
 
         self.feature = feature
         if feature == "tree" and self.mode == "all":
