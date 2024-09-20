@@ -75,6 +75,7 @@ def graph_2d():
                 NodeAttr.TIME.value: 0,
                 NodeAttr.SEG_ID.value: 1,
                 NodeAttr.AREA.value: 1245,
+                NodeAttr.TRACK_ID.value: 3,
             },
         ),
         (
@@ -83,6 +84,7 @@ def graph_2d():
                 NodeAttr.POS.value: [20, 80],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_ID.value: 1,
+                NodeAttr.TRACK_ID.value: 3,
             },
         ),
         (
@@ -92,6 +94,7 @@ def graph_2d():
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_ID.value: 2,
                 NodeAttr.AREA.value: 697,
+                NodeAttr.TRACK_ID.value: 3,
             },
         ),
     ]
@@ -228,9 +231,7 @@ def multi_hypothesis_graph_2d():
 def sphere(center, radius, shape):
     assert len(center) == len(shape)
     indices = np.moveaxis(np.indices(shape), 0, -1)  # last dim is the index
-    distance = np.linalg.norm(
-        np.subtract(indices, np.asarray(center)), axis=-1
-    )
+    distance = np.linalg.norm(np.subtract(indices, np.asarray(center)), axis=-1)
     mask = distance <= radius
     return mask
 
