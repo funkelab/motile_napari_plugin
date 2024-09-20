@@ -134,7 +134,7 @@ class MotileRun(BaseModel):
             run_dir, OUT_SEG_FILEANME, required=output_seg_required
         )
         tracks_graph = cls._load_tracks_graph(run_dir, required=output_required)
-        tracks = Tracks(graph=tracks_graph, segmentation=output_segmentation)
+        tracks = Tracks.from_nx(graph=tracks_graph, segmentation=output_segmentation)
         gaps = cls._load_list(run_dir=run_dir, filename=GAPS_FILENAME, required=False)
         scale = cls._load_list(run_dir=run_dir, filename=SCALE_FILENAME, required=False)
         return cls(

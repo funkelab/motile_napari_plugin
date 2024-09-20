@@ -179,7 +179,7 @@ class MotileWidget(QScrollArea):
             )
         else:
             output_segmentation = None
-        run.tracks = Tracks(
+        run.tracks = Tracks.from_nx(
             graph=graph, segmentation=output_segmentation, scale=run.scale
         )
         return run

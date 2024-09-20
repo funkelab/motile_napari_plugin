@@ -31,7 +31,7 @@ class TrackPoints(napari.layers.Points):
         self.colormap = colormap
         self.symbolmap = symbolmap
 
-        self.nodes = list(tracks_viewer.tracks.graph.nodes)
+        self.nodes = [node for node in tracks_viewer.tracks.graph.nodes()]
         self.node_index_dict = dict(
             zip(
                 self.nodes,
@@ -44,7 +44,7 @@ class TrackPoints(napari.layers.Points):
             for node in self.nodes
         ]
         track_ids = [
-            tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
+            tracks_viewer.tracks.get_track_id(node)
             for node in self.nodes
         ]
         colors = [colormap.map(track_id) for track_id in track_ids]
@@ -183,8 +183,8 @@ class TrackPoints(napari.layers.Points):
             1: NodeType.CONTINUE,
             2: NodeType.SPLIT,
         }
-        symbols = [symbolmap[statemap[degree]] for _, degree in tracks.graph.out_degree]
-        return symbols
+        # symbols = [symbolmap[statemap[degree]] for _, degree in tracks.graph.out_degree]
+        return ['o', ] * len(self.nodes)
 
     def update_point_outline(self, visible: list[int] | str) -> None:
         """Update the outline color of the selected points and visibility according to display mode

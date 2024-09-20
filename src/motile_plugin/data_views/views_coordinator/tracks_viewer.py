@@ -8,7 +8,7 @@ from psygnal import Signal
 
 from motile_plugin.data_model import NodeType, Tracks
 from motile_plugin.data_model.tracks_controller import TracksController
-from motile_plugin.data_views.views.layers.track_graph import TrackGraph
+from motile_plugin.data_views.views.layers.spatial_graph import TrackSpatialGraph
 from motile_plugin.data_views.views.layers.track_labels import TrackLabels
 from motile_plugin.data_views.views.layers.track_points import TrackPoints
 from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
@@ -20,9 +20,9 @@ from .node_selection_list import NodeSelectionList
 
 @dataclass
 class TracksLayerGroup:
-    tracks_layer: TrackGraph | None = None
+    tracks_layer: TrackSpatialGraph | None = None
     seg_layer: TrackLabels | None = None
-    points_layer: TrackPoints | None = None
+    # points_layer: TrackPoints | None = None
 
 
 class TracksViewer:
@@ -81,7 +81,7 @@ class TracksViewer:
         """Remove all tracking layers from the viewer"""
         self.remove_napari_layer(self.tracking_layers.tracks_layer)
         self.remove_napari_layer(self.tracking_layers.seg_layer)
-        self.remove_napari_layer(self.tracking_layers.points_layer)
+        # self.remove_napari_layer(self.tracking_layers.points_layer)
 
     def add_napari_layers(self) -> None:
         """Add new tracking layers to the viewer"""
@@ -89,8 +89,8 @@ class TracksViewer:
             self.viewer.add_layer(self.tracking_layers.tracks_layer)
         if self.tracking_layers.seg_layer is not None:
             self.viewer.add_layer(self.tracking_layers.seg_layer)
-        if self.tracking_layers.points_layer is not None:
-            self.viewer.add_layer(self.tracking_layers.points_layer)
+        # if self.tracking_layers.points_layer is not None:
+        #     self.viewer.add_layer(self.tracking_layers.points_layer)
 
     def update_tracks(self, tracks: Tracks, name: str) -> None:
         """Stop viewing a previous set of tracks and replace it with a new one.
@@ -129,25 +129,25 @@ class TracksViewer:
         if (
             tracks is None
             or tracks.graph is None
-            or tracks.graph.number_of_nodes() == 0
+            # or tracks.graph.number_of_nodes() == 0
         ):
             self.tracking_layers.tracks_layer = None
-            self.tracking_layers.points_layer = None
+            # self.tracking_layers.points_layer = None
         else:
-            self.tracking_layers.tracks_layer = TrackGraph(
+            self.tracking_layers.tracks_layer = TrackSpatialGraph(
                 viewer=self.viewer,
                 tracks=tracks,
                 name=name + "_tracks",
                 colormap=self.colormap,
             )
 
-            self.tracking_layers.points_layer = TrackPoints(
-                viewer=self.viewer,
-                name=name + "_points",
-                symbolmap=self.symbolmap,
-                colormap=self.colormap,
-                tracks_viewer=self,
-            )
+            # self.tracking_layers.points_layer = TrackPoints(
+            #     viewer=self.viewer,
+            #     name=name + "_points",
+            #     symbolmap=self.symbolmap,
+            #     colormap=self.colormap,
+            #     tracks_viewer=self,
+            # )
             # listen to updates in the selected data (from the point selection tool) to update the nodes in self.selected_nodes
             # self.tracking_layers.points_layer.selected_data.events.items_changed.connect(
             #     self._update_selection
@@ -180,10 +180,10 @@ class TracksViewer:
         visible = self.filter_visible_nodes()
         if self.tracking_layers.seg_layer is not None:
             self.tracking_layers.seg_layer.update_label_colormap(visible)
-        if self.tracking_layers.points_layer is not None:
-            self.tracking_layers.points_layer.update_point_outline(visible)
-        if self.tracking_layers.tracks_layer is not None:
-            self.tracking_layers.tracks_layer.update_track_visibility(visible)
+        # if self.tracking_layers.points_layer is not None:
+        #     self.tracking_layers.points_layer.update_point_outline(visible)
+        # if self.tracking_layers.tracks_layer is not None:
+        #     self.tracking_layers.tracks_layer.update_track_visibility(visible)
 
     def filter_visible_nodes(self) -> list[int]:
         """Construct a list of track_ids that should be displayed"""
@@ -209,8 +209,8 @@ class TracksViewer:
         visible = self.filter_visible_nodes()
         if self.tracking_layers.seg_layer is not None:
             self.tracking_layers.seg_layer.update_label_colormap(visible)
-        self.tracking_layers.points_layer.update_point_outline(visible)
-        self.tracking_layers.tracks_layer.update_track_visibility(visible)
+        # self.tracking_layers.points_layer.update_point_outline(visible)
+        # self.tracking_layers.tracks_layer.update_track_visibility(visible)
 
     def set_napari_view(self) -> None:
         """Adjust the current_step of the viewer to jump to the last item of the selected_nodes list"""
@@ -230,7 +230,7 @@ class TracksViewer:
             self.viewer.dims.current_step = step
 
             # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
-            example_layer = self.tracking_layers.points_layer  # the points layer is not scaled by the 'scale' attribute, because it directly reads the scaled coordinates. Therefore, no rescaling is necessary to compute the camera center
+            example_layer = self.tracking_layers.seg_layer  # the points layer is not scaled by the 'scale' attribute, because it directly reads the scaled coordinates. Therefore, no rescaling is necessary to compute the camera center
             corner_coordinates = example_layer.corner_pixels
 
             # check which dimensions are shown, the first dimension is displayed on the x axis, and the second on the y_axis

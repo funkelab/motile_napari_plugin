@@ -49,13 +49,10 @@ class TrackLabels(napari.layers.Labels):
         scale: tuple,
         tracks_viewer: TracksViewer,
     ):
-        self.nodes = list(tracks_viewer.tracks.graph.nodes)
+        self.nodes = [node for node in tracks_viewer.tracks.graph.nodes()]
         props = {
             "node_id": self.nodes,
-            "track_id": [
-                data[NodeAttr.TRACK_ID.value]
-                for _, data in tracks_viewer.tracks.graph.nodes(data=True)
-            ],
+            "track_id": [tracks_viewer.tracks.get_track_id(node) for node in self.nodes],
             "t": [tracks_viewer.tracks.get_time(node) for node in self.nodes],
         }
         super().__init__(

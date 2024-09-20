@@ -113,7 +113,7 @@ def nx_graph_to_spatial(graph, time_attr, pos_attr, ndims, segmentation=None):
         if attr == "dummy":
             edge_dict[attr] = np.ones((len(sg_edges),), dtype="uint8")
         else:
-            edge_dict[attr] = [graph.edges[edge][attr] for edge in nx_edges]
+            edge_dict[attr] = np.array([graph.edges[edge][attr] for edge in nx_edges], dtype=edge_attrs[attr])
 
     sgraph.add_nodes(sg_node_ids, **node_dict)
     sgraph.add_edges(sg_edges, **edge_dict)
@@ -150,6 +150,11 @@ class Tracks:
         self.scale = scale
         self.max_track_id = np.max(self.graph.node_attrs[NodeAttr.TRACK_ID.value])
 
+    @classmethod
+    def from_nx(cls, graph, time_attr=NodeAttr.TIME.value, pos_attr=NodeAttr.POS.value, ndims=3, segmentation=None, scale=None):
+        sg, _ = nx_graph_to_spatial(graph, time_attr, pos_attr, ndims, segmentation=segmentation)
+        return cls(sg, segmentation=segmentation, scale=scale)
+    
     def get_location(self, node: Any, incl_time: bool = False):
         pos = self.graph.node_attrs[node].position
         if incl_time:
