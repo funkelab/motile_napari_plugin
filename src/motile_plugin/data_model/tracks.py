@@ -142,3 +142,75 @@ class Tracks:
         frame = self.segmentation[time]
         mask = frame == old_label
         self.segmentation[time][mask] = new_label
+
+    def delete_segmentation(self, node: Any) -> None:
+        """Delete the node from the segmentation (set it to 0)
+
+        Args:
+            node (Any): The node to be deleted.
+
+        """
+        time = self.get_time(node)
+        track_id = self.get_track_id(node)
+        self.update_segmentation(time, track_id, 0)
+
+    def set_node_attributes(self, nodes, attributes):
+        for node in nodes:
+            if node in self.graph:
+                for key, value in attributes.items():
+                    if key in self.graph.nodes[node]:
+                        self.graph.nodes[node][key] = value[
+                            np.where(nodes == node)[0][0]
+                        ]
+                    else:
+                        print(
+                            f"Attribute '{key}' does not exist for node {node}. Adding it."
+                        )
+                        self.graph.nodes[node][key] = value[
+                            np.where(nodes == node)[0][0]
+                        ]
+            else:
+                print(f"Node {node} not found in the graph.")
+
+    def get_node_attributes(self, nodes):
+        attributes = {}
+        for node in nodes:
+            if node in self.graph:
+                data = self.graph.nodes[node]
+                for key, value in data.items():
+                    vals = attributes.get(key, [])
+                    vals.append(value)
+                    attributes[key] = vals
+        return attributes
+
+    def get_edge_attributes(self, edges):
+        attributes = {}
+        for edge in edges:
+            if self.graph.has_edge(*edge):
+                data = self.graph.edges[edge]
+                for key, value in data.items():
+                    vals = attributes.get(key, [])
+                    vals.append(value)
+                    attributes[key] = vals
+        return attributes
+
+    def set_edge_attributes(self, edges, attributes):
+        for edge in edges:
+            if self.graph.has_edge(*edge):
+                for key, value in attributes.items():
+                    if key in self.graph.edges[edge]:
+                        self.graph.edges[edge][key] = value[
+                            np.where(edges == edge)[0][0]
+                        ]
+                    else:
+                        print(
+                            f"Attribute '{key}' does not exist for edge {edge}. Adding it."
+                        )
+                        self.graph.edges[edge][key] = value[
+                            np.where(edges == edge)[0][0]
+                        ]
+            else:
+                print(f"Edge {edge} not found in the graph.")
+
+    def get_segmentations(self, nodes):
+        return None
