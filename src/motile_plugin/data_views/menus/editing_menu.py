@@ -58,9 +58,13 @@ class EditingMenu(QWidget):
         self.undo_btn = QPushButton("Undo")
         self.undo_btn.clicked.connect(self.undo)
 
+        self.redo_btn = QPushButton("Redo")
+        self.redo_btn.clicked.connect(self.redo)
+
         layout.addWidget(node_box)
         layout.addWidget(edge_box)
         layout.addWidget(self.undo_btn)
+        layout.addWidget(self.redo_btn)
 
         self.setLayout(layout)
 
