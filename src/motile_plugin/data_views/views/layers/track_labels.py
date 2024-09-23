@@ -76,7 +76,7 @@ class TrackLabels(napari.layers.Labels):
 
         @self.mouse_drag_callbacks.append
         def click(_, event):
-            if event.type == "mouse_press":
+            if event.type == "mouse_press" and self.mode == "pan_zoom":
                 label = self.get_value(
                     event.position,
                     view_direction=event.view_direction,
@@ -95,6 +95,30 @@ class TrackLabels(napari.layers.Labels):
                     node_id = self.nodes[index[0]]
                     append = "Shift" in event.modifiers
                     self.tracks_viewer.selected_nodes.add(node_id, append)
+
+        self.events.paint.connect(self._on_paint)
+
+    def _on_paint(self, event):
+        """Listen to the paint event and check which track_ids have changed"""
+
+        old_values = list(np.unique(event.value[-1][-2]))
+        new_value = [event.value[-1][-1]]
+
+        # check which time points are affected (user might paint in 3 dimensions on 2D + time data)
+        time_points = list(
+            np.unique(np.concatenate([ev[0][0] for ev in event.value]))
+        )  # have to check the first array axis of the first element (the array) of all elements in event.value (just the last one is not always sufficient)
+
+        changed_track_ids = old_values + new_value
+        changed_track_ids = [value for value in changed_track_ids if value != 0]
+
+        current_timepoint = self.viewer.dims.current_step[
+            0
+        ]  # also pass on the current time point to know which node to select later
+
+        self.tracks_viewer.tracks_controller.update_segmentations(
+            time_points, current_timepoint, changed_track_ids
+        )
 
     def _refresh(self):
         """Refresh the data in the labels layer"""
@@ -120,9 +144,6 @@ class TrackLabels(napari.layers.Labels):
         self.base_label_color_dict = self.create_label_color_dict(
             np.unique(self.properties["track_id"]), colormap=colormap
         )
-
-        # use 'all' because selected_nodes is now empty so in lineage mode we would see nothing at all.
-        self.tracks_viewer.set_display_mode("all")
 
         self.refresh()
 

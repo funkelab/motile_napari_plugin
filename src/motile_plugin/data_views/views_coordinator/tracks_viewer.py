@@ -92,7 +92,7 @@ class TracksViewer:
         if self.tracking_layers.points_layer is not None:
             self.viewer.add_layer(self.tracking_layers.points_layer)
 
-    def _refresh(self):
+    def _refresh(self, node: str | None = None) -> None:
         """Call refresh function on napari layers and the submit signal that tracks are updated
         Restore the selected_nodes, if possible
         """
@@ -109,10 +109,14 @@ class TracksViewer:
         if self.tracking_layers.seg_layer is not None:
             self.tracking_layers.seg_layer._refresh()
 
-        self.tracks_updated.emit()
+        # if a new node was added, we would like to select this one now
+        if node is not None:
+            self.selected_nodes.add(node)
 
-        if len(self.selected_nodes) > 0:
+        elif len(self.selected_nodes) > 0:
             self.selected_nodes.list_updated.emit()  # to restore selection in all components
+
+        self.tracks_updated.emit()
 
     def update_tracks(self, tracks: Tracks, name: str) -> None:
         """Stop viewing a previous set of tracks and replace it with a new one.
@@ -129,7 +133,8 @@ class TracksViewer:
         # listen to refresh signals from the tracks
         self.tracks.refresh.connect(
             self._refresh
-        )  # TODO need to check whether to disconnect/reconnect when new tracks are generated
+        )  # TODO what if the connection exists already?
+
         # Remove old layers if necessary
         self.remove_napari_layers()
 

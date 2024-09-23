@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 from motile_toolbox.candidate_graph import NodeAttr
 from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
@@ -36,7 +36,7 @@ class Tracks:
 
     """
 
-    refresh: ClassVar[Signal] = Signal()
+    refresh: ClassVar[Signal[Optional[str]]] = Signal()
 
     def __init__(
         self,
@@ -53,13 +53,15 @@ class Tracks:
         self.scale = scale
 
         if graph.number_of_nodes() != 0:
+            self.node_id_to_track_id = {}
             try:  # try to get existing track ids
-                track_ids = [
-                    data[NodeAttr.TRACK_ID.value] for _, data in graph.nodes(data=True)
-                ]
-                self.max_track_id = max(track_ids)
+                for node, data in graph.nodes(data=True):
+                    self.node_id_to_track_id[node] = data[NodeAttr.TRACK_ID.value]
+                self.max_track_id = max(self.node_id_to_track_id.values())
             except KeyError:
                 _, _, self.max_track_id = assign_tracklet_ids(graph)
+                for node, data in graph.nodes(data=True):
+                    self.node_id_to_track_id[node] = data[NodeAttr.TRACK_ID.value]
 
     # pydantic does not check numpy arrays
     model_config = {"arbitrary_types_allowed": True}
@@ -133,7 +135,7 @@ class Tracks:
         return self.graph.nodes[node].get("area")
 
     def get_next_track_id(self) -> int:
-        self.max_track_id += 1
+        self.max_track_id = max(self.node_id_to_track_id.values()) + 1
         return self.max_track_id
 
     def update_segmentation(self, time, old_label, new_label):
