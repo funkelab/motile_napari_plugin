@@ -76,6 +76,14 @@ class EditingMenu(QWidget):
             self.delete_edge_btn.setEnabled(False)
             self.create_edge_btn.setEnabled(False)
 
+        elif n_selected == 2:
+            self.delete_node_btn.setEnabled(True)
+            self.split_node_btn.setEnabled(True)
+            self.endpoint_node_btn.setEnabled(True)
+            self.linear_node_btn.setEnabled(True)
+            self.delete_edge_btn.setEnabled(True)
+            self.create_edge_btn.setEnabled(True)
+
         else:
             self.delete_node_btn.setEnabled(True)
             self.split_node_btn.setEnabled(True)
@@ -83,18 +91,6 @@ class EditingMenu(QWidget):
             self.linear_node_btn.setEnabled(True)
             self.delete_edge_btn.setEnabled(False)
             self.create_edge_btn.setEnabled(False)
-
-        # check the edges specifically to know if they are 1 time point apart
-        if n_selected == 2:
-            node1 = self.tracks_viewer.selected_nodes[0]
-            node2 = self.tracks_viewer.selected_nodes[1]
-
-            time1 = self.tracks_viewer.tracks.get_time(node1)
-            time2 = self.tracks_viewer.tracks.get_time(node2)
-
-            if (time1 - time2) == 1 or (time2 - time1) == 1:
-                self.delete_edge_btn.setEnabled(True)
-                self.create_edge_btn.setEnabled(True)
 
     def delete_node(self):
         """Calls the tracks controller to delete currently selected nodes"""
