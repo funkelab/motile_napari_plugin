@@ -3,6 +3,7 @@ from typing import Any
 import numpy as np
 from motile_toolbox.candidate_graph import NodeAttr
 from motile_toolbox.candidate_graph.utils import get_node_id
+from napari.utils.notifications import show_warning
 from skimage import measure
 
 from .tracks import Tracks
@@ -276,8 +277,8 @@ class TracksController:
                 an array of values, where the index in the array matches the edge index
         """
 
-        self._add_edges(edges, attributes)
-        self.tracks.refresh.emit()
+        if self._add_edges(edges, attributes):
+            self.tracks.refresh.emit()
 
     def _add_edges(self, edges: np.ndarray[int], attributes: dict[str, np.ndarray]):
         """Add edges and attributes to the graph. Also update the track ids and
@@ -288,28 +289,90 @@ class TracksController:
                 node ids
             attributes (dict[str, np.ndarray]): dictionary mapping attribute names to
                 an array of values, where the index in the array matches the edge index
+
+        Returns:
+            True if the edges were successfully added, False if any edge was invalid.
         """
 
+        valid_edges = []
         for idx, edge in enumerate(edges):
             if self.is_valid(edge):
                 attrs = {attr: val[idx] for attr, val in attributes.items()}
-                self.tracks.graph.add_edge(edge[0], edge[1], **attrs)
+                valid_edges.append((edge[0], edge[1], attrs))
+            else:
+                return False
+
+        # all edges were checked, we can safely add them now
+        for edge in valid_edges:
+            source, target, attrs = edge
+            self.tracks.graph.add_edge(source, target, **attrs)
 
         self.update_track_ids(edges)
+        return True
 
     def is_valid(self, edge):
         """Check if this edge is valid.
-        criteria:
-            - not horizontal
-            - not existing yet
-            - source node does not already have an upstream target node of the same track_id
+        Criteria:
+        - not horizontal
+        - not existing yet
+        - no merges
+        - no triple divisions
+        - new edge should be the shortest possible connection between two nodes, given their track_ids.
+        (no skipping/bypassing any nodes of the same track_id). Check if there are any nodes of the same source or target track_id between source and target
 
         Args:
             edge (np.ndarray[(int, int)]: edge to be validated
         Returns:
             True if the edge is valid, false if invalid"""
 
-        # TODO implement this function
+        # make sure that the node2 is downstream of node1
+        time1 = self.tracks.graph.nodes[edge[0]][NodeAttr.TIME.value]
+        time2 = self.tracks.graph.nodes[edge[1]][NodeAttr.TIME.value]
+
+        if time1 > time2:
+            edge = (edge[1], edge[0])
+            time1, time2 = time2, time1
+
+        # do all checks
+        # reject if edge already exists
+        if self.tracks.graph.has_edge(edge[0], edge[1]):
+            show_warning("Edge is rejected because it exists already.")
+            return False
+
+        # reject if edge is horizontal
+        elif (
+            self.tracks.graph.nodes[edge[0]][NodeAttr.TIME.value]
+            == self.tracks.graph.nodes[edge[1]][NodeAttr.TIME.value]
+        ):
+            show_warning("Edge is rejected because it is horizontal.")
+            return False
+
+        # reject if target node already has an incoming edge
+        elif self.tracks.graph.in_degree(edge[1]) > 0:
+            show_warning("Edge is rejected because merges are currently not allowed.")
+            return False
+
+        elif self.tracks.graph.out_degree(edge[0]) > 1:
+            show_warning(
+                "Edge is rejected because triple divisions are currently not allowed."
+            )
+            return False
+
+        elif time2 - time1 > 1:
+            track_id2 = self.tracks.graph.nodes[edge[1]][NodeAttr.TRACK_ID.value]
+            # check whether there are already any nodes with the same track id between source and target (shortest path between equal track_ids rule)
+            for t in range(time1 + 1, time2):
+                nodes = [
+                    n
+                    for n, attr in self.tracks.graph.nodes(data=True)
+                    if attr.get(NodeAttr.TIME.value) == t
+                    and attr.get(NodeAttr.TRACK_ID.value) == track_id2
+                ]
+                if len(nodes) > 0:
+                    show_warning("Please connect to the closest node")
+                    return False
+
+        # all checks passed!
         return True
 
     def delete_edges(self, edges: np.ndarray):
