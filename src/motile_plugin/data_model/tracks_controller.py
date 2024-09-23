@@ -61,9 +61,17 @@ class TracksController:
             segmentations (Any, optional): A segmentation for each node (not
                 currently implemented). Defaults to None.
         """
-        actions = [AddNodes(nodes, attributes, segmentations)]
+        actions = [
+            AddNodes(
+                tracks=self.tracks,
+                nodes=nodes,
+                attributes=attributes,
+                segmentations=segmentations,
+            )
+        ]
         for idx, node in enumerate(nodes):
             attrs = {attr: val[idx] for attr, val in attributes.items()}
+            current_time = attrs[NodeAttr.TIME.value]
             track_id = attrs[NodeAttr.TRACK_ID.value]
             if track_id in self.tracks.node_id_to_track_id.values():
                 # this track_id already exists, find the nearest predecessor and nearest successor to create new edge
@@ -79,7 +87,6 @@ class TracksController:
                 )
                 closest_predecessor = None
                 closest_successor = None
-                current_time = self.tracks.graph.nodes[node].get(NodeAttr.TIME.value)
 
                 for candidate in candidates:
                     candidate_time = self.tracks.graph.nodes[candidate][
@@ -108,13 +115,13 @@ class TracksController:
                     closest_predecessor, node
                 ):
                     actions.append(
-                        AddEdges(self.tracks, [(closest_predecessor, node)], [])
+                        AddEdges(self.tracks, [(closest_predecessor, node)], {})
                     )
                 if closest_successor is not None and not self.tracks.graph.has_edge(
                     node, closest_successor
                 ):
                     actions.append(
-                        AddEdges(self.tracks, [(node, closest_successor)], [])
+                        AddEdges(self.tracks, [(node, closest_successor)], {})
                     )
 
         return ActionGroup(self.tracks, actions)
@@ -439,7 +446,13 @@ class TracksController:
             if len(new_nodes) > 0:
                 for key in new_node_attrs:
                     new_node_attrs[key] = np.array(new_node_attrs[key])
-                actions.append(self._add_nodes(np.array(new_nodes), new_node_attrs))
+                actions.append(
+                    self._add_nodes(
+                        nodes=np.array(new_nodes),
+                        attributes=new_node_attrs,
+                        segmentations=None,
+                    )
+                )
 
             # if this is the time point where the user added a node, select the new node
             if t == current_timepoint:

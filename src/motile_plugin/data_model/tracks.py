@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar, Optional
 
+import numpy as np
 from motile_toolbox.candidate_graph import NodeAttr
 from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
 from psygnal import Signal

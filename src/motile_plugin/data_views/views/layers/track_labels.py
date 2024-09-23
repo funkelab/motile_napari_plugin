@@ -101,7 +101,7 @@ class TrackLabels(napari.layers.Labels):
     def _on_paint(self, event):
         """Listen to the paint event and check which track_ids have changed"""
 
-        old_values = list(np.unique(event.value[-1][-2]))
+        old_values = list(np.unique(np.concatenate([ev[1] for ev in event.value])))
         new_value = [event.value[-1][-1]]
 
         # check which time points are affected (user might paint in 3 dimensions on 2D + time data)
