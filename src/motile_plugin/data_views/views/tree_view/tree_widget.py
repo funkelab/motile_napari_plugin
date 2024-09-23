@@ -96,9 +96,10 @@ class TreePlot(pg.PlotWidget):
             feature (str): The feature to be plotted ('tree' or 'area')
             selected_nodes (list[Any]): The currently selected nodes to be highlighted
         """
+
         self.set_data(track_df, feature)
+        self._update_viewed_data(view_direction)  # this can be expensive
         self.set_view(view_direction, feature)
-        self._update_viewed_data()  # this can be expensive
         self.set_selection(selected_nodes, feature)
 
     def set_view(self, view_direction: str, feature: str):
@@ -112,19 +113,22 @@ class TreePlot(pg.PlotWidget):
             feature (str): the feature being displayed, it can be either 'tree' or 'area'
         """
 
+        # TODO can we make sure to do autorange when we have a new run but not
+        # when we have updated the data because of an edit?
         if view_direction == self.view_direction and feature == self.feature:
+            if feature == "area":
+                self.autoRange()
             return
-        self.view_direction = view_direction
-        self.feature = feature
         if view_direction == "vertical":
             self.setLabel("left", text="Time Point")
             self.getAxis("left").setStyle(showValues=True)
             if feature == "tree":
                 self.getAxis("bottom").setStyle(showValues=False)
                 self.setLabel("bottom", text="")
-            else:
+            else:  # should this actually ever happen?
                 self.getAxis("bottom").setStyle(showValues=True)
-                self.setLabel("bottom", text="Number of pixels")
+                self.setLabel("bottom", text="Object size in calibrated units")
+                self.autoRange()
             self.invertY(True)  # to show tracks from top to bottom
         elif view_direction == "horizontal":
             self.setLabel("bottom", text="Time Point")
@@ -133,9 +137,14 @@ class TreePlot(pg.PlotWidget):
                 self.setLabel("left", text="")
                 self.getAxis("left").setStyle(showValues=False)
             else:
-                self.setLabel("left", text="Number of pixels")
+                self.setLabel("left", text="Object size in calibrated units")
                 self.getAxis("left").setStyle(showValues=True)
+                self.autoRange()
             self.invertY(False)
+        if self.view_direction != view_direction or self.feature != feature:
+            self.autoRange()
+        self.view_direction = view_direction
+        self.feature = feature
 
     def _on_click(self, _, points: np.ndarray, ev: QMouseEvent) -> None:
         """Adds the selected point to the selected_nodes list. Called when
@@ -163,12 +172,16 @@ class TreePlot(pg.PlotWidget):
         self.track_df = track_df
         self._create_pyqtgraph_content(track_df, feature)
 
-    def _update_viewed_data(self):
+    def _update_viewed_data(self, view_direction: str):
+        """Set the data according to the view direction
+        Args:
+            view_direction (str): direction to plot the data, either 'horizontal' or 'vertical'
+        """
         self.g.scatter.setPen(
             pg.mkPen(QColor(150, 150, 150))
         )  # first reset the pen to avoid problems with length mismatch between the different properties
         self.g.scatter.setSize(10)
-        if len(self._pos) == 0 or self.view_direction == "vertical":
+        if len(self._pos) == 0 or view_direction == "vertical":
             pos_data = self._pos
         else:
             pos_data = np.flip(self._pos, axis=1)
@@ -444,14 +457,23 @@ class TreeWidget(QWidget):
         self.navigation_widget.track_df = self.track_df
         self.navigation_widget.lineage_df = self.lineage_df
 
-        # set mode back to all and view to vertical
-        self._set_mode("all")
-        self.tree_widget.update(
-            self.track_df,
-            self.view_direction,
-            self.feature,
-            self.selected_nodes,
-        )
+        # check which view to set
+        if self.mode == "lineage":
+            self._update_lineage_df()
+            self.tree_widget.update(
+                self.lineage_df,
+                self.view_direction,
+                self.feature,
+                self.selected_nodes,
+            )
+
+        else:
+            self.tree_widget.update(
+                self.track_df,
+                self.view_direction,
+                self.feature,
+                self.selected_nodes,
+            )
 
     def _set_mode(self, mode: str) -> None:
         """Set the display mode to all or lineage view. Currently, linage
