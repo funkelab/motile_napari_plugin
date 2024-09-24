@@ -9,6 +9,7 @@ from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewe
 from motile_plugin.motile.backend import MotileRun, solve
 from motile_toolbox.candidate_graph import NodeAttr
 from napari import Viewer
+from napari.utils.notifications import show_warning
 from psygnal import Signal
 from qtpy.QtWidgets import (
     QLabel,
@@ -20,7 +21,6 @@ from superqt.utils import thread_worker
 
 from .run_editor import RunEditor
 from .run_viewer import RunViewer
-from .runs_list import RunsList
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +34,15 @@ class MotileWidget(QScrollArea):
     # A signal for passing events from the motile solver to the run view widget
     # To provide updates on progress of the solver
     solver_update = Signal()
-    view_tracks = Signal(Tracks, str)
+    new_run = Signal(Tracks, str)
     remove_layers = Signal()
 
     def __init__(self, viewer: Viewer):
         super().__init__()
         self.viewer: Viewer = viewer
         tracks_viewer = TracksViewer.get_instance(self.viewer)
-        self.view_tracks.connect(tracks_viewer.update_tracks)
+        self.new_run.connect(tracks_viewer.tracks_list.add_tracks)
+        tracks_viewer.tracks_list.view_tracks.connect(self.view_run)
         self.remove_layers.connect(tracks_viewer.remove_napari_layers)
 
         # Create sub-widgets and connect signals
@@ -53,31 +54,30 @@ class MotileWidget(QScrollArea):
         self.view_run_widget.hide()
         self.solver_update.connect(self.view_run_widget.solver_event_update)
 
-        self.run_list_widget = RunsList()
-        self.run_list_widget.view_run.connect(self.view_run)
-
         # Create main layout
         main_layout = QVBoxLayout()
         main_layout.addWidget(self._title_widget())
         main_layout.addWidget(self.view_run_widget)
         main_layout.addWidget(self.edit_run_widget)
-        main_layout.addWidget(self.run_list_widget)
         main_widget = QWidget()
         main_widget.setLayout(main_layout)
         self.setWidget(main_widget)
         self.setWidgetResizable(True)
 
-    def view_run(self, run: MotileRun) -> None:
-        """Populates the run viewer and the napari layers with the output
+    def view_run(self, tracks: Tracks) -> None:
+        """Populates the run viewer with the output
         of the provided run.
 
         Args:
             run (MotileRun): The run to view
         """
-        self.view_run_widget.update_run(run)
-        self.edit_run_widget.hide()
-        self.view_run_widget.show()
-        self.view_tracks.emit(run.tracks, run.run_name)
+        if isinstance(tracks, MotileRun):
+            self.view_run_widget.update_run(tracks)
+            self.edit_run_widget.hide()
+            self.view_run_widget.show()
+        else:
+            show_warning("Tried to view a Tracks that is not a MotileRun")
+            self.view_run_widget.hide()
 
     def edit_run(self, run: MotileRun | None):
         """Create or edit a new run in the run editor. Also removes solution layers
@@ -90,7 +90,6 @@ class MotileWidget(QScrollArea):
         self.edit_run_widget.show()
         if run:
             self.edit_run_widget.new_run(run)
-        self.run_list_widget.runs_list.clearSelection()
         self.remove_layers.emit()
 
     def _generate_tracks(self, run: MotileRun) -> None:
@@ -101,7 +100,7 @@ class MotileWidget(QScrollArea):
             run (MotileRun): Start solving this motile run.
         """
         run.status = "initializing"
-        self.run_list_widget.add_run(run, select=True)
+        self.view_run(run)
         worker = self.solve_with_motile(run)
         worker.returned.connect(self._on_solve_complete)
         worker.start()
@@ -167,21 +166,16 @@ class MotileWidget(QScrollArea):
             input_data = run.input_points
         else:
             raise ValueError("Must have one of input segmentation or points")
-        graph = solve(
+        run.graph = solve(
             run.solver_params,
             input_data,
             lambda event_data: self._on_solver_event(run, event_data),
             scale=run.scale,
         )
         if run.input_segmentation is not None:
-            output_segmentation = self.relabel_segmentation(
-                graph, run.input_segmentation
+            run.segmentation = self.relabel_segmentation(
+                run.graph, run.input_segmentation
             )
-        else:
-            output_segmentation = None
-        run.tracks = Tracks(
-            graph=graph, segmentation=output_segmentation, scale=run.scale
-        )
         return run
 
     def _on_solver_event(self, run: MotileRun, event_data: dict) -> None:
@@ -217,7 +211,7 @@ class MotileWidget(QScrollArea):
         """
         run.status = "done"
         self.solver_update.emit()
-        self.view_run(run)
+        self.new_run(run, run.run_name)
 
     def _title_widget(self) -> QWidget:
         """Create the title and intro paragraph widget, with links to docs

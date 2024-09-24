@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from warnings import warn
 
 import napari.layers
+import networkx as nx
 import numpy as np
 from motile_plugin.motile.backend import MotileRun
 from qtpy.QtCore import Signal
@@ -66,7 +67,7 @@ class RunEditor(QGroupBox):
         prev_selection = self.layer_selection_box.currentText()
         self.layer_selection_box.clear()
         for layer in self.viewer.layers:
-            if isinstance(layer, (napari.layers.Labels, napari.layers.Points)):
+            if isinstance(layer, napari.layers.Labels | napari.layers.Points):
                 self.layer_selection_box.addItem(layer.name)
         self.layer_selection_box.setCurrentText(prev_selection)
 
@@ -186,6 +187,8 @@ class RunEditor(QGroupBox):
             input_points = input_layer.data
         params = self.solver_params_widget.solver_params.copy()
         return MotileRun(
+            graph=nx.DiGraph(),
+            segmentation=None,
             run_name=run_name,
             solver_params=params,
             input_segmentation=input_seg,
