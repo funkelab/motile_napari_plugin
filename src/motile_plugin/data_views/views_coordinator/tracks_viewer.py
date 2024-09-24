@@ -186,6 +186,7 @@ class TracksViewer:
 
         self.add_napari_layers()
         self.set_display_mode("all")
+        self.tracks_updated.emit()
 
     def toggle_display_mode(self, event=None) -> None:
         """Toggle the display mode between available options"""
