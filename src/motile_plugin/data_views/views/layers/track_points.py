@@ -16,8 +16,6 @@ if TYPE_CHECKING:
 class TrackPoints(napari.layers.Points):
     """Extended points layer that holds the track information and emits and
     responds to dynamics visualization signals
-    TODO: Get access to TracksController, call it to add a node when you add a node to the layer
-    (can also delete nodes from here)
     """
 
     def __init__(
@@ -88,6 +86,9 @@ class TrackPoints(napari.layers.Points):
     def _refresh(self):
         """Refresh the data in the points layer"""
 
+        self.events.data.disconnect(
+            self._update_data
+        )  # do not listen to new events until updates are complete
         self.nodes = list(self.tracks_viewer.tracks.graph.nodes)
 
         self.node_index_dict = dict(
@@ -111,6 +112,10 @@ class TrackPoints(napari.layers.Points):
         self.properties = {"node_id": self.nodes, "track_id": track_ids}
         self.size = 5
         self.border_color = [1, 1, 1, 1]
+
+        self.events.data.connect(
+            self._update_data
+        )  # reconnect listening to update events
 
     def _create_node_attrs(self, new_point: np.array) -> tuple[np.array, dict]:
         """Create a node_id and attributes for a new node at given time point"""
@@ -154,13 +159,28 @@ class TrackPoints(napari.layers.Points):
             self.tracks_viewer.tracks_controller.add_nodes(nodes, attributes)
 
         if event.action == "removed":
-            print("these points are removed", self.tracks_viewer.selected_nodes._list)
             self.tracks_viewer.tracks_controller.delete_nodes(
                 np.array(self.tracks_viewer.selected_nodes._list)
             )
 
         if event.action == "changed":
-            print("a point was updated")
+            # we only want to allow this update if there is no seg layer
+            if self.tracks_viewer.tracking_layers.seg_layer is None:
+                positions = []
+                node_ids = []
+                for ind in self.selected_data:
+                    point = self.data[ind]
+                    pos = np.array(point[1:])
+                    positions.append(pos)
+                    node_id = self.properties["node_id"][ind]
+                    node_ids.append(node_id)
+
+                attributes = {NodeAttr.POS.value: np.array(positions)}
+                self.tracks_viewer.tracks_controller.update_nodes(
+                    np.array(node_ids), attributes
+                )
+            else:
+                self._refresh()  # refresh to move points back where they belong
 
     def _update_selection(self):
         """Replaces the list of selected_nodes with the selection provided by the user"""
