@@ -215,6 +215,11 @@ class TrackLabels(napari.layers.Labels):
             == self.viewer.dims.current_step[0]
         ]
 
+        if len(highlighted) > 0:
+            self.selected_label = highlighted[
+                0
+            ]  # set the first track_id to be the selected label color
+
         if self.base_label_color_dict is not None:
             colormap = create_selection_label_cmap(
                 self.base_label_color_dict,
