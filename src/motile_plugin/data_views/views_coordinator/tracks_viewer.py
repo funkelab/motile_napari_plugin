@@ -17,6 +17,7 @@ from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
 )
 
 from .node_selection_list import NodeSelectionList
+from .tracks_list import TracksList
 
 
 @dataclass
@@ -74,6 +75,9 @@ class TracksViewer:
             NodeType.SPLIT: "triangle_up",
         }
         self.mode = "all"
+        self.tracks_list = TracksList()
+        self.tracks_list.view_tracks.connect(self.update_tracks)
+        self.viewer.window.add_dock_widget(self.tracks_list, area="right", tabify=True)
 
     def remove_napari_layer(self, layer: napari.layers.Layer | None) -> None:
         """Remove a layer from the napari viewer, if present"""

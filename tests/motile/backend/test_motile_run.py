@@ -20,9 +20,7 @@ def test_save_load(tmp_path, graph_2d):
     path = run.save(tmp_path)
     newrun = MotileRun.load(path)
     assert nx.utils.graphs_equal(run.tracks.graph, newrun.tracks.graph)
-    np.testing.assert_array_equal(
-        run.tracks.segmentation, newrun.tracks.segmentation
-    )
+    np.testing.assert_array_equal(run.tracks.segmentation, newrun.tracks.segmentation)
     assert run.run_name == newrun.run_name
     assert run.time.replace(microsecond=0) == newrun.time
     assert run.gaps == newrun.gaps
