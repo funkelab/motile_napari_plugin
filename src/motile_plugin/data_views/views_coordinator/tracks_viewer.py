@@ -34,7 +34,7 @@ class TracksViewer:
     - Interacting with the napari.Viewer by adding and removing layers
     """
 
-    # tracks_updated = Signal()
+    tracks_updated = Signal()
     undo_seg = Signal()
     redo_seg = Signal()
 
