@@ -134,7 +134,6 @@ class TracksController:
         """
 
         action = self._delete_nodes(nodes)
-        print(action)
         self.actions.append(action)
         self.last_action = len(self.actions) - 1
         action.apply()
@@ -158,7 +157,7 @@ class TracksController:
             # remove incident edges in an undo-able fashion
             actions.append(DeleteEdges(self.tracks, [(pred, node)]))
             for succ in succs:
-                actions.append(DeleteEdges(self.tracks, [(node, succ)], []))
+                actions.append(DeleteEdges(self.tracks, [(node, succ)]))
 
             # determine if we need to relabel any tracks or add skip edges
             siblings = list(self.tracks.graph.successors(pred))
@@ -170,7 +169,7 @@ class TracksController:
                 actions.append(UpdateTrackID(self.tracks, siblings[0], new_track_id))
             elif len(succs) == 1 and len(preds) == 1:
                 # make new (skip) edge between predecessor and successor
-                actions.append(AddEdges(self.tracks, [(preds[0], succs[0])], []))
+                actions.append(AddEdges(self.tracks, [(preds[0], succs[0])], {}))
             # if succs == 2, do nothing = the children already have different track ids
 
         # remove the nodes last
@@ -347,7 +346,11 @@ class TracksController:
                 new_track_id = self.tracks.get_next_track_id()
                 actions.append(UpdateTrackID(self.tracks, edge[1], new_track_id))
             elif out_degree == 2:  # removing a division edge
-                sibling = next(iter(self.tracks.graph.successors(edge[0])))
+                sibling = next(
+                    succ
+                    for succ in self.tracks.graph.successors(edge[0])
+                    if succ != edge[1]
+                )
                 new_track_id = self.tracks.get_track_id(edge[0])
                 actions.append(UpdateTrackID(self.tracks, sibling, new_track_id))
             else:
@@ -458,7 +461,7 @@ class TracksController:
             if t == current_timepoint:
                 node_to_select = new_nodes[0] if new_nodes else None
 
-        action_group = ActionGroup(self.tracks, actions)
+        action_group = ActionGroup(self.tracks, actions, update_seg=True)
         self.actions.append(action_group)
         self.last_action = len(self.actions) - 1
         action_group.apply()

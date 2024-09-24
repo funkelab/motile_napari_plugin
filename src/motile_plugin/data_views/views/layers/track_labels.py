@@ -97,6 +97,46 @@ class TrackLabels(napari.layers.Labels):
                     self.tracks_viewer.selected_nodes.add(node_id, append)
 
         self.events.paint.connect(self._on_paint)
+        self.tracks_viewer.undo_seg.connect(self._undo)
+        self.tracks_viewer.redo_seg.connect(self._redo)
+
+    def _redo(self):
+        """Call the original undo functionality of the labels layer"""
+
+        self._load_history(self._redo_history, self._undo_history, undoing=False)
+
+    def redo(self):
+        """Overwrite the redo functionality of the labels layer and invoke redo action on the tracks_viewer.tracks_controller first"""
+
+        controller = self.tracks_viewer.tracks_controller
+        if controller.last_action < len(controller.actions) - 1:
+            action_to_redo = controller.actions[controller.last_action + 1]
+            self.tracks_viewer.tracks_controller.last_action += 1
+            action_to_redo.apply()
+            self.tracks_viewer.tracks.refresh()
+            if (
+                action_to_redo.update_seg
+            ):  # only redo segmentation if this action involved a segmentation update
+                self._redo()
+
+    def _undo(self):
+        """Call the original undo functionality of the labels layer"""
+
+        self._load_history(self._undo_history, self._redo_history, undoing=True)
+
+    def undo(self):
+        """Overwrite undo function and invoke undo action on the tracks_viewer.tracks_controller"""
+
+        controller = self.tracks_viewer.tracks_controller
+        action_to_undo = controller.actions[controller.last_action]
+        self.tracks_viewer.tracks_controller.last_action -= 1
+        inverse_action = action_to_undo.inverse()
+        inverse_action.apply()
+        self.tracks_viewer.tracks.refresh()
+        if (
+            action_to_undo.update_seg
+        ):  # only undo segmentation if this action involved a segmentation update
+            self._undo()  # call the original undo function
 
     def _on_paint(self, event):
         """Listen to the paint event and check which track_ids have changed"""

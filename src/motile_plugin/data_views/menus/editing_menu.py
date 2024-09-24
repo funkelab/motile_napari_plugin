@@ -147,9 +147,10 @@ class EditingMenu(QWidget):
     def undo(self):
         controller = self.tracks_viewer.tracks_controller
         action_to_undo = controller.actions[controller.last_action]
+        if action_to_undo.update_seg:
+            self.tracks_viewer.undo_seg.emit()
         self.tracks_viewer.tracks_controller.last_action -= 1
         inverse_action = action_to_undo.inverse()
-        print(inverse_action)
         inverse_action.apply()
         self.tracks_viewer.tracks.refresh()
 
@@ -157,6 +158,8 @@ class EditingMenu(QWidget):
         controller = self.tracks_viewer.tracks_controller
         if controller.last_action < len(controller.actions) - 1:
             action_to_redo = controller.actions[controller.last_action + 1]
+            if action_to_redo.update_seg:
+                self.tracks_viewer.redo_seg.emit()
             self.tracks_viewer.tracks_controller.last_action += 1
             action_to_redo.apply()
             self.tracks_viewer.tracks.refresh()

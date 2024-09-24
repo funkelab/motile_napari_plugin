@@ -34,7 +34,9 @@ class TracksViewer:
     - Interacting with the napari.Viewer by adding and removing layers
     """
 
-    tracks_updated = Signal()
+    # tracks_updated = Signal()
+    undo_seg = Signal()
+    redo_seg = Signal()
 
     @classmethod
     def get_instance(cls, viewer=None):
@@ -97,8 +99,8 @@ class TracksViewer:
         Restore the selected_nodes, if possible
         """
 
-        if len(self.selected_nodes) > 0 and not self.tracks.graph.has_node(
-            self.selected_nodes[0]
+        if len(self.selected_nodes) > 0 and any(
+            not self.tracks.graph.has_node(node) for node in self.selected_nodes
         ):
             self.selected_nodes.reset()
 
@@ -131,9 +133,10 @@ class TracksViewer:
         self.tracks_controller = TracksController(self.tracks)
 
         # listen to refresh signals from the tracks
-        self.tracks.refresh.connect(
-            self._refresh
-        )  # TODO what if the connection exists already?
+        if self.tracks is not None:
+            self.tracks.refresh.connect(
+                self._refresh
+            )  # TODO what if the connection exists already?
 
         # Remove old layers if necessary
         self.remove_napari_layers()
@@ -180,12 +183,7 @@ class TracksViewer:
                 colormap=self.colormap,
                 tracks_viewer=self,
             )
-            # listen to updates in the selected data (from the point selection tool) to update the nodes in self.selected_nodes
-            # self.tracking_layers.points_layer.selected_data.events.items_changed.connect(
-            #     self._update_selection
-            # )
 
-        self.tracks_updated.emit()
         self.add_napari_layers()
         self.set_display_mode("all")
 
@@ -291,12 +289,3 @@ class TracksViewer:
                     ],  # camera center is calculated in scaled coordinates, and the optional labels layer is scaled by the layer.scale attribute
                     location[x_dim],
                 )
-
-    # def _update_selection(self):
-    #     """Replaces the list of selected_nodes with the selection provided by the user"""
-
-    #     selected_points = self.tracking_layers.points_layer.selected_data
-    #     self.selected_nodes.reset()
-    #     for point in selected_points:
-    #         node_id = self.nodes[point]
-    #         self.selected_nodes.add(node_id, True)

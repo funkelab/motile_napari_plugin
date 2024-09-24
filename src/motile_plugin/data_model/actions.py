@@ -17,9 +17,15 @@ class TracksAction:
 
 
 class ActionGroup(TracksAction):
-    def __init__(self, tracks: Tracks, actions: list[TracksAction]):
+    def __init__(
+        self,
+        tracks: Tracks,
+        actions: list[TracksAction],
+        update_seg: bool | None = False,
+    ):
         super().__init__(tracks)
         self.actions = actions
+        self.update_seg = update_seg
 
     def inverse(self) -> ActionGroup:
         actions = [action.inverse() for action in self.actions[::-1]]
@@ -38,7 +44,7 @@ class AddNodes(TracksAction):
         self.segmentations = segmentations
 
     def inverse(self):
-        return DeleteNodes(self.nodes)
+        return DeleteNodes(self.tracks, self.nodes)
 
     def apply(self):
         for idx, node in enumerate(self.nodes):
