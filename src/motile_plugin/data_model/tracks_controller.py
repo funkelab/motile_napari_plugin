@@ -4,6 +4,7 @@ import numpy as np
 from motile_toolbox.candidate_graph import NodeAttr
 from motile_toolbox.candidate_graph.utils import get_node_id
 from napari.utils.notifications import show_warning
+from qtpy.QtWidgets import QMessageBox
 from skimage import measure
 
 from .actions import (
@@ -299,8 +300,35 @@ class TracksController:
 
         # reject if target node already has an incoming edge
         elif self.tracks.graph.in_degree(edge[1]) > 0:
-            show_warning("Edge is rejected because merges are currently not allowed.")
-            return False
+            msg = QMessageBox()
+            msg.setWindowTitle("Delete existing edge?")
+            msg.setText(
+                "Creating this edge involves breaking an existing incoming edge to the target node. Proceed?"
+            )
+            msg.setIcon(QMessageBox.Information)
+
+            # Set both OK and Cancel buttons
+            msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+
+            # Execute the message box and catch the result
+            result = msg.exec_()
+
+            # Check which button was clicked
+            if result == QMessageBox.Ok:
+                print("User clicked OK")
+
+                # identify incoming edge in the target node and insert a delete action
+                pred = next(self.tracks.graph.predecessors(edge[1]))
+                action = self._delete_edges(edges=np.array([[pred, edge[1]]]))
+                self.actions.append(action)
+                self.last_action = len(self.actions) - 1
+                action.apply()
+
+            elif result == QMessageBox.Cancel:
+                show_warning(
+                    "Edge is rejected because merges are currently not allowed."
+                )
+                return False
 
         elif self.tracks.graph.out_degree(edge[0]) > 1:
             show_warning(
