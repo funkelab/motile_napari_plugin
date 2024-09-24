@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar, Optional
 
 import napari
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
@@ -34,7 +35,7 @@ class TracksViewer:
     - Interacting with the napari.Viewer by adding and removing layers
     """
 
-    tracks_updated = Signal()
+    tracks_updated: ClassVar[Signal[Optional[bool]]] = Signal()
     undo_seg = Signal()
     redo_seg = Signal()
 
@@ -186,7 +187,7 @@ class TracksViewer:
 
         self.add_napari_layers()
         self.set_display_mode("all")
-        self.tracks_updated.emit()
+        self.tracks_updated.emit(True)
 
     def toggle_display_mode(self, event=None) -> None:
         """Toggle the display mode between available options"""

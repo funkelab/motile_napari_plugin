@@ -86,6 +86,7 @@ class TreePlot(pg.PlotWidget):
         view_direction: str,
         feature: str,
         selected_nodes: list[Any],
+        reset_view: bool | None = False,
     ):
         """Update the entire view, including the data, view direction, and
         selected nodes
@@ -96,13 +97,14 @@ class TreePlot(pg.PlotWidget):
             feature (str): The feature to be plotted ('tree' or 'area')
             selected_nodes (list[Any]): The currently selected nodes to be highlighted
         """
-
         self.set_data(track_df, feature)
         self._update_viewed_data(view_direction)  # this can be expensive
-        self.set_view(view_direction, feature)
+        self.set_view(view_direction, feature, reset_view)
         self.set_selection(selected_nodes, feature)
 
-    def set_view(self, view_direction: str, feature: str):
+    def set_view(
+        self, view_direction: str, feature: str, reset_view: bool | None = False
+    ):
         """Set the view direction, saving the new value as an attribute and
         changing the axes labels. Shortcuts if the view direction is already
         correct. Does not actually update the rendered graph (need to call
@@ -116,7 +118,7 @@ class TreePlot(pg.PlotWidget):
         # TODO can we make sure to do autorange when we have a new run but not
         # when we have updated the data because of an edit?
         if view_direction == self.view_direction and feature == self.feature:
-            if feature == "area":
+            if feature == "area" or reset_view:
                 self.autoRange()
             return
         if view_direction == "vertical":
@@ -141,7 +143,11 @@ class TreePlot(pg.PlotWidget):
                 self.getAxis("left").setStyle(showValues=True)
                 self.autoRange()
             self.invertY(False)
-        if self.view_direction != view_direction or self.feature != feature:
+        if (
+            self.view_direction != view_direction
+            or self.feature != feature
+            or reset_view
+        ):
             self.autoRange()
         self.view_direction = view_direction
         self.feature = feature
@@ -433,7 +439,7 @@ class TreeWidget(QWidget):
         else:
             self.tree_widget.set_selection(self.selected_nodes, self.feature)
 
-    def _update_track_data(self) -> None:
+    def _update_track_data(self, reset_view: bool | None = None) -> None:
         """Called when the TracksViewer emits the tracks_updated signal, indicating
         that a new set of tracks should be viewed.
         """
@@ -465,6 +471,7 @@ class TreeWidget(QWidget):
                 self.view_direction,
                 self.feature,
                 self.selected_nodes,
+                reset_view=reset_view,
             )
 
         else:
@@ -473,6 +480,7 @@ class TreeWidget(QWidget):
                 self.view_direction,
                 self.feature,
                 self.selected_nodes,
+                reset_view=reset_view,
             )
 
     def _set_mode(self, mode: str) -> None:
