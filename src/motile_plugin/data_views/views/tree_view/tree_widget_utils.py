@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import napari.layers
 import networkx as nx
+import numpy as np
 import pandas as pd
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 
@@ -72,7 +73,7 @@ def extract_sorted_tracks(
                 "t": tracks.get_time(node),
                 "node_id": node,
                 "track_id": track_id,
-                "color": colormap.map(track_id) * 255,
+                "color": np.concatenate((colormap.map(track_id)[:3] * 255, [255])),
                 "x": pos[-1],
                 "y": pos[-2],
                 "parent_id": 0,

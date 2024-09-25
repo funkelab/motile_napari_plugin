@@ -1,38 +1,14 @@
 from __future__ import annotations
 
-import copy
 from typing import TYPE_CHECKING
 
 import napari
 import numpy as np
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
-from napari.utils import CyclicLabelColormap, DirectLabelColormap
+from napari.utils import CyclicLabelColormap
 
 if TYPE_CHECKING:
     from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
-
-
-def create_selection_label_cmap(
-    color_dict_rgb: dict, visible: list[int] | str, highlighted: list[int]
-) -> DirectLabelColormap:
-    """Generates a label colormap with three possible opacity values
-    (0 for invisibible labels, 0.6 for visible labels, and 1 for selected labels)"""
-
-    color_dict_rgb_temp = copy.deepcopy(color_dict_rgb)
-    if visible == "all":
-        for key in color_dict_rgb_temp:
-            if key is not None:
-                color_dict_rgb_temp[key][-1] = 0.6  # set opacity to 0.6
-    else:
-        for label in visible:
-            if label in color_dict_rgb_temp:
-                color_dict_rgb_temp[label][-1] = 0.6  # set opacity to 0.6
-
-    for label in highlighted:
-        if label != 0 and label in color_dict_rgb_temp:
-            color_dict_rgb_temp[label][-1] = 1  # set opacity to full
-
-    return DirectLabelColormap(color_dict=color_dict_rgb_temp)
 
 
 class TrackLabels(napari.layers.Labels):
@@ -69,10 +45,6 @@ class TrackLabels(napari.layers.Labels):
 
         self.viewer = viewer
         self.tracks_viewer = tracks_viewer
-
-        self.base_label_color_dict = self.create_label_color_dict(
-            np.unique(self.properties["track_id"]), colormap=colormap
-        )
 
         @self.mouse_drag_callbacks.append
         def click(_, event):
@@ -175,34 +147,7 @@ class TrackLabels(napari.layers.Labels):
             "t": [self.tracks_viewer.tracks.get_time(node) for node in self.nodes],
         }
 
-        colormap = napari.utils.colormaps.label_colormap(
-            49,
-            seed=0.5,
-            background_value=0,
-        )
-
-        self.base_label_color_dict = self.create_label_color_dict(
-            np.unique(self.properties["track_id"]), colormap=colormap
-        )
-
         self.refresh()
-
-    def create_label_color_dict(
-        self, labels: list[int], colormap: CyclicLabelColormap
-    ) -> dict:
-        """Extract the label colors to generate a base colormap, but keep opacity at 0"""
-
-        color_dict_rgb = {None: [0.0, 0.0, 0.0, 0.0]}
-
-        # Iterate over unique labels
-        for label in labels:
-            color = colormap.map(label)
-            color[-1] = (
-                0  # Set opacity to 0 (will be replaced when a label is visible/invisible/selected)
-            )
-            color_dict_rgb[label] = color
-
-        return color_dict_rgb
 
     def update_label_colormap(self, visible: list[int] | str) -> None:
         """Updates the opacity of the label colormap to highlight the selected label
@@ -220,10 +165,33 @@ class TrackLabels(napari.layers.Labels):
                 0
             ]  # set the first track_id to be the selected label color
 
-        if self.base_label_color_dict is not None:
-            colormap = create_selection_label_cmap(
-                self.base_label_color_dict,
-                visible=visible,
-                highlighted=highlighted,
+        # update the opacity of the cyclic label colormap values according to whether nodes are visible/invisible/highlighted
+        if visible == "all":
+            self.colormap.colors[:, -1] = (
+                0.6  # set opacity of all labels everything to 0.6
             )
-            self.colormap = colormap
+
+        else:
+            self.colormap.colors[:, -1] = (
+                0  # set opacity of all labels everything to 0 and replace by 0.6 for visible labels
+            )
+            for label in visible:
+                # find the index in the cyclic label colormap
+                matches = np.all(
+                    self.colormap.colors[:, :3] == self.colormap.map(label)[:3], axis=1
+                )
+                if np.any(matches):
+                    index = np.argmax(matches)
+                    self.colormap.colors[index][-1] = 0.6
+
+        for label in highlighted:
+            matches = np.all(
+                self.colormap.colors[:, :3] == self.colormap.map(label)[:3], axis=1
+            )
+            if np.any(matches):
+                index = np.argmax(matches)
+                self.colormap.colors[index][-1] = 1  # full opacity
+
+        self.colormap = CyclicLabelColormap(
+            colors=self.colormap.colors
+        )  # create a new colormap from the updated colors (otherwise it does not refresh)
