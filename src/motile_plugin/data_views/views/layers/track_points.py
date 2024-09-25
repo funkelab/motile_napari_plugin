@@ -18,6 +18,10 @@ class TrackPoints(napari.layers.Points):
     responds to dynamics visualization signals
     """
 
+    @property
+    def _type_string(self) -> str:
+        return "points"  # to make sure that the layer is treated as points layer for saving
+
     def __init__(
         self,
         viewer: napari.Viewer,

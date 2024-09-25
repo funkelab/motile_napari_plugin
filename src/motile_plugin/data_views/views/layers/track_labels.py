@@ -15,6 +15,10 @@ class TrackLabels(napari.layers.Labels):
     """Extended labels layer that holds the track information and emits
     and responds to dynamics visualization signals"""
 
+    @property
+    def _type_string(self) -> str:
+        return "labels"  # to make sure that the layer is treated as labels layer for saving
+
     def __init__(
         self,
         viewer: napari.Viewer,
