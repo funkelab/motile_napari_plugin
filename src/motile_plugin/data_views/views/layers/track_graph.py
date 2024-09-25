@@ -106,6 +106,8 @@ class TrackGraph(napari.layers.Tracks):
         self.data = track_data
         self.graph = track_edges
         self.tracks_layer_graph = copy.deepcopy(self.graph)
+        self.colormaps_dict["track_id"] = self.tracks_viewer.colormap
+        self.colormap = "turbo"  # just to 'refresh' the track_id colormap, we do not actually use turbo
 
     def update_track_visibility(self, visible: list[int] | str) -> None:
         """Optionally show only the tracks of a current lineage"""
