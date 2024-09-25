@@ -57,18 +57,26 @@ class Tracks:
         self.scale = scale
 
         if graph.number_of_nodes() != 0:
-            self.node_id_to_track_id = {}
-            try:  # try to get existing track ids
-                for node, data in graph.nodes(data=True):
-                    self.node_id_to_track_id[node] = data[NodeAttr.TRACK_ID.value]
-                self.max_track_id = max(self.node_id_to_track_id.values())
-            except KeyError:
-                _, _, self.max_track_id = assign_tracklet_ids(graph)
-                for node, data in graph.nodes(data=True):
-                    self.node_id_to_track_id[node] = data[NodeAttr.TRACK_ID.value]
+            self.create_node_id_to_track_id()
+        else:
+            self.node_id_to_track_id = None
+            self.max_track_id = None
 
     # pydantic does not check numpy arrays
     model_config = {"arbitrary_types_allowed": True}
+
+    def create_node_id_to_track_id(self):
+        """Create a dictionary mapping the node_id to the tracklet_id, and specify the max_track_id"""
+
+        self.node_id_to_track_id = {}
+        try:  # try to get existing track ids
+            for node, data in self.graph.nodes(data=True):
+                self.node_id_to_track_id[node] = data[NodeAttr.TRACK_ID.value]
+            self.max_track_id = max(self.node_id_to_track_id.values())
+        except KeyError:
+            _, _, self.max_track_id = assign_tracklet_ids(self.graph)
+            for node, data in self.graph.nodes(data=True):
+                self.node_id_to_track_id[node] = data[NodeAttr.TRACK_ID.value]
 
     def get_location(self, node: Any, incl_time: bool = False):
         """Get the location of a node in the graph. Optionally include the

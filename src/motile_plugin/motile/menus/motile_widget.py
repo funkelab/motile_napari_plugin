@@ -211,6 +211,8 @@ class MotileWidget(QScrollArea):
         """
         run.status = "done"
         self.solver_update.emit()
+        if run.node_id_to_track_id is None:
+            run.create_node_id_to_track_id()
         self.new_run(run, run.run_name)
 
     def _title_widget(self) -> QWidget:
