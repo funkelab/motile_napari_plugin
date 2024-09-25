@@ -157,7 +157,6 @@ class TracksViewer:
                 viewer=self.viewer,
                 data=tracks.segmentation[:, 0],
                 name=name + "_seg",
-                colormap=self.colormap,
                 opacity=0.9,
                 scale=self.tracks.scale,
                 tracks_viewer=self,
@@ -185,7 +184,6 @@ class TracksViewer:
                 viewer=self.viewer,
                 name=name + "_points",
                 symbolmap=self.symbolmap,
-                colormap=self.colormap,
                 tracks_viewer=self,
             )
 

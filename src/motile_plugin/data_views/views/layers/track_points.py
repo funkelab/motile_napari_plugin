@@ -23,11 +23,10 @@ class TrackPoints(napari.layers.Points):
         viewer: napari.Viewer,
         name: str,
         symbolmap: dict[NodeType, str],
-        colormap: napari.utils.Colormap,
         tracks_viewer: TracksViewer,
     ):
-        self.colormap = colormap
         self.symbolmap = symbolmap
+        self.tracks_viewer = tracks_viewer
 
         self.nodes = list(tracks_viewer.tracks.graph.nodes)
         self.node_index_dict = dict(
@@ -45,7 +44,7 @@ class TrackPoints(napari.layers.Points):
             tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
             for node in self.nodes
         ]
-        colors = [colormap.map(track_id) for track_id in track_ids]
+        colors = [self.tracks_viewer.colormap.map(track_id) for track_id in track_ids]
         symbols = self.get_symbols(tracks_viewer.tracks, symbolmap)
 
         super().__init__(
@@ -59,7 +58,6 @@ class TrackPoints(napari.layers.Points):
         )
 
         self.viewer = viewer
-        self.tracks_viewer = tracks_viewer
 
         @self.mouse_drag_callbacks.append
         def click(layer, event):
@@ -107,8 +105,11 @@ class TrackPoints(napari.layers.Points):
             self.tracks_viewer.tracks.get_location(node, incl_time=True)
             for node in self.nodes
         ]
+
         self.symbol = self.get_symbols(self.tracks_viewer.tracks, self.symbolmap)
-        self.face_color = [self.colormap.map(track_id) for track_id in track_ids]
+        self.face_color = [
+            self.tracks_viewer.colormap.map(track_id) for track_id in track_ids
+        ]
         self.properties = {"node_id": self.nodes, "track_id": track_ids}
         self.size = 5
         self.border_color = [1, 1, 1, 1]

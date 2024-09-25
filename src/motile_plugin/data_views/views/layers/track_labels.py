@@ -20,7 +20,6 @@ class TrackLabels(napari.layers.Labels):
         viewer: napari.Viewer,
         data: np.array,
         name: str,
-        colormap: CyclicLabelColormap,
         opacity: float,
         scale: tuple,
         tracks_viewer: TracksViewer,
@@ -38,7 +37,7 @@ class TrackLabels(napari.layers.Labels):
             data=data,
             name=name,
             opacity=opacity,
-            colormap=colormap,
+            colormap=tracks_viewer.colormap,
             properties=props,
             scale=scale,
         )
@@ -195,3 +194,10 @@ class TrackLabels(napari.layers.Labels):
         self.colormap = CyclicLabelColormap(
             colors=self.colormap.colors
         )  # create a new colormap from the updated colors (otherwise it does not refresh)
+
+    def new_colormap(self):
+        """Extended version of existing function, to emit refresh signal to also update colors in other layers/widgets"""
+
+        super().new_colormap()
+        self.tracks_viewer.colormap = self.colormap
+        self.tracks_viewer._refresh()
