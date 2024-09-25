@@ -25,25 +25,25 @@ class TrackLabels(napari.layers.Labels):
         tracks_viewer: TracksViewer,
     ):
         self.nodes = list(tracks_viewer.tracks.graph.nodes)
-        props = {
-            "node_id": self.nodes,
-            "track_id": [
-                data[NodeAttr.TRACK_ID.value]
-                for _, data in tracks_viewer.tracks.graph.nodes(data=True)
-            ],
-            "t": [tracks_viewer.tracks.get_time(node) for node in self.nodes],
-        }
+
         super().__init__(
             data=data,
             name=name,
             opacity=opacity,
             colormap=tracks_viewer.colormap,
-            properties=props,
             scale=scale,
         )
 
         self.viewer = viewer
         self.tracks_viewer = tracks_viewer
+        self.node_properties = {
+            "node_id": self.nodes,
+            "track_id": [
+                data[NodeAttr.TRACK_ID.value]
+                for _, data in self.tracks_viewer.tracks.graph.nodes(data=True)
+            ],
+            "t": [self.tracks_viewer.tracks.get_time(node) for node in self.nodes],
+        }
 
         @self.mouse_drag_callbacks.append
         def click(_, event):
@@ -56,8 +56,8 @@ class TrackLabels(napari.layers.Labels):
                 )
 
                 if label is not None and label != 0:
-                    t_values = self.properties["t"]
-                    track_ids = self.properties["track_id"]
+                    t_values = self.node_properties["t"]
+                    track_ids = self.node_properties["track_id"]
                     index = np.where(
                         (t_values == event.position[0]) & (track_ids == label)
                     )[0]  # np.where returns a tuple with an array per dimension,
@@ -137,7 +137,7 @@ class TrackLabels(napari.layers.Labels):
         self.data = np.squeeze(self.tracks_viewer.tracks.segmentation)
         self.nodes = list(self.tracks_viewer.tracks.graph.nodes)
 
-        self.properties = {
+        self.node_properties = {
             "node_id": self.nodes,
             "track_id": [
                 data[NodeAttr.TRACK_ID.value]
