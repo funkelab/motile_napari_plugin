@@ -14,6 +14,18 @@ contributions:
       python_name: motile_plugin.data_views.views.tree_view.tree_widget:TreeWidget
       title: "Open the lineage view widget"
       short_title: "lineage view"
+    - id: motile-plugin.editing_menu
+      python_name: motile_plugin.data_views.menus.editing_menu:EditingMenu
+      title: "Edit tracks"
+      short_title: "edit tracks"
+    - id: motile-plugin.multi_widget
+      python_name: motile_plugin.data_views.menus.multi_widget:MultiWidget
+      title: "Motile Multi Widget"
+      short_title: "multi widget"
+    - id: motile-plugin.track_list
+      python_name: motile_plugin.data_views.views_coordinator.tracks_list:TrackListWidget
+      title: "Track List"
+      short_title: "track list widget"
     - id: motile-plugin.solve
       python_name: motile_plugin.motile.backend.solve:solve
       title: "Run motile tracking (backend only)"
@@ -25,6 +37,12 @@ contributions:
       display_name: Motile Tracking
     - command: motile-plugin.tree_widget
       display_name: Lineage View
+    - command: motile-plugin.editing_menu
+      display_name: Edit tracks
+    - command: motile-plugin.multi_widget
+      display_name: Multi Widget
+    - command: motile-plugin.track_list
+      display_name: Track List
   sample_data:
     - command: motile-plugin.Fluo_N2DL_HeLa
       key: "Fluo-N2DL-HeLa"
