@@ -359,6 +359,12 @@ class TracksController:
         Args:
             edges (np.ndarray): _description_
         """
+
+        for edge in edges:
+            # First check if the to be deleted edges exist
+            if not self.tracks.graph.has_edge(edge[0], edge[1]):
+                show_warning("Cannot delete non-existing edge!")
+                return
         action = self._delete_edges(edges)
         self.actions.append(action)
 
