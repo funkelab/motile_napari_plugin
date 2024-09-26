@@ -384,34 +384,68 @@ class TreeWidget(QWidget):
         self._update_track_data()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        """Catch arrow key presses to navigate in the tree
-
-        Args:
-            event (QKeyEvent): The Qt Key event
-        """
-        direction_map = {
-            Qt.Key_Left: "left",
-            Qt.Key_Right: "right",
-            Qt.Key_Up: "up",
-            Qt.Key_Down: "down",
+        """Handle key press events."""
+        key_map = {
+            Qt.Key_Delete: self.delete_node,
+            Qt.Key_D: self.delete_node,
+            Qt.Key_A: self.create_edge,
+            Qt.Key_B: self.delete_edge,
+            Qt.Key_Z: self.undo,
+            Qt.Key_R: self.redo,
+            Qt.Key_Q: self.toggle_display_mode,
+            Qt.Key_W: self.toggle_feature_mode,
+            Qt.Key_X: lambda: self.set_mouse_enabled(x=True, y=False),
+            Qt.Key_Y: lambda: self.set_mouse_enabled(x=False, y=True),
         }
 
-        if event.key() == Qt.Key_Delete:
-            self.tracks_viewer.tracks_controller.delete_nodes(
-                np.array(self.selected_nodes._list)
-            )
-        if event.key() == Qt.Key_L:
-            self.mode_widget._toggle_display_mode()
-        if event.key() == Qt.Key_A:
-            self.feature_widget._toggle_feature_mode()
-        elif event.key() == Qt.Key_X:  # only allow mouse zoom scrolling in X
-            self.tree_widget.setMouseEnabled(x=True, y=False)
-        elif event.key() == Qt.Key_Y:  # only allow mouse zoom scrolling in Y
-            self.tree_widget.setMouseEnabled(x=False, y=True)
+        # Check if the key has a handler in the map
+        handler = key_map.get(event.key())
+
+        if handler:
+            handler()  # Call the function bound to the key
         else:
-            if event.key() not in direction_map:
-                return
-            self.navigation_widget.move(direction_map[event.key()])
+            # Handle navigation (Arrow keys)
+            direction_map = {
+                Qt.Key_Left: "left",
+                Qt.Key_Right: "right",
+                Qt.Key_Up: "up",
+                Qt.Key_Down: "down",
+            }
+            direction = direction_map.get(event.key())
+            if direction:
+                self.navigation_widget.move(direction)
+
+    def delete_node(self):
+        """Delete a node."""
+        self.tracks_viewer.delete_node()
+
+    def create_edge(self):
+        """Create an edge."""
+        self.tracks_viewer.create_edge()
+
+    def delete_edge(self):
+        """Delete an edge."""
+        self.tracks_viewer.delete_edge()
+
+    def undo(self):
+        """Undo action."""
+        self.tracks_viewer.undo()
+
+    def redo(self):
+        """Redo action."""
+        self.tracks_viewer.redo()
+
+    def toggle_display_mode(self):
+        """Toggle display mode."""
+        self.mode_widget._toggle_display_mode()
+
+    def toggle_feature_mode(self):
+        """Toggle feature mode."""
+        self.feature_widget._toggle_feature_mode()
+
+    def set_mouse_enabled(self, x: bool, y: bool):
+        """Enable or disable mouse zoom scrolling in X or Y direction."""
+        self.tree_widget.setMouseEnabled(x=x, y=y)
 
     def keyReleaseEvent(self, ev):
         """Reset the mouse scrolling when releasing the X/Y key"""

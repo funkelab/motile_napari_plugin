@@ -31,7 +31,7 @@ class TrackPoints(napari.layers.Points):
     ):
         self.symbolmap = symbolmap
         self.tracks_viewer = tracks_viewer
-
+        self.viewer = viewer
         self.nodes = list(tracks_viewer.tracks.graph.nodes)
         self.node_index_dict = dict(
             zip(
@@ -40,16 +40,17 @@ class TrackPoints(napari.layers.Points):
                 strict=False,
             )
         )
+
         points = [
-            tracks_viewer.tracks.get_location(node, incl_time=True)
+            self.tracks_viewer.tracks.get_location(node, incl_time=True)
             for node in self.nodes
         ]
         track_ids = [
-            tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
+            self.tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
             for node in self.nodes
         ]
         colors = [self.tracks_viewer.colormap.map(track_id) for track_id in track_ids]
-        symbols = self.get_symbols(tracks_viewer.tracks, symbolmap)
+        symbols = self.get_symbols(self.tracks_viewer.tracks, self.symbolmap)
 
         super().__init__(
             data=points,
@@ -61,8 +62,20 @@ class TrackPoints(napari.layers.Points):
             border_color=[1, 1, 1, 1],
         )
 
-        self.viewer = viewer
+        # Key bindings (should be specified both on the viewer (in tracks_viewer)
+        # and on the layer to overwrite napari defaults)
+        self.bind_key("t")(self.tracks_viewer.toggle_display_mode)
+        self.bind_key("a")(self.tracks_viewer.create_edge)
+        self.bind_key("d")(self.tracks_viewer.delete_node)
+        self.bind_key("Delete")(self.tracks_viewer.delete_node)
+        self.bind_key("b")(self.tracks_viewer.delete_edge)
+        self.bind_key("s")(self.tracks_viewer.set_split_node)
+        self.bind_key("e")(self.tracks_viewer.set_endpoint_node)
+        self.bind_key("c")(self.tracks_viewer.set_linear_node)
+        self.bind_key("z")(self.tracks_viewer.undo)
+        self.bind_key("r")(self.tracks_viewer.redo)
 
+        # Connect to click events to select nodes
         @self.mouse_drag_callbacks.append
         def click(layer, event):
             if event.type == "mouse_press":

@@ -28,8 +28,6 @@ class TrackLabels(napari.layers.Labels):
         scale: tuple,
         tracks_viewer: TracksViewer,
     ):
-        self.nodes = list(tracks_viewer.tracks.graph.nodes)
-
         super().__init__(
             data=data,
             name=name,
@@ -40,6 +38,7 @@ class TrackLabels(napari.layers.Labels):
 
         self.viewer = viewer
         self.tracks_viewer = tracks_viewer
+        self.nodes = list(self.tracks_viewer.tracks.graph.nodes)
         self.node_properties = {
             "node_id": self.nodes,
             "track_id": [
@@ -49,6 +48,20 @@ class TrackLabels(napari.layers.Labels):
             "t": [self.tracks_viewer.tracks.get_time(node) for node in self.nodes],
         }
 
+        # Key bindings (should be specified both on the viewer (in tracks_viewer)
+        # and on the layer to overwrite napari defaults)
+        self.bind_key("t")(self.tracks_viewer.toggle_display_mode)
+        self.bind_key("a")(self.tracks_viewer.create_edge)
+        self.bind_key("d")(self.tracks_viewer.delete_node)
+        self.bind_key("Delete")(self.tracks_viewer.delete_node)
+        self.bind_key("b")(self.tracks_viewer.delete_edge)
+        self.bind_key("s")(self.tracks_viewer.set_split_node)
+        self.bind_key("e")(self.tracks_viewer.set_endpoint_node)
+        self.bind_key("c")(self.tracks_viewer.set_linear_node)
+        self.bind_key("z")(self.tracks_viewer.undo)
+        self.bind_key("r")(self.tracks_viewer.redo)
+
+        # Connect click events to node selection
         @self.mouse_drag_callbacks.append
         def click(_, event):
             if event.type == "mouse_press" and self.mode == "pan_zoom":
@@ -71,6 +84,7 @@ class TrackLabels(napari.layers.Labels):
                     append = "Shift" in event.modifiers
                     self.tracks_viewer.selected_nodes.add(node_id, append)
 
+        # Listen to paint events and undo/redo requests
         self.events.paint.connect(self._on_paint)
         self.tracks_viewer.undo_seg.connect(self._undo)
         self.tracks_viewer.redo_seg.connect(self._redo)

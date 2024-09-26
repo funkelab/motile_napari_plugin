@@ -19,7 +19,7 @@ class TreeViewFeatureWidget(QWidget):
 
         self.feature = "tree"
 
-        display_box = QGroupBox("Feature [A]")
+        display_box = QGroupBox("Feature [W]")
         display_layout = QHBoxLayout()
         button_group = QButtonGroup()
         self.show_tree_radio = QRadioButton("Lineage Tree")

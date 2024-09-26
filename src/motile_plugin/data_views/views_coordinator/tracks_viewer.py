@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Optional
 
 import napari
+import numpy as np
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 from psygnal import Signal
 
@@ -56,6 +57,15 @@ class TracksViewer:
         self.viewer = viewer
         # TODO: separate and document keybinds
         self.viewer.bind_key("t")(self.toggle_display_mode)
+        self.viewer.bind_key("a")(self.create_edge)
+        self.viewer.bind_key("d")(self.delete_node)
+        self.viewer.bind_key("Delete")(self.delete_node)
+        self.viewer.bind_key("b")(self.delete_edge)
+        self.viewer.bind_key("s")(self.set_split_node)
+        self.viewer.bind_key("e")(self.set_endpoint_node)
+        self.viewer.bind_key("c")(self.set_linear_node)
+        self.viewer.bind_key("z")(self.undo)
+        self.viewer.bind_key("r")(self.redo)
 
         self.selected_nodes = NodeSelectionList()
         self.selected_nodes.list_updated.connect(self.update_selection)
@@ -291,3 +301,71 @@ class TracksViewer:
                     ],  # camera center is calculated in scaled coordinates, and the optional labels layer is scaled by the layer.scale attribute
                     location[x_dim],
                 )
+
+    def delete_node(self, event=None):
+        """Calls the tracks controller to delete currently selected nodes"""
+
+        self.tracks_controller.delete_nodes(np.array(self.selected_nodes._list))
+
+    def set_split_node(self, event=None):
+        print("split this node")
+
+    def set_endpoint_node(self, event=None):
+        print("make this node an endpoint")
+
+    def set_linear_node(self, event=None):
+        print("make this node linear")
+
+    def delete_edge(self, event=None):
+        """Calls the tracks controller to delete an edge between the two currently selected nodes"""
+
+        if len(self.selected_nodes) == 2:
+            node1 = self.selected_nodes[0]
+            node2 = self.selected_nodes[1]
+
+            time1 = self.tracks.get_time(node1)
+            time2 = self.tracks.get_time(node2)
+
+            if time1 > time2:
+                node1, node2 = node2, node1
+
+            self.tracks_controller.delete_edges(edges=np.array([[node1, node2]]))
+
+    def create_edge(self, event=None):
+        """Calls the tracks controller to add an edge between the two currently selected nodes"""
+
+        if len(self.selected_nodes) == 2:
+            node1 = self.selected_nodes[0]
+            node2 = self.selected_nodes[1]
+
+            time1 = self.tracks.get_time(node1)
+            time2 = self.tracks.get_time(node2)
+
+            if time1 > time2:
+                node1, node2 = node2, node1
+
+            self.tracks_controller.add_edges(
+                edges=np.array([[node1, node2]]), attributes={}
+            )
+
+    def undo(self, event=None):
+        action_to_undo = self.tracks_controller.actions[
+            self.tracks_controller.last_action
+        ]
+        if action_to_undo.update_seg:
+            self.undo_seg.emit()
+        self.tracks_controller.last_action -= 1
+        inverse_action = action_to_undo.inverse()
+        inverse_action.apply()
+        self.tracks.refresh()
+
+    def redo(self, event=None):
+        if self.tracks_controller.last_action < len(self.tracks_controller.actions) - 1:
+            action_to_redo = self.tracks_controller.actions[
+                self.tracks_controller.last_action + 1
+            ]
+            if action_to_redo.update_seg:
+                self.redo_seg.emit()
+            self.tracks_controller.last_action += 1
+            action_to_redo.apply()
+            self.tracks.refresh()

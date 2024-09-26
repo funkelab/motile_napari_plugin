@@ -19,7 +19,7 @@ class TreeViewModeWidget(QWidget):
 
         self.mode = "all"
 
-        display_box = QGroupBox("Display [L]")
+        display_box = QGroupBox("Display [Q]")
         display_layout = QHBoxLayout()
         button_group = QButtonGroup()
         self.show_all_radio = QRadioButton("All cells")
