@@ -232,7 +232,7 @@ class MotileRun(Tracks):
         attrs_dict = {
             "time_attr": self.time_attr,
             "pos_attr": self.pos_attr,
-            "scale": self.scale,
+            "scale": self.scale.tolist(),
         }
         with open(out_path, "w") as f:
             json.dump(attrs_dict, f)
