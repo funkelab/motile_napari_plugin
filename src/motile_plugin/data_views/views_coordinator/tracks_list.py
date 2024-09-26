@@ -155,7 +155,7 @@ class TracksList(QGroupBox):
         """
         if self.file_dialog.exec_():
             directory = Path(self.file_dialog.selectedFiles()[0])
-            name = directory.stem()
+            name = directory.stem
             try:
                 tracks = Tracks.load(directory)
                 self.add_tracks(tracks, name, select=True)
