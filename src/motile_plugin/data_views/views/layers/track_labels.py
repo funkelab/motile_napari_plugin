@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import napari
 import numpy as np
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
-from napari.utils import CyclicLabelColormap
+from napari.utils import DirectLabelColormap
 
 if TYPE_CHECKING:
     from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
@@ -28,25 +28,41 @@ class TrackLabels(napari.layers.Labels):
         scale: tuple,
         tracks_viewer: TracksViewer,
     ):
+        self.tracks_viewer = tracks_viewer
+
+        self.node_properties = {"node_id": [], "track_id": [], "t": [], "color": []}
+
+        for node, node_data in self.tracks_viewer.tracks.graph.nodes(data=True):
+            track_id = node_data[NodeAttr.TRACK_ID.value]
+            self.node_properties["node_id"].append(node)
+            self.node_properties["track_id"].append(track_id)
+            self.node_properties["t"].append(node_data[NodeAttr.TIME.value])
+            self.node_properties["color"].append(
+                self.tracks_viewer.colormap.map(track_id)
+            )
+
+        colormap = DirectLabelColormap(
+            color_dict={
+                **dict(
+                    zip(
+                        self.node_properties["track_id"],
+                        self.node_properties["color"],
+                        strict=False,
+                    )
+                ),
+                None: [0, 0, 0, 0],
+            }
+        )
+
         super().__init__(
             data=data,
             name=name,
             opacity=opacity,
-            colormap=tracks_viewer.colormap,
+            colormap=colormap,
             scale=scale,
         )
 
         self.viewer = viewer
-        self.tracks_viewer = tracks_viewer
-        self.nodes = list(self.tracks_viewer.tracks.graph.nodes)
-        self.node_properties = {
-            "node_id": self.nodes,
-            "track_id": [
-                data[NodeAttr.TRACK_ID.value]
-                for _, data in self.tracks_viewer.tracks.graph.nodes(data=True)
-            ],
-            "t": [self.tracks_viewer.tracks.get_time(node) for node in self.nodes],
-        }
 
         # Key bindings (should be specified both on the viewer (in tracks_viewer)
         # and on the layer to overwrite napari defaults)
@@ -80,14 +96,15 @@ class TrackLabels(napari.layers.Labels):
                     )[0]  # np.where returns a tuple with an array per dimension,
                     # here we apply it to a single dimension so take the first element
                     # (an array of indices fulfilling condition)
-                    node_id = self.nodes[index[0]]
+                    node_id = self.node_properties["node_id"][index[0]]
                     append = "Shift" in event.modifiers
                     self.tracks_viewer.selected_nodes.add(node_id, append)
 
-        # Listen to paint events and undo/redo requests
+        # Listen to paint events, undo/redo requests, and changing the selected label
         self.events.paint.connect(self._on_paint)
         self.tracks_viewer.undo_seg.connect(self._undo)
         self.tracks_viewer.redo_seg.connect(self._redo)
+        self.events.selected_label.connect(self._check_selected_label)
 
     def _redo(self):
         """Call the original undo functionality of the labels layer"""
@@ -153,16 +170,29 @@ class TrackLabels(napari.layers.Labels):
         """Refresh the data in the labels layer"""
 
         self.data = np.squeeze(self.tracks_viewer.tracks.segmentation)
-        self.nodes = list(self.tracks_viewer.tracks.graph.nodes)
+        self.node_properties = {"node_id": [], "track_id": [], "t": [], "color": []}
 
-        self.node_properties = {
-            "node_id": self.nodes,
-            "track_id": [
-                data[NodeAttr.TRACK_ID.value]
-                for _, data in self.tracks_viewer.tracks.graph.nodes(data=True)
-            ],
-            "t": [self.tracks_viewer.tracks.get_time(node) for node in self.nodes],
-        }
+        for node, data in self.tracks_viewer.tracks.graph.nodes(data=True):
+            track_id = data[NodeAttr.TRACK_ID.value]
+            self.node_properties["node_id"].append(node)
+            self.node_properties["track_id"].append(track_id)
+            self.node_properties["t"].append(data[NodeAttr.TIME.value])
+            self.node_properties["color"].append(
+                self.tracks_viewer.colormap.map(track_id)
+            )
+
+        self.colormap = DirectLabelColormap(
+            color_dict={
+                **dict(
+                    zip(
+                        self.node_properties["track_id"],
+                        self.node_properties["color"],
+                        strict=False,
+                    )
+                ),
+                None: [0, 0, 0, 0],
+            }
+        )
 
         self.refresh()
 
@@ -184,33 +214,25 @@ class TrackLabels(napari.layers.Labels):
 
         # update the opacity of the cyclic label colormap values according to whether nodes are visible/invisible/highlighted
         if visible == "all":
-            self.colormap.colors[:, -1] = (
-                0.6  # set opacity of all labels everything to 0.6
-            )
+            self.colormap.color_dict = {
+                key: np.array([*value[:-1], 0.6], dtype=np.float32)
+                for key, value in self.colormap.color_dict.items()
+            }
 
         else:
-            self.colormap.colors[:, -1] = (
-                0  # set opacity of all labels everything to 0 and replace by 0.6 for visible labels
-            )
+            self.colormap.color_dict = {
+                key: np.array([*value[:-1], 0], dtype=np.float32)
+                for key, value in self.colormap.color_dict.items()
+            }
             for label in visible:
                 # find the index in the cyclic label colormap
-                matches = np.all(
-                    self.colormap.colors[:, :3] == self.colormap.map(label)[:3], axis=1
-                )
-                if np.any(matches):
-                    index = np.argmax(matches)
-                    self.colormap.colors[index][-1] = 0.6
+                self.colormap.color_dict[label][-1] = 0.6
 
         for label in highlighted:
-            matches = np.all(
-                self.colormap.colors[:, :3] == self.colormap.map(label)[:3], axis=1
-            )
-            if np.any(matches):
-                index = np.argmax(matches)
-                self.colormap.colors[index][-1] = 1  # full opacity
+            self.colormap.color_dict[label][-1] = 1  # full opacity
 
-        self.colormap = CyclicLabelColormap(
-            colors=self.colormap.colors
+        self.colormap = DirectLabelColormap(
+            color_dict=self.colormap.color_dict
         )  # create a new colormap from the updated colors (otherwise it does not refresh)
 
     def new_colormap(self):
@@ -219,3 +241,18 @@ class TrackLabels(napari.layers.Labels):
         super().new_colormap()
         self.tracks_viewer.colormap = self.colormap
         self.tracks_viewer._refresh()
+
+    def _check_selected_label(self):
+        """Check whether the selected label is larger than the current max_track_id and if so add it to the colormap (otherwise it draws in transparent color until the refresh event)"""
+
+        if self.selected_label > self.tracks_viewer.tracks.max_track_id:
+            self.events.selected_label.disconnect(
+                self._check_selected_label
+            )  # disconnect to prevent infinite loop, since setting the colormap emits a selected_label event
+            self.colormap.color_dict[self.selected_label] = (
+                self.tracks_viewer.colormap.map(self.selected_label)
+            )
+            self.colormap = DirectLabelColormap(color_dict=self.colormap.color_dict)
+            self.events.selected_label.connect(
+                self._check_selected_label
+            )  # connect again
