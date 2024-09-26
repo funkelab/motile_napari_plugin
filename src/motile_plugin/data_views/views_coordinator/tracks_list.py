@@ -20,6 +20,7 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon as qticon
 
 from motile_plugin.data_model import Tracks
+from motile_plugin.motile.backend.motile_run import MotileRun
 
 
 class TrackListWidget(QWidget):
@@ -157,7 +158,11 @@ class TracksList(QGroupBox):
             directory = Path(self.file_dialog.selectedFiles()[0])
             name = directory.stem
             try:
-                tracks = Tracks.load(directory)
+                tracks = MotileRun.load(directory)
                 self.add_tracks(tracks, name, select=True)
-            except (ValueError, FileNotFoundError) as e:
-                warn(f"Could not load tracks from {directory}: {e}", stacklevel=2)
+            except (ValueError, FileNotFoundError):
+                try:
+                    tracks = Tracks.load(directory)
+                    self.add_tracks(tracks, name, select=True)
+                except (ValueError, FileNotFoundError) as e:
+                    warn(f"Could not load tracks from {directory}: {e}", stacklevel=2)

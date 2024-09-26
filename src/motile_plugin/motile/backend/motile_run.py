@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from motile_plugin.data_model import Tracks
+from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 
 from .solver_params import SolverParams
 
@@ -34,6 +35,8 @@ class MotileRun(Tracks):
         graph: nx.DiGraph,
         segmentation: np.ndarray | None,
         run_name: str,
+        time_attr: str = NodeAttr.TIME.value,
+        pos_attr: str | tuple[str] | list[str] = NodeAttr.POS.value,
         scale: list[float] | None = None,
         solver_params: SolverParams | None = None,
         input_segmentation: np.ndarray | None = None,
@@ -131,7 +134,7 @@ class MotileRun(Tracks):
         input_segmentation = cls._load_array(run_dir, IN_SEG_FILENAME, required=False)
         input_points = cls._load_array(run_dir, IN_POINTS_FILENAME, required=False)
         output_seg_required = output_required and input_segmentation is not None
-        tracks = super().load(run_dir, seg_required=output_seg_required)
+        tracks = Tracks.load(run_dir, seg_required=output_seg_required)
         gaps = cls._load_list(run_dir=run_dir, filename=GAPS_FILENAME, required=False)
         return cls(
             graph=tracks.graph,
