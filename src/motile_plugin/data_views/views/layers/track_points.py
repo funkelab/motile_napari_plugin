@@ -60,6 +60,7 @@ class TrackPoints(napari.layers.Points):
             size=5,
             properties={"node_id": self.nodes, "track_id": track_ids},
             border_color=[1, 1, 1, 1],
+            blending="translucent_no_depth",
         )
 
         # Key bindings (should be specified both on the viewer (in tracks_viewer)
