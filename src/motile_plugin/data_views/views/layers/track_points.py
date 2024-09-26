@@ -65,7 +65,7 @@ class TrackPoints(napari.layers.Points):
 
         # Key bindings (should be specified both on the viewer (in tracks_viewer)
         # and on the layer to overwrite napari defaults)
-        self.bind_key("t")(self.tracks_viewer.toggle_display_mode)
+        self.bind_key("q")(self.tracks_viewer.toggle_display_mode)
         self.bind_key("a")(self.tracks_viewer.create_edge)
         self.bind_key("d")(self.tracks_viewer.delete_node)
         self.bind_key("Delete")(self.tracks_viewer.delete_node)

@@ -56,7 +56,7 @@ class TracksViewer:
     ):
         self.viewer = viewer
         # TODO: separate and document keybinds
-        self.viewer.bind_key("t")(self.toggle_display_mode)
+        self.viewer.bind_key("q")(self.toggle_display_mode)
         self.viewer.bind_key("a")(self.create_edge)
         self.viewer.bind_key("d")(self.delete_node)
         self.viewer.bind_key("Delete")(self.delete_node)
@@ -213,10 +213,10 @@ class TracksViewer:
         # toggle between 'all' and 'lineage'
         if mode == "lineage":
             self.mode = "lineage"
-            self.viewer.text_overlay.text = "Toggle Display [T]\n Lineage"
+            self.viewer.text_overlay.text = "Toggle Display [Q]\n Lineage"
         else:
             self.mode = "all"
-            self.viewer.text_overlay.text = "Toggle Display [T]\n All"
+            self.viewer.text_overlay.text = "Toggle Display [Q]\n All"
 
         self.viewer.text_overlay.visible = True
         visible = self.filter_visible_nodes()
