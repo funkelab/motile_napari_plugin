@@ -126,9 +126,8 @@ class TracksViewer:
         # if a new node was added, we would like to select this one now
         if node is not None:
             self.selected_nodes.add(node)
-
-        elif len(self.selected_nodes) > 0:
-            self.selected_nodes.list_updated.emit()  # to restore selection in all components
+        else:
+            self.selected_nodes.list_updated.emit()  # to restore selection and/or highlighting in all components
 
         self.tracks_updated.emit()
 
