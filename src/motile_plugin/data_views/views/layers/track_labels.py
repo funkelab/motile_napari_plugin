@@ -174,7 +174,10 @@ class TrackLabels(napari.layers.Labels):
         # update the opacity of the cyclic label colormap values according to whether nodes are visible/invisible/highlighted
         if visible == "all":
             self.colormap.color_dict = {
-                key: np.array([*value[:-1], 0.6], dtype=np.float32)
+                key: np.array(
+                    [*value[:-1], 0.6 if key is not None and key != 0 else value[-1]],
+                    dtype=np.float32,
+                )
                 for key, value in self.colormap.color_dict.items()
             }
 
