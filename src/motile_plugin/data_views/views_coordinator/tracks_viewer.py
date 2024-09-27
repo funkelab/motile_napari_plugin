@@ -38,8 +38,6 @@ class TracksViewer:
     """
 
     tracks_updated: ClassVar[Signal[Optional[bool]]] = Signal()
-    undo_seg = Signal()
-    redo_seg = Signal()
 
     @classmethod
     def get_instance(cls, viewer=None):
@@ -349,23 +347,7 @@ class TracksViewer:
             )
 
     def undo(self, event=None):
-        action_to_undo = self.tracks_controller.actions[
-            self.tracks_controller.last_action
-        ]
-        if action_to_undo.update_seg:
-            self.undo_seg.emit()
-        self.tracks_controller.last_action -= 1
-        inverse_action = action_to_undo.inverse()
-        inverse_action.apply()
-        self.tracks.refresh()
+        self.tracks_controller.undo()
 
     def redo(self, event=None):
-        if self.tracks_controller.last_action < len(self.tracks_controller.actions) - 1:
-            action_to_redo = self.tracks_controller.actions[
-                self.tracks_controller.last_action + 1
-            ]
-            if action_to_redo.update_seg:
-                self.redo_seg.emit()
-            self.tracks_controller.last_action += 1
-            action_to_redo.apply()
-            self.tracks.refresh()
+        self.tracks_controller.redo()

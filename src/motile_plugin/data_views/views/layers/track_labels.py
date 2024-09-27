@@ -100,76 +100,35 @@ class TrackLabels(napari.layers.Labels):
                     append = "Shift" in event.modifiers
                     self.tracks_viewer.selected_nodes.add(node_id, append)
 
-        # Listen to paint events, undo/redo requests, and changing the selected label
+        # Listen to paint events and changing the selected label
         self.events.paint.connect(self._on_paint)
-        self.tracks_viewer.undo_seg.connect(self._undo)
-        self.tracks_viewer.redo_seg.connect(self._redo)
         self.events.selected_label.connect(self._check_selected_label)
-
-    def _redo(self):
-        """Call the original undo functionality of the labels layer"""
-
-        self._load_history(self._redo_history, self._undo_history, undoing=False)
 
     def redo(self):
         """Overwrite the redo functionality of the labels layer and invoke redo action on the tracks_viewer.tracks_controller first"""
 
-        controller = self.tracks_viewer.tracks_controller
-        if controller.last_action < len(controller.actions) - 1:
-            action_to_redo = controller.actions[controller.last_action + 1]
-            self.tracks_viewer.tracks_controller.last_action += 1
-            action_to_redo.apply()
-            self.tracks_viewer.tracks.refresh()
-            if (
-                action_to_redo.update_seg
-            ):  # only redo segmentation if this action involved a segmentation update
-                self._redo()
-
-    def _undo(self):
-        """Call the original undo functionality of the labels layer"""
-
-        self._load_history(self._undo_history, self._redo_history, undoing=True)
+        self.tracks_viewer.redo()
 
     def undo(self):
         """Overwrite undo function and invoke undo action on the tracks_viewer.tracks_controller"""
 
-        controller = self.tracks_viewer.tracks_controller
-        action_to_undo = controller.actions[controller.last_action]
-        self.tracks_viewer.tracks_controller.last_action -= 1
-        inverse_action = action_to_undo.inverse()
-        inverse_action.apply()
-        self.tracks_viewer.tracks.refresh()
-        if (
-            action_to_undo.update_seg
-        ):  # only undo segmentation if this action involved a segmentation update
-            self._undo()  # call the original undo function
+        self.tracks_viewer.undo()
 
     def _on_paint(self, event):
         """Listen to the paint event and check which track_ids have changed"""
-
-        old_values = list(np.unique(np.concatenate([ev[1] for ev in event.value])))
-        new_value = [event.value[-1][-1]]
-
-        # check which time points are affected (user might paint in 3 dimensions on 2D + time data)
-        time_points = list(
-            np.unique(np.concatenate([ev[0][0] for ev in event.value]))
-        )  # have to check the first array axis of the first element (the array) of all elements in event.value (just the last one is not always sufficient)
-
-        changed_track_ids = old_values + new_value
-        changed_track_ids = [value for value in changed_track_ids if value != 0]
 
         current_timepoint = self.viewer.dims.current_step[
             0
         ]  # also pass on the current time point to know which node to select later
 
         self.tracks_viewer.tracks_controller.update_segmentations(
-            time_points, current_timepoint, changed_track_ids
+            event.value, current_timepoint
         )
 
     def _refresh(self):
         """Refresh the data in the labels layer"""
 
-        self.data = np.squeeze(self.tracks_viewer.tracks.segmentation)
+        self.data = self.tracks_viewer.tracks.segmentation[:, 0]
         self.node_properties = {"node_id": [], "track_id": [], "t": [], "color": []}
 
         for node, data in self.tracks_viewer.tracks.graph.nodes(data=True):

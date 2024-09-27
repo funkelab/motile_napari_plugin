@@ -65,7 +65,7 @@ class Tracks:
     # pydantic does not check numpy arrays
     model_config = {"arbitrary_types_allowed": True}
 
-    def create_node_id_to_track_id(self):
+    def create_node_id_to_track_id(self) -> None:
         """Create a dictionary mapping the node_id to the tracklet_id, and specify the max_track_id"""
 
         self.node_id_to_track_id = {}
@@ -78,7 +78,7 @@ class Tracks:
             for node, data in self.graph.nodes(data=True):
                 self.node_id_to_track_id[node] = data[NodeAttr.TRACK_ID.value]
 
-    def get_location(self, node: Any, incl_time: bool = False):
+    def get_location(self, node: Any, incl_time: bool = False) -> list:
         """Get the location of a node in the graph. Optionally include the
         time frame as the first dimension. Raises an error if the node
         is not in the graph.
@@ -147,26 +147,46 @@ class Tracks:
         return self.graph.nodes[node].get("area")
 
     def get_next_track_id(self) -> int:
+        """Return the next available track_id and update self.max_track_id"""
+
         self.max_track_id = max(self.node_id_to_track_id.values()) + 1
         return self.max_track_id
 
-    def update_segmentation(self, time, old_label, new_label):
+    def change_segmentation_label(self, time, old_label, new_label):
+        """Updates old_label to new_label in the segmentation at frame time."""
+
         frame = self.segmentation[time]
         mask = frame == old_label
         self.segmentation[time][mask] = new_label
 
-    def delete_segmentation(self, node: Any) -> None:
-        """Delete the node from the segmentation (set it to 0)
+    def update_segmentation(self, updated_pixels: list) -> None:
+        """Updates the pixels at given indices to the new values
 
         Args:
-            node (Any): The node to be deleted.
-
+            updated_pixels (list[(tuple(np.ndarray, np.ndarray, np.ndarray), np.ndarray, int|np.ndarray])): A list of len 3 tuples with paint event 'atoms'.
+            The first element is a tuple of np.ndarrays with involved indices for each dimension.
+            The second element is an array of the previous values at these indices (not used here).
+            The last element is an integer or np.ndarray with the new values.
         """
-        time = self.get_time(node)
-        track_id = self.get_track_id(node)
-        self.update_segmentation(time, track_id, 0)
+
+        for prev_indices, _, next_values in reversed(
+            updated_pixels
+        ):  # reversed because a paint event has to be undone in reversed order,
+            # and we do not need to ever 'forward apply' the paint event because that is handled in the napari layer
+            if len(prev_indices) == len(self.segmentation.shape):
+                self.segmentation[prev_indices] = next_values
+            elif (
+                len(prev_indices) == len(self.segmentation.shape) - 1
+            ):  # this is because the events coming from the segmentation do not have the extra dimension the tracks.segmentaton has
+                self.segmentation[(prev_indices[0], 0) + prev_indices[1:]] = next_values
+            else:
+                raise ValueError(
+                    f"Indices have the wrong length: {len(prev_indices)}, while the segmentation shape has length {len(self.segmentation.shape)}"
+                )
 
     def set_node_attributes(self, nodes, attributes):
+        """Update the attributes for given nodes"""
+
         for node in nodes:
             if node in self.graph:
                 for key, value in attributes.items():
@@ -184,7 +204,9 @@ class Tracks:
             else:
                 print(f"Node {node} not found in the graph.")
 
-    def get_node_attributes(self, nodes):
+    def get_node_attributes(self, nodes) -> dict:
+        """Return the attributes for given nodes"""
+
         attributes = {}
         for node in nodes:
             if node in self.graph:
@@ -195,7 +217,9 @@ class Tracks:
                     attributes[key] = vals
         return attributes
 
-    def get_edge_attributes(self, edges):
+    def get_edge_attributes(self, edges) -> dict:
+        """Return the attributes for given edges"""
+
         attributes = {}
         for edge in edges:
             if self.graph.has_edge(*edge):
@@ -206,7 +230,8 @@ class Tracks:
                     attributes[key] = vals
         return attributes
 
-    def set_edge_attributes(self, edges, attributes):
+    def set_edge_attributes(self, edges, attributes) -> None:
+        """Update the attributes for given edges"""
         for edge in edges:
             if self.graph.has_edge(*edge):
                 for key, value in attributes.items():
@@ -223,9 +248,6 @@ class Tracks:
                         ]
             else:
                 print(f"Edge {edge} not found in the graph.")
-
-    def get_segmentations(self, nodes):
-        return None
 
     def save(self, directory: Path):
         """Save the tracks to the given directory.
