@@ -513,7 +513,7 @@ class TracksController:
 
     def undo(self) -> None:
         """Obtain the action to undo from the history, and invert and apply it"""
-        action_to_undo = self.action_history.move_up()
+        action_to_undo = self.action_history.previous()
         if action_to_undo is not None:
             inverse_action = action_to_undo.inverse()
             inverse_action.apply(apply_seg=True)
@@ -521,7 +521,7 @@ class TracksController:
 
     def redo(self) -> None:
         """Obtain the action to redo from the history and apply it"""
-        action_to_redo = self.action_history.move_down()
+        action_to_redo = self.action_history.next()
         if action_to_redo is not None:
             action_to_redo.apply(apply_seg=True)
             self.tracks.refresh()
