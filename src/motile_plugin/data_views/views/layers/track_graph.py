@@ -75,7 +75,6 @@ class TrackGraph(napari.layers.Tracks):
 
     def __init__(
         self,
-        viewer: napari.Viewer,
         name: str,
         tracks_viewer: TracksViewer,
     ):
@@ -92,9 +91,9 @@ class TrackGraph(napari.layers.Tracks):
             color_by="track_id",
         )
 
-        self.viewer = viewer
         self.colormaps_dict["track_id"] = self.tracks_viewer.colormap
         self.tracks_layer_graph = copy.deepcopy(self.graph)  # for restoring graph later
+        self.colormap = "turbo"  # just to 'refresh' the track_id colormap, we do not actually use turbo
 
     def _refresh(self):
         """Refreshes the displayed tracks based on the graph in the current tracks_viewer.tracks"""

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import ClassVar, Optional
+from typing import Optional
 
 import napari
 import numpy as np
@@ -10,9 +9,7 @@ from psygnal import Signal
 
 from motile_plugin.data_model import NodeType, Tracks
 from motile_plugin.data_model.tracks_controller import TracksController
-from motile_plugin.data_views.views.layers.track_graph import TrackGraph
-from motile_plugin.data_views.views.layers.track_labels import TrackLabels
-from motile_plugin.data_views.views.layers.track_points import TrackPoints
+from motile_plugin.data_views.views.layers.tracks_layer_group import TracksLayerGroup
 from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
     extract_lineage_tree,
 )
@@ -21,23 +18,15 @@ from .node_selection_list import NodeSelectionList
 from .tracks_list import TracksList
 
 
-@dataclass
-class TracksLayerGroup:
-    tracks_layer: TrackGraph | None = None
-    seg_layer: TrackLabels | None = None
-    points_layer: TrackPoints | None = None
-
-
 class TracksViewer:
     """Purposes of the TracksViewer:
     - Emit signals that all widgets should use to update selection or update
         the currently displayed Tracks object
     - Storing the currently displayed tracks
     - Store shared rendering information like colormaps (or symbol maps)
-    - Interacting with the napari.Viewer by adding and removing layers
     """
 
-    tracks_updated: ClassVar[Signal[Optional[bool]]] = Signal()
+    tracks_updated = Signal(Optional[bool])
 
     @classmethod
     def get_instance(cls, viewer=None):
@@ -53,24 +42,6 @@ class TracksViewer:
         viewer: napari.viewer,
     ):
         self.viewer = viewer
-        # TODO: separate and document keybinds
-        self.viewer.bind_key("q")(self.toggle_display_mode)
-        self.viewer.bind_key("a")(self.create_edge)
-        self.viewer.bind_key("d")(self.delete_node)
-        self.viewer.bind_key("Delete")(self.delete_node)
-        self.viewer.bind_key("b")(self.delete_edge)
-        self.viewer.bind_key("s")(self.set_split_node)
-        self.viewer.bind_key("e")(self.set_endpoint_node)
-        self.viewer.bind_key("c")(self.set_linear_node)
-        self.viewer.bind_key("z")(self.undo)
-        self.viewer.bind_key("r")(self.redo)
-
-        self.selected_nodes = NodeSelectionList()
-        self.selected_nodes.list_updated.connect(self.update_selection)
-
-        self.tracking_layers = TracksLayerGroup()
-        self.tracks = None
-
         self.colormap = napari.utils.colormaps.label_colormap(
             49,
             seed=0.5,
@@ -83,30 +54,31 @@ class TracksViewer:
             NodeType.SPLIT: "triangle_up",
         }
         self.mode = "all"
+        self.tracks = None
+        self.tracking_layers = TracksLayerGroup(self.viewer, self.tracks, "", self)
+
+        self.selected_nodes = NodeSelectionList()
+        self.selected_nodes.list_updated.connect(self.update_selection)
+
         self.tracks_list = TracksList()
         self.tracks_list.view_tracks.connect(self.update_tracks)
 
-    def remove_napari_layer(self, layer: napari.layers.Layer | None) -> None:
-        """Remove a layer from the napari viewer, if present"""
-        if layer and layer in self.viewer.layers:
-            self.viewer.layers.remove(layer)
+        self.set_keybinds()
 
-    def remove_napari_layers(self) -> None:
-        """Remove all tracking layers from the viewer"""
-        self.remove_napari_layer(self.tracking_layers.tracks_layer)
-        self.remove_napari_layer(self.tracking_layers.seg_layer)
-        self.remove_napari_layer(self.tracking_layers.points_layer)
+    def set_keybinds(self):
+        # TODO: separate and document keybinds (and maybe allow user to choose)
+        self.viewer.bind_key("q")(self.toggle_display_mode)
+        self.viewer.bind_key("a")(self.create_edge)
+        self.viewer.bind_key("d")(self.delete_node)
+        self.viewer.bind_key("Delete")(self.delete_node)
+        self.viewer.bind_key("b")(self.delete_edge)
+        self.viewer.bind_key("s")(self.set_split_node)
+        self.viewer.bind_key("e")(self.set_endpoint_node)
+        self.viewer.bind_key("c")(self.set_linear_node)
+        self.viewer.bind_key("z")(self.undo)
+        self.viewer.bind_key("r")(self.redo)
 
-    def add_napari_layers(self) -> None:
-        """Add new tracking layers to the viewer"""
-        if self.tracking_layers.tracks_layer is not None:
-            self.viewer.add_layer(self.tracking_layers.tracks_layer)
-        if self.tracking_layers.seg_layer is not None:
-            self.viewer.add_layer(self.tracking_layers.seg_layer)
-        if self.tracking_layers.points_layer is not None:
-            self.viewer.add_layer(self.tracking_layers.points_layer)
-
-    def _refresh(self, node: str | None = None) -> None:
+    def _refresh(self, node: str | None = None, refresh_view: bool = False) -> None:
         """Call refresh function on napari layers and the submit signal that tracks are updated
         Restore the selected_nodes, if possible
         """
@@ -116,20 +88,15 @@ class TracksViewer:
         ):
             self.selected_nodes.reset()
 
-        if self.tracking_layers.points_layer is not None:
-            self.tracking_layers.points_layer._refresh()
-        if self.tracking_layers.tracks_layer is not None:
-            self.tracking_layers.tracks_layer._refresh()
-        if self.tracking_layers.seg_layer is not None:
-            self.tracking_layers.seg_layer._refresh()
+        self.tracking_layers._refresh()
 
         # if a new node was added, we would like to select this one now
         if node is not None:
             self.selected_nodes.add(node)
-        else:
-            self.selected_nodes.list_updated.emit()  # to restore selection and/or highlighting in all components
 
-        self.tracks_updated.emit()
+        self.tracks_updated.emit(refresh_view)
+        self.selected_nodes.list_updated.emit()  # to restore selection and/or highlighting in all components
+        # TODO: is this second signal necessary if we emit tracks_updated already?
 
     def update_tracks(self, tracks: Tracks, name: str) -> None:
         """Stop viewing a previous set of tracks and replace it with a new one.
@@ -149,51 +116,14 @@ class TracksViewer:
                 self._refresh
             )  # TODO what if the connection exists already?
 
-        # Remove old layers if necessary
-        self.remove_napari_layers()
-
         # deactivate the input labels layer
         for layer in self.viewer.layers:
             if isinstance(layer, napari.layers.Labels):
                 layer.visible = False
 
-        # Create new layers
-        if tracks is not None and tracks.segmentation is not None:
-            self.tracking_layers.seg_layer = TrackLabels(
-                viewer=self.viewer,
-                data=tracks.segmentation[:, 0],
-                name=name + "_seg",
-                opacity=0.9,
-                scale=self.tracks.scale,
-                tracks_viewer=self,
-            )
-
-        else:
-            self.tracking_layers.seg_layer = None
-
-        if (
-            tracks is None
-            or tracks.graph is None
-            or tracks.graph.number_of_nodes() == 0
-        ):
-            self.tracking_layers.tracks_layer = None
-            self.tracking_layers.points_layer = None
-        else:
-            self.tracking_layers.tracks_layer = TrackGraph(
-                viewer=self.viewer,
-                name=name + "_tracks",
-                tracks_viewer=self,
-            )
-
-            self.tracking_layers.points_layer = TrackPoints(
-                viewer=self.viewer,
-                name=name + "_points",
-                symbolmap=self.symbolmap,
-                tracks_viewer=self,
-            )
-
-        self.add_napari_layers()
         self.set_display_mode("all")
+        self.tracking_layers.set_tracks(tracks, name)
+        self.selected_nodes.reset()
         self.tracks_updated.emit(True)
 
     def toggle_display_mode(self, event=None) -> None:
@@ -217,12 +147,7 @@ class TracksViewer:
 
         self.viewer.text_overlay.visible = True
         visible = self.filter_visible_nodes()
-        if self.tracking_layers.seg_layer is not None:
-            self.tracking_layers.seg_layer.update_label_colormap(visible)
-        if self.tracking_layers.points_layer is not None:
-            self.tracking_layers.points_layer.update_point_outline(visible)
-        if self.tracking_layers.tracks_layer is not None:
-            self.tracking_layers.tracks_layer.update_track_visibility(visible)
+        self.tracking_layers.update_visible(visible)
 
     def filter_visible_nodes(self) -> list[int]:
         """Construct a list of track_ids that should be displayed"""
@@ -246,58 +171,13 @@ class TracksViewer:
 
         self.set_napari_view()
         visible = self.filter_visible_nodes()
-        if self.tracking_layers.seg_layer is not None:
-            self.tracking_layers.seg_layer.update_label_colormap(visible)
-        self.tracking_layers.points_layer.update_point_outline(visible)
-        self.tracking_layers.tracks_layer.update_track_visibility(visible)
+        self.tracking_layers.update_visible(visible)
 
     def set_napari_view(self) -> None:
         """Adjust the current_step of the viewer to jump to the last item of the selected_nodes list"""
         if len(self.selected_nodes) > 0:
             node = self.selected_nodes[-1]
-            location = self.tracks.get_location(node, incl_time=True)
-            assert (
-                len(location) == self.viewer.dims.ndim
-            ), f"Location {location} does not match viewer number of dims {self.viewer.dims.ndim}"
-
-            step = list(self.viewer.dims.current_step)
-            for dim in self.viewer.dims.not_displayed:
-                step[dim] = int(
-                    location[dim] + 0.5
-                )  # use the scaled location, since the 'step' in viewer.dims.range already accounts for the scaling
-
-            self.viewer.dims.current_step = step
-
-            # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
-            example_layer = self.tracking_layers.points_layer  # the points layer is not scaled by the 'scale' attribute, because it directly reads the scaled coordinates. Therefore, no rescaling is necessary to compute the camera center
-            corner_coordinates = example_layer.corner_pixels
-
-            # check which dimensions are shown, the first dimension is displayed on the x axis, and the second on the y_axis
-            dims_displayed = self.viewer.dims.displayed
-            x_dim = dims_displayed[-1]
-            y_dim = dims_displayed[-2]
-
-            # find corner pixels for the displayed axes
-            _min_x = corner_coordinates[0][x_dim]
-            _max_x = corner_coordinates[1][x_dim]
-            _min_y = corner_coordinates[0][y_dim]
-            _max_y = corner_coordinates[1][y_dim]
-
-            # check whether the node location falls within the corner spatial range
-            if not (
-                (location[x_dim] > _min_x and location[x_dim] < _max_x)
-                and (location[y_dim] > _min_y and location[y_dim] < _max_y)
-            ):
-                camera_center = self.viewer.camera.center
-
-                # set the center y and x to the center of the node, by using the index of the currently displayed dimensions
-                self.viewer.camera.center = (
-                    camera_center[0],
-                    location[
-                        y_dim
-                    ],  # camera center is calculated in scaled coordinates, and the optional labels layer is scaled by the layer.scale attribute
-                    location[x_dim],
-                )
+            self.tracking_layers.center_view(node)
 
     def delete_node(self, event=None):
         """Calls the tracks controller to delete currently selected nodes"""

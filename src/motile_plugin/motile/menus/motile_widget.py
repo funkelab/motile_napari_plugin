@@ -43,7 +43,7 @@ class MotileWidget(QScrollArea):
         tracks_viewer = TracksViewer.get_instance(self.viewer)
         self.new_run.connect(tracks_viewer.tracks_list.add_tracks)
         tracks_viewer.tracks_list.view_tracks.connect(self.view_run)
-        self.remove_layers.connect(tracks_viewer.remove_napari_layers)
+        self.remove_layers.connect(tracks_viewer.tracking_layers.remove_napari_layers)
 
         # Create sub-widgets and connect signals
         self.edit_run_widget = RunEditor(self.viewer)

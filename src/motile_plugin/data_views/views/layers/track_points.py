@@ -24,14 +24,10 @@ class TrackPoints(napari.layers.Points):
 
     def __init__(
         self,
-        viewer: napari.Viewer,
         name: str,
-        symbolmap: dict[NodeType, str],
         tracks_viewer: TracksViewer,
     ):
-        self.symbolmap = symbolmap
         self.tracks_viewer = tracks_viewer
-        self.viewer = viewer
         self.nodes = list(tracks_viewer.tracks.graph.nodes)
         self.node_index_dict = dict(
             zip(
@@ -50,7 +46,9 @@ class TrackPoints(napari.layers.Points):
             for node in self.nodes
         ]
         colors = [self.tracks_viewer.colormap.map(track_id) for track_id in track_ids]
-        symbols = self.get_symbols(self.tracks_viewer.tracks, self.symbolmap)
+        symbols = self.get_symbols(
+            self.tracks_viewer.tracks, self.tracks_viewer.symbolmap
+        )
 
         super().__init__(
             data=points,
@@ -124,7 +122,9 @@ class TrackPoints(napari.layers.Points):
             for node in self.nodes
         ]
 
-        self.symbol = self.get_symbols(self.tracks_viewer.tracks, self.symbolmap)
+        self.symbol = self.get_symbols(
+            self.tracks_viewer.tracks, self.tracks_viewer.symbolmap
+        )
         self.face_color = [
             self.tracks_viewer.colormap.map(track_id) for track_id in track_ids
         ]
