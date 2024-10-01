@@ -11,7 +11,7 @@ def test_track_df(graph_2d):
     tracks = Tracks(graph=graph_2d)
 
     assert tracks.get_area("0_1") == 1245
-    assert tracks.get_area("1_1") is None
+    assert tracks.get_area("1_2") is None
 
     tracks.graph, _, _ = assign_tracklet_ids(tracks.graph)
 
@@ -24,5 +24,5 @@ def test_track_df(graph_2d):
     track_df = extract_sorted_tracks(tracks, colormap)
     assert isinstance(track_df, pd.DataFrame)
     assert track_df.loc[track_df["node_id"] == "0_1", "area"].values[0] == 1245
-    assert track_df.loc[track_df["node_id"] == "1_1", "area"].values[0] == 0
+    assert track_df.loc[track_df["node_id"] == "1_2", "area"].values[0] == 0
     assert track_df["area"].notna().all()

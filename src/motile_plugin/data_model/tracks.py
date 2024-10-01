@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import networkx as nx
 import numpy as np
@@ -11,7 +11,9 @@ from psygnal import Signal
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Any
+
+Node = TypeVar("Node", bound=Any)
+Edge = TypeVar("Edge", bound=tuple[Node, Node])
 
 
 class Tracks:
@@ -59,8 +61,8 @@ class Tracks:
         if graph.number_of_nodes() != 0:
             self.create_node_id_to_track_id()
         else:
-            self.node_id_to_track_id = None
-            self.max_track_id = None
+            self.node_id_to_track_id = {}
+            self.max_track_id = 0
 
     # pydantic does not check numpy arrays
     model_config = {"arbitrary_types_allowed": True}
@@ -159,14 +161,50 @@ class Tracks:
         mask = frame == old_label
         self.segmentation[time][mask] = new_label
 
+    def set_pixels(self, pixels: tuple[np.ndarray, ...], value: int):
+        """Set the given pixels in the segmentation to the given value.
+
+        Args:
+            pixels (tuple[np.ndarray]): The pixels that should be set to the value,
+                formatted like the output of np.nonzero (each element of the tuple
+                represents one dimension, containing an array of indices in that dimension).
+                Can be used to directly index the segmentation.
+            value (int): The value to set each pixel to
+        """
+        self.segmentation[pixels] = value
+
+    def get_pixels(self, nodes: list[Node]) -> list[tuple[np.ndarray, ...]] | None:
+        """Get the pixels corresponding to each node in the nodes list.
+
+        Args:
+            nodes (list[Node]): A list of node to get the values for.
+
+        Returns:
+            list[tuple[np.ndarray, ...]] | None: A list of tuples, where each tuple
+            represents the pixels for one of the input nodes, or None if the segmentation
+            is None. The tuple will have length equal to the number of segmentation
+            dimensions, and can be used to index the segmentation.
+        """
+        if self.segmentation is None:
+            return None
+        pix_list = []
+        for node in nodes:
+            track_id = self.get_track_id(node)
+            time = self.get_time(node)
+            loc_pixels = np.nonzero(self.segmentation[time] == track_id)
+            time_array = np.ones_like(loc_pixels[0]) * time
+            pix_list.append((time_array, *loc_pixels))
+        return pix_list
+
     def update_segmentation(self, updated_pixels: list) -> None:
         """Updates the pixels at given indices to the new values
 
         Args:
-            updated_pixels (list[(tuple(np.ndarray, np.ndarray, np.ndarray), np.ndarray, int|np.ndarray])): A list of len 3 tuples with paint event 'atoms'.
-            The first element is a tuple of np.ndarrays with involved indices for each dimension.
-            The second element is an array of the previous values at these indices (not used here).
-            The last element is an integer or np.ndarray with the new values.
+            updated_pixels (list[(tuple(np.ndarray, np.ndarray, np.ndarray), np.ndarray, int|np.ndarray])):
+                A list of len 3 tuples with paint event 'atoms'.
+                The first element is a tuple of np.ndarrays with involved indices for each dimension.
+                The second element is an array of the previous values at these indices (not used here).
+                The last element is an integer or np.ndarray with the new values.
         """
 
         for prev_indices, _, next_values in reversed(
@@ -187,20 +225,10 @@ class Tracks:
     def set_node_attributes(self, nodes, attributes):
         """Update the attributes for given nodes"""
 
-        for node in nodes:
+        for idx, node in enumerate(nodes):
             if node in self.graph:
-                for key, value in attributes.items():
-                    if key in self.graph.nodes[node]:
-                        self.graph.nodes[node][key] = value[
-                            np.where(nodes == node)[0][0]
-                        ]
-                    else:
-                        print(
-                            f"Attribute '{key}' does not exist for node {node}. Adding it."
-                        )
-                        self.graph.nodes[node][key] = value[
-                            np.where(nodes == node)[0][0]
-                        ]
+                for key, values in attributes.items():
+                    self.graph.nodes[node][key] = values[idx]
             else:
                 print(f"Node {node} not found in the graph.")
 

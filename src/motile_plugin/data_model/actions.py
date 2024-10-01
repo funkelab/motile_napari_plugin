@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from typing import Any, TypeVar
+
 import numpy as np
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 
-from .tracks import Tracks
+from .tracks import Node, Tracks
+
+Pixels = TypeVar("Pixels", bound=tuple[np.ndarray, ...])
 
 
 class TracksAction:
@@ -24,140 +28,137 @@ class ActionGroup(TracksAction):
         self,
         tracks: Tracks,
         actions: list[TracksAction],
-        updated_pixels: list | None = None,  # [(tuple(np.array), np.array, int)]
     ):
         super().__init__(tracks)
         self.actions = actions
-        self.updated_pixels = updated_pixels
 
     def inverse(self) -> ActionGroup:
         """Invert all actions in he list, and invert the segmentation operation"""
 
         actions = [action.inverse() for action in self.actions[::-1]]
-        if self.updated_pixels is not None:
-            inverse_seg = []
-            for prev_indices, prev_values, next_values in self.updated_pixels:
-                inverse_seg.append([prev_indices, next_values, prev_values])
-        else:
-            inverse_seg = None
 
-        return ActionGroup(self.tracks, actions, updated_pixels=inverse_seg)
+        return ActionGroup(self.tracks, actions)
 
     def apply(self, apply_seg: bool | None = False):
         """Apply the actions and apply the segmentation update"""
 
         for action in self.actions:
             action.apply()
-        if apply_seg and self.updated_pixels is not None:
-            self.tracks.update_segmentation(self.updated_pixels)
 
 
 class AddNodes(TracksAction):
-    """Action for adding new nodes
-    In the case nodes need to be restored, the operation for this is provided by the updated_pixels attribute
+    """Action for adding new nodes. If a segmentation should also be added, the
+    pixels for each node should be provided. The label to set the pixels will
+    be taken from the track_id attribute. The existing pixel values are assumed to be
+    zero - you must explicitly update any other segmentations that were overwritten
+    using an UpdateNodes action if you want to be able to undo the action.
+
     """
 
     def __init__(
-        self, tracks: Tracks, nodes, attributes, updated_pixels: list | None = None
+        self,
+        tracks: Tracks,
+        nodes: list[Node],
+        attributes: dict[str, list[Any]],
+        pixels: list[tuple[int, ...]] | None = None,
     ):
+        """Create an action to add new nodes, with optional segmentation
+
+        Args:
+            tracks (Tracks): The Tracks to add the n
+            nodes (Node): _description_
+            attributes (dict[str, list[Any]]): _description_
+            pixels (list | None, optional): _description_. Defaults to None.
+        """
         super().__init__(tracks)
-        self.tracks = tracks
         self.nodes = nodes
         self.attributes = attributes
-        self.updated_pixels = updated_pixels
+        self.pixels = pixels
 
     def inverse(self):
         """Invert the action to delete nodes instead"""
-
         return DeleteNodes(self.tracks, self.nodes)
 
     def apply(self):
-        """Apply the action, and restore segmentation if provided in self.updated_pixels"""
-
-        if self.updated_pixels is not None:
-            self.tracks.update_segmentation(self.updated_pixels)
+        """Apply the action, and set segmentation if provided in self.pixels"""
         for idx, node in enumerate(self.nodes):
             attrs = {attr: val[idx] for attr, val in self.attributes.items()}
             self.tracks.graph.add_node(node, **attrs)
             track_id = attrs[NodeAttr.TRACK_ID.value]
             self.tracks.node_id_to_track_id[node] = track_id
+            if self.pixels is not None and self.pixels[idx] is not None:
+                self.tracks.set_pixels(self.pixels[idx], track_id)
 
 
 class DeleteNodes(TracksAction):
     """Action of deleting existing nodes
-    If the tracks contain a segmentation, this action also constructs a reversible operation for setting involved pixels to zero
+    If the tracks contain a segmentation, this action also constructs a reversible
+    operation for setting involved pixels to zero
     """
 
     def __init__(self, tracks: Tracks, nodes):
         super().__init__(tracks)
         self.nodes = nodes
         self.attributes = self.tracks.get_node_attributes(nodes)
+        self.pixels = self.tracks.get_pixels(nodes)
         self.tracks = tracks
-        if self.tracks.segmentation is not None:
-            # construct reversible operation for setting involved pixels to 0
-            self.updated_pixels = []
-            for node in self.nodes:
-                time = self.tracks.get_time(node)
-                track_id = self.tracks.get_track_id(node)
-
-                # get all indices where the segmentation label == track_id
-                indices = np.where(self.tracks.segmentation == track_id)
-
-                # filter by time: we only want to delete the segmentation for one node, at given time
-                mask = indices[0] == time
-                indices = tuple(arr[mask] for arr in indices)
-
-                # construct the operation (indices, prev_values, new_values)
-                prev_values = track_id
-                new_values = 0
-                operation = (indices, prev_values, new_values)
-                self.updated_pixels.append(operation)
-        else:
-            self.updated_pixels = None
 
     def inverse(self):
         """Invert this action, and provide inverse segmentation operation if given"""
 
-        if self.updated_pixels is not None:
-            inverse_seg = []
-            for prev_indices, prev_values, next_values in self.updated_pixels:
-                inverse_seg.append([prev_indices, next_values, prev_values])
-        else:
-            inverse_seg = None
-
-        return AddNodes(self.tracks, self.nodes, self.attributes, inverse_seg)
+        return AddNodes(self.tracks, self.nodes, self.attributes, pixels=self.pixels)
 
     def apply(self):
         """ASSUMES THERE ARE NO INCIDENT EDGES - raises valueerror if an edge will be removed
         by this operation
         Steps:
         - For each node
-            execute update_segmentation if an operation is provided in self.update_pixels
+            set pixels to 0 if self.pixels is provided
         - Remove nodes from graph
         """
-        for node in self.nodes:
-            if self.tracks.segmentation is not None and self.updated_pixels is not None:
-                self.tracks.update_segmentation(self.updated_pixels)
+        for idx, node in enumerate(self.nodes):
+            if self.pixels is not None:
+                self.tracks.set_pixels(self.pixels[idx], 0)
             self.tracks.graph.remove_node(node)
             del self.tracks.node_id_to_track_id[node]
 
 
 class UpdateNodes(TracksAction):
-    """Action for updating the attributes of nodes"""
+    """Action for updating the attributes of nodes, including the segmentation"""
 
-    def __init__(self, tracks: Tracks, nodes, attributes):
+    def __init__(
+        self,
+        tracks: Tracks,
+        nodes: list[Node],
+        attributes: dict[str, np.ndarray],
+        pixels: list[Pixels] | None = None,
+        added: bool = True,
+    ):
         super().__init__(tracks)
         self.nodes = nodes
         self.old_attrs = self.tracks.get_node_attributes(nodes)
         self.new_attrs = attributes
+        self.pixels = pixels
+        self.added = added
 
     def inverse(self):
         """Restore previous attributes"""
-        return UpdateNodes(self.tracks, self.nodes, attributes=self.old_attrs)
+        return UpdateNodes(
+            self.tracks,
+            self.nodes,
+            attributes=self.old_attrs,
+            pixels=self.pixels,
+            added=not self.added,
+        )
 
     def apply(self):
         """Set new attributes"""
         self.tracks.set_node_attributes(self.nodes, self.new_attrs)
+        if self.pixels is not None:
+            for node, pix in zip(self.nodes, self.pixels, strict=False):
+                if pix is not None:
+                    value = self.tracks.get_track_id(node) if self.added else 0
+                    self.tracks.set_pixels(pix, value)
 
 
 class AddEdges(TracksAction):

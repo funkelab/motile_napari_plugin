@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from napari.utils.notifications import show_warning
 
-from .actions import TracksAction
+if TYPE_CHECKING:
+    from .actions import TracksAction
 
 
 class ActionHistory:
