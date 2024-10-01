@@ -1,5 +1,5 @@
 import pytest
-from motile_plugin.core import Tracks
+from motile_plugin.data_model import Tracks
 from motile_toolbox.candidate_graph import NodeAttr
 
 

@@ -45,15 +45,20 @@ class MotileRun(Tracks):
         gaps: list[float] | None = None,
         status: str = "done",
     ):
-        super().__init__(graph, segmentation=segmentation, scale=scale)
+        super().__init__(
+            graph,
+            segmentation=segmentation,
+            time_attr=time_attr,
+            pos_attr=pos_attr,
+            scale=scale,
+        )
         self.run_name = run_name
         self.solver_params = solver_params
         self.input_segmentation = input_segmentation
         self.input_points = input_points
-        self.time = time
         self.gaps = gaps
         self.status = status
-        self.datetime = datetime.now() if datetime is None else datetime
+        self.time = datetime.now() if time is None else time
 
     def _make_id(self) -> str:
         """Combine the time and run name into a unique id for the run
@@ -235,7 +240,7 @@ class MotileRun(Tracks):
         attrs_dict = {
             "time_attr": self.time_attr,
             "pos_attr": self.pos_attr,
-            "scale": self.scale.tolist(),
+            "scale": self.scale,
         }
         with open(out_path, "w") as f:
             json.dump(attrs_dict, f)
