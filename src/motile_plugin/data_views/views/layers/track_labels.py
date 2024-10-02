@@ -80,7 +80,14 @@ class TrackLabels(napari.layers.Labels):
         # Connect click events to node selection
         @self.mouse_drag_callbacks.append
         def click(_, event):
-            if event.type == "mouse_press" and self.mode == "pan_zoom":
+            if (
+                event.type == "mouse_press"
+                and self.mode == "pan_zoom"
+                and not (
+                    self.tracks_viewer.mode == "lineage"
+                    and self.viewer.dims.ndisplay == 3
+                )
+            ):  # disable selecting in lineage mode in 3D
                 label = self.get_value(
                     event.position,
                     view_direction=event.view_direction,
@@ -88,7 +95,11 @@ class TrackLabels(napari.layers.Labels):
                     world=True,
                 )
 
-                if label is not None and label != 0:
+                if (
+                    label is not None
+                    and label != 0
+                    and self.colormap.map(label)[-1] != 0
+                ):  # check opacity (=visibility) in the colormap
                     t_values = self.node_properties["t"]
                     track_ids = self.node_properties["track_id"]
                     index = np.where(
