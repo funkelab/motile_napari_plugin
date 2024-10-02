@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 Node = TypeVar("Node", bound=Any)
 Edge = TypeVar("Edge", bound=tuple[Node, Node])
+Attributes = TypeVar("Attributes", bound=dict[str, np.ndarray])
 
 
 class Tracks:
@@ -222,7 +223,7 @@ class Tracks:
                     f"Indices have the wrong length: {len(prev_indices)}, while the segmentation shape has length {len(self.segmentation.shape)}"
                 )
 
-    def set_node_attributes(self, nodes, attributes):
+    def set_node_attributes(self, nodes: list[Node], attributes: Attributes):
         """Update the attributes for given nodes"""
 
         for idx, node in enumerate(nodes):
@@ -232,7 +233,7 @@ class Tracks:
             else:
                 print(f"Node {node} not found in the graph.")
 
-    def get_node_attributes(self, nodes) -> dict:
+    def get_node_attributes(self, nodes: list[Node]) -> dict:
         """Return the attributes for given nodes"""
 
         attributes = {}
@@ -245,7 +246,7 @@ class Tracks:
                     attributes[key] = vals
         return attributes
 
-    def get_edge_attributes(self, edges) -> dict:
+    def get_edge_attributes(self, edges: list[Edge]) -> dict:
         """Return the attributes for given edges"""
 
         attributes = {}
@@ -258,22 +259,22 @@ class Tracks:
                     attributes[key] = vals
         return attributes
 
-    def set_edge_attributes(self, edges, attributes) -> None:
-        """Update the attributes for given edges"""
-        for edge in edges:
+    def set_edge_attributes(self, edges: list[Edge], attributes: Attributes) -> None:
+        """Set the edge attributes for the given edges. Attributes should already exist
+        (although adding will work in current implementation, they cannot currently be
+        removed)
+
+        Args:
+            edges (list[Edge]): A list of edges to set the attributes for
+            attributes (Attributes): A dictionary of attribute name -> numpy array,
+                where the length of the arrays matches the number of edges.
+                Attributes should already exist: this function will only
+                update the values.
+        """
+        for idx, edge in enumerate(edges):
             if self.graph.has_edge(*edge):
                 for key, value in attributes.items():
-                    if key in self.graph.edges[edge]:
-                        self.graph.edges[edge][key] = value[
-                            np.where(edges == edge)[0][0]
-                        ]
-                    else:
-                        print(
-                            f"Attribute '{key}' does not exist for edge {edge}. Adding it."
-                        )
-                        self.graph.edges[edge][key] = value[
-                            np.where(edges == edge)[0][0]
-                        ]
+                    self.graph.edges[edge][key] = value[idx]
             else:
                 print(f"Edge {edge} not found in the graph.")
 

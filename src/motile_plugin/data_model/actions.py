@@ -253,7 +253,7 @@ class UpdateEdges(TracksAction):
     """Action to update the attributes of edges"""
 
     def __init__(self, tracks: Tracks, edges, attributes):
-        super().__init__(UpdateEdges.__name__, tracks)
+        super().__init__(tracks)
         self.edges = edges
         self.old_attrs = tracks.get_edge_attributes(self.edges)
         self.new_attrs = attributes

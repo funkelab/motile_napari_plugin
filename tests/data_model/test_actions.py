@@ -1,13 +1,19 @@
 import networkx as nx
 import numpy as np
 from motile_plugin.data_model import Tracks
-from motile_plugin.data_model.actions import AddNodes, UpdateNodes
-from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
+from motile_plugin.data_model.actions import (
+    AddEdges,
+    AddNodes,
+    UpdateEdges,
+    UpdateNodes,
+    UpdateTrackID,
+)
+from motile_toolbox.candidate_graph.graph_attributes import EdgeAttr, NodeAttr
 from numpy.testing import assert_array_almost_equal
 from skimage.measure import regionprops
 
 
-def test_add_and_delete_nodes(segmentation_2d, graph_2d):
+def test_add_delete_nodes(segmentation_2d, graph_2d):
     empty_graph = nx.DiGraph()
     empty_seg = np.zeros_like(segmentation_2d)
     tracks = Tracks(empty_graph, segmentation=empty_seg)
@@ -115,3 +121,146 @@ def test_update_nodes(segmentation_2d, graph_2d):
         != graph_2d.nodes["0_1"][NodeAttr.POS.value]
     )
     assert_array_almost_equal(tracks.segmentation, new_seg)
+
+
+def test_add_delete_edges(graph_2d, segmentation_2d):
+    node_graph = nx.create_empty_copy(graph_2d, with_data=True)
+    tracks = Tracks(node_graph, segmentation_2d)
+
+    edges = [["0_1", "1_2"], ["0_1", "1_3"]]
+    attrs = {}
+    attrs[EdgeAttr.IOU.value] = [
+        graph_2d.edges[edge][EdgeAttr.IOU.value] for edge in edges
+    ]
+
+    action = AddEdges(tracks, edges, attrs)
+    action.apply()
+    # TODO: What if adding an edge that already exists?
+    # TODO: test all the edge cases, invalid operations, etc. for all actions
+    assert set(tracks.graph.nodes()) == set(graph_2d.nodes())
+    assert set(tracks.graph.edges()) == set(graph_2d.edges())
+    for edge in tracks.graph.edges():
+        assert tracks.graph.edges[edge] == graph_2d.edges[edge]
+    assert_array_almost_equal(tracks.segmentation, segmentation_2d)
+
+    inverse = action.inverse()
+    inverse.apply()
+    assert set(tracks.graph.edges()) == set()
+    assert_array_almost_equal(tracks.segmentation, segmentation_2d)
+
+    redo = inverse.inverse()
+    redo.apply()
+    assert set(tracks.graph.nodes()) == set(graph_2d.nodes())
+    assert set(tracks.graph.edges()) == set(graph_2d.edges())
+    for edge in tracks.graph.edges():
+        assert tracks.graph.edges[edge] == graph_2d.edges[edge]
+    assert_array_almost_equal(tracks.segmentation, segmentation_2d)
+
+
+def test_update_edge(graph_2d, segmentation_2d):
+    tracks = Tracks(graph_2d.copy(), segmentation_2d)
+    edges = [["0_1", "1_2"], ["0_1", "1_3"]]
+    attrs = {}
+    attrs[EdgeAttr.IOU.value] = [
+        graph_2d.edges[edge][EdgeAttr.IOU.value] + 1 for edge in edges
+    ]
+
+    action = UpdateEdges(tracks, edges, attrs)
+    action.apply()
+
+    assert set(tracks.graph.edges()) == set(graph_2d.edges())
+    for edge in tracks.graph.edges():
+        assert (
+            tracks.graph.edges[edge][EdgeAttr.IOU.value]
+            == graph_2d.edges[edge][EdgeAttr.IOU.value] + 1
+        )
+    assert_array_almost_equal(tracks.segmentation, segmentation_2d)
+
+    inverse = action.inverse()
+    inverse.apply()
+    assert set(tracks.graph.edges()) == set(graph_2d.edges())
+    for edge in tracks.graph.edges():
+        assert (
+            tracks.graph.edges[edge][EdgeAttr.IOU.value]
+            == graph_2d.edges[edge][EdgeAttr.IOU.value]
+        )
+    assert_array_almost_equal(tracks.segmentation, segmentation_2d)
+
+    redo = inverse.inverse()
+    redo.apply()
+
+    assert set(tracks.graph.edges()) == set(graph_2d.edges())
+    for edge in tracks.graph.edges():
+        assert (
+            tracks.graph.edges[edge][EdgeAttr.IOU.value]
+            == graph_2d.edges[edge][EdgeAttr.IOU.value] + 1
+        )
+    assert_array_almost_equal(tracks.segmentation, segmentation_2d)
+
+
+def test_update_track_id_div(graph_2d, segmentation_2d):
+    # test with single node track
+    tracks = Tracks(graph_2d, segmentation_2d)
+
+    action = UpdateTrackID(tracks, "0_1", 4)
+    action.apply()
+
+    expected_seg = segmentation_2d.copy()
+    expected_seg[expected_seg == 1] = 4
+
+    assert tracks.graph.nodes["0_1"][NodeAttr.TRACK_ID.value] == 4
+    assert tracks.graph.nodes["0_1"][NodeAttr.SEG_ID.value] == 4
+    assert_array_almost_equal(tracks.segmentation, expected_seg)
+
+    inverse = action.inverse()
+    inverse.apply()
+
+    assert tracks.graph.nodes["0_1"][NodeAttr.TRACK_ID.value] == 1
+    assert tracks.graph.nodes["0_1"][NodeAttr.SEG_ID.value] == 1
+    assert_array_almost_equal(tracks.segmentation, segmentation_2d)
+
+    redo = inverse.inverse()
+    redo.apply()
+
+    assert tracks.graph.nodes["0_1"][NodeAttr.TRACK_ID.value] == 4
+    assert tracks.graph.nodes["0_1"][NodeAttr.SEG_ID.value] == 4
+    assert_array_almost_equal(tracks.segmentation, expected_seg)
+
+
+def test_update_track_id_continue(graph_2d, segmentation_2d):
+    # test with two node track
+    graph_2d.remove_edge("0_1", "1_3")
+    segmentation_2d[segmentation_2d == 2] = 1
+    graph_2d.nodes["1_2"][NodeAttr.TRACK_ID.value] = 1
+    graph_2d.nodes["1_2"][NodeAttr.SEG_ID.value] = 1
+    tracks = Tracks(graph_2d, segmentation_2d)
+
+    # this should now update both 0_1 and 1_2
+    action = UpdateTrackID(tracks, "0_1", 5)
+    action.apply()
+
+    expected_seg = segmentation_2d.copy()
+    expected_seg[expected_seg == 1] = 5
+    assert tracks.graph.nodes["0_1"][NodeAttr.TRACK_ID.value] == 5
+    assert tracks.graph.nodes["0_1"][NodeAttr.SEG_ID.value] == 5
+    assert tracks.graph.nodes["1_2"][NodeAttr.TRACK_ID.value] == 5
+    assert tracks.graph.nodes["1_2"][NodeAttr.SEG_ID.value] == 5
+    assert_array_almost_equal(tracks.segmentation, expected_seg)
+
+    inverse = action.inverse()
+    inverse.apply()
+
+    assert tracks.graph.nodes["0_1"][NodeAttr.TRACK_ID.value] == 1
+    assert tracks.graph.nodes["0_1"][NodeAttr.SEG_ID.value] == 1
+    assert tracks.graph.nodes["1_2"][NodeAttr.TRACK_ID.value] == 1
+    assert tracks.graph.nodes["1_2"][NodeAttr.SEG_ID.value] == 1
+    assert_array_almost_equal(tracks.segmentation, segmentation_2d)
+
+    redo = inverse.inverse()
+    redo.apply()
+
+    assert tracks.graph.nodes["0_1"][NodeAttr.TRACK_ID.value] == 5
+    assert tracks.graph.nodes["0_1"][NodeAttr.SEG_ID.value] == 5
+    assert tracks.graph.nodes["1_2"][NodeAttr.TRACK_ID.value] == 5
+    assert tracks.graph.nodes["1_2"][NodeAttr.SEG_ID.value] == 5
+    assert_array_almost_equal(tracks.segmentation, expected_seg)
