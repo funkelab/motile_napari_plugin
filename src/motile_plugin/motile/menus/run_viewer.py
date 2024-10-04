@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt import QCollapsible
+from superqt import QCollapsible, ensure_main_thread
 from superqt.fonticon import icon as qticon
 
 from .params_viewer import SolverParamsViewer
@@ -221,6 +221,7 @@ class RunViewer(QGroupBox):
         message = "Solver status: " + status
         self.solver_label.setText(message)
 
+    @ensure_main_thread
     def solver_event_update(self):
         self._set_solver_label(self.run.status)
         self.gap_plot.getPlotItem().clear()
