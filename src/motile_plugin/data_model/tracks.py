@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, TypeAlias
 
 import networkx as nx
 import numpy as np
@@ -12,9 +12,10 @@ from psygnal import Signal
 if TYPE_CHECKING:
     from pathlib import Path
 
-Node = TypeVar("Node", bound=Any)
-Edge = TypeVar("Edge", bound=tuple[Node, Node])
-Attributes = TypeVar("Attributes", bound=dict[str, np.ndarray])
+Node: TypeAlias = Any
+Edge: TypeAlias = tuple[Node, Node]
+Attributes: TypeAlias = dict[str, np.ndarray]
+SegMask: TypeAlias = tuple[np.ndarray, ...]
 
 
 class Tracks:
@@ -40,7 +41,7 @@ class Tracks:
 
     """
 
-    refresh: Signal[Optional[str]] = Signal()
+    refresh = Signal(Optional[str])
     GRAPH_FILE = "graph.json"
     SEG_FILE = "seg.npy"
     ATTRS_FILE = "attrs.json"
@@ -62,7 +63,7 @@ class Tracks:
         if graph.number_of_nodes() != 0:
             self.create_node_id_to_track_id()
         else:
-            self.node_id_to_track_id = {}
+            self.node_id_to_track_id: dict[Node, int] = {}
             self.max_track_id = 0
 
     # pydantic does not check numpy arrays
@@ -131,12 +132,12 @@ class Tracks:
         """
         return self.graph.nodes[node][NodeAttr.TRACK_ID.value]
 
-    def get_area(self, node: Any) -> int:
+    def get_area(self, node: Node) -> int:
         """Get the area/volume of a given node. Raises an error if the node
         is not in the graph. Returns None if area is not an attribute.
 
         Args:
-            node (Any): The node id to get the area/volume for
+            node (Node): The node id to get the area/volume for
 
         Returns:
             int: The area/volume of the node
