@@ -112,16 +112,30 @@ class TracksLayerGroup:
             for dim in self.viewer.dims.not_displayed:
                 step[dim] = int(
                     location[dim] + 0.5
-                )  # use the scaled location, since the 'step' in viewer.dims.range already accounts for the scaling
-
+                )  # use the world location, since the 'step' in viewer.dims.range
+                # already in world units
             self.viewer.dims.current_step = step
 
-            # check whether the new coordinates are inside or outside the field of view, then adjust the camera if needed
-            example_layer = self.points_layer  # the points layer is not scaled by the 'scale' attribute, because it directly reads the scaled coordinates. Therefore, no rescaling is necessary to compute the camera center
+            # check whether the new coordinates are inside or outside the field of view,
+            # then adjust the camera if needed
+            example_layer = (
+                self.points_layer
+            )  # the points layer is always in world units,
+            # because it directly reads the scaled coordinates. Therefore, no rescaling
+            # is necessary to compute the camera center
             corner_coordinates = example_layer.corner_pixels
 
-            # check which dimensions are shown, the first dimension is displayed on the x axis, and the second on the y_axis
+            # check which dimensions are shown, the first dimension is displayed on the
+            # x axis, and the second on the y_axis
             dims_displayed = self.viewer.dims.displayed
+
+            # Note: This centering does not work in 3D. What we should do instead is take
+            # the view direction vector, start at the point, and move backward along the
+            # vector a certain amount to put the point in view.
+            # Note #2: Points already does centering when you add the first point, and it
+            # works in 3D. We can look at that to see what logic they use.
+
+            # self.viewer.dims.displayed_order
             x_dim = dims_displayed[-1]
             y_dim = dims_displayed[-2]
 
