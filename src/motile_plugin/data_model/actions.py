@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, TypeVar
+from typing import Any
 
-import numpy as np
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 
-from .tracks import Node, Tracks
-
-Pixels = TypeVar("Pixels", bound=tuple[np.ndarray, ...])
+from .tracks import Attributes, Edge, Node, SegMask, Tracks
 
 
 class TracksAction:
@@ -60,7 +57,7 @@ class AddNodes(TracksAction):
         tracks: Tracks,
         nodes: list[Node],
         attributes: dict[str, list[Any]],
-        pixels: list[tuple[int, ...]] | None = None,
+        pixels: list[SegMask] | None = None,
     ):
         """Create an action to add new nodes, with optional segmentation
 
@@ -96,7 +93,7 @@ class DeleteNodes(TracksAction):
     operation for setting involved pixels to zero
     """
 
-    def __init__(self, tracks: Tracks, nodes):
+    def __init__(self, tracks: Tracks, nodes: list[Node]):
         super().__init__(tracks)
         self.nodes = nodes
         self.attributes = self.tracks.get_node_attributes(nodes)
@@ -130,8 +127,8 @@ class UpdateNodes(TracksAction):
         self,
         tracks: Tracks,
         nodes: list[Node],
-        attributes: dict[str, np.ndarray],
-        pixels: list[Pixels] | None = None,
+        attributes: Attributes,
+        pixels: list[SegMask] | None = None,
         added: bool = True,
     ):
         super().__init__(tracks)
@@ -164,7 +161,7 @@ class UpdateNodes(TracksAction):
 class AddEdges(TracksAction):
     """Action for adding new edges"""
 
-    def __init__(self, tracks: Tracks, edges, attributes):
+    def __init__(self, tracks: Tracks, edges: list[Edge], attributes: Attributes):
         super().__init__(tracks)
         self.edges = edges
         self.attributes = attributes
@@ -184,7 +181,7 @@ class AddEdges(TracksAction):
 
 
 class UpdateTrackID(TracksAction):
-    def __init__(self, tracks: Tracks, start_node, track_id: int):
+    def __init__(self, tracks: Tracks, start_node: Node, track_id: int):
         """Args:
         tracks (Tracks): The tracks to update
         start_node (Any): The node ID of the first node in the track. All successors
@@ -233,7 +230,7 @@ class UpdateTrackID(TracksAction):
 class DeleteEdges(TracksAction):
     """Action for deleting edges"""
 
-    def __init__(self, tracks: Tracks, edges):
+    def __init__(self, tracks: Tracks, edges: list[Edge]):
         super().__init__(tracks)
         self.edges = edges
         self.attributes = tracks.get_edge_attributes(self.edges)
@@ -252,7 +249,7 @@ class DeleteEdges(TracksAction):
 class UpdateEdges(TracksAction):
     """Action to update the attributes of edges"""
 
-    def __init__(self, tracks: Tracks, edges, attributes):
+    def __init__(self, tracks: Tracks, edges: list[Edge], attributes: Attributes):
         super().__init__(tracks)
         self.edges = edges
         self.old_attrs = tracks.get_edge_attributes(self.edges)

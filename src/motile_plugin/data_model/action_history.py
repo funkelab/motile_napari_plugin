@@ -45,6 +45,7 @@ class ActionHistory:
             return action
         else:
             show_warning("No more actions to undo")
+            return None
 
     def next(self) -> TracksAction | None:
         """Get the next action to be performed (the one after the pointer), and
@@ -60,5 +61,5 @@ class ActionHistory:
             self.pointer += 1
             return self.action_list[self.pointer]
         else:
-            print(self.pointer, self.action_list)
             show_warning("No more actions to redo")
+            return None
