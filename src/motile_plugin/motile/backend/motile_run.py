@@ -18,7 +18,6 @@ STAMP_FORMAT = "%m%d%Y_%H%M%S"
 PARAMS_FILENAME = "solver_params.json"
 IN_SEG_FILENAME = "input_segmentation.npy"
 IN_POINTS_FILENAME = "input_points.npy"
-TRACKS_DIRNAME = "tracks"
 GAPS_FILENAME = "gaps.txt"
 
 
@@ -280,6 +279,5 @@ class MotileRun(Tracks):
         # Lets be safe and remove the expected files and then the directory
         (run_dir / PARAMS_FILENAME).unlink()
         (run_dir / IN_SEG_FILENAME).unlink()
-        Tracks.delete(run_dir / TRACKS_DIRNAME)
         (run_dir / GAPS_FILENAME).unlink()
-        run_dir.rmdir()
+        super().delete(run_dir)

@@ -121,7 +121,6 @@ class TrackPoints(napari.layers.Points):
             self.tracks_viewer.tracks.get_location(node, incl_time=True)
             for node in self.nodes
         ]
-
         self.symbol = self.get_symbols(
             self.tracks_viewer.tracks, self.tracks_viewer.symbolmap
         )

@@ -18,7 +18,7 @@ from .actions import (
     UpdateNodes,
     UpdateTrackID,
 )
-from .tracks import Tracks
+from .tracks import Attributes, Tracks
 
 
 class TracksController:
@@ -33,7 +33,7 @@ class TracksController:
     def add_nodes(
         self,
         nodes: np.ndarray[Any],
-        attributes: dict[str, np.ndarray],
+        attributes: Attributes,
     ) -> None:
         """Calls the _add_nodes function to add nodes. Calls the refresh signal when finished.
 
@@ -48,7 +48,7 @@ class TracksController:
         self.tracks.refresh.emit(nodes[0] if nodes else None)
 
     def _add_nodes(
-        self, nodes: np.ndarray[int], attributes: dict[str, np.ndarray]
+        self, nodes: np.ndarray[int], attributes: Attributes
     ) -> TracksAction:
         """Add nodes to the graph. Includes all attributes and the segmentation.
 
@@ -384,7 +384,7 @@ class TracksController:
                 )
         return ActionGroup(self.tracks, actions)
 
-    def update_edges(self, edges: np.ndarray[int], attributes: np.ndarray):
+    def update_edges(self, edges: np.ndarray, attributes: Attributes):
         pass
 
     def update_segmentations(
