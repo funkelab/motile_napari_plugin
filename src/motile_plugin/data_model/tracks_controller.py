@@ -18,7 +18,7 @@ from .actions import (
     UpdateNodes,
     UpdateTrackID,
 )
-from .tracks import Attributes, Tracks
+from .tracks import Attributes, Node, SegMask, Tracks
 
 
 class TracksController:
@@ -32,8 +32,9 @@ class TracksController:
 
     def add_nodes(
         self,
-        nodes: np.ndarray[Any],
+        nodes: list[Node],
         attributes: Attributes,
+        pixels: SegMask,
     ) -> None:
         """Calls the _add_nodes function to add nodes. Calls the refresh signal when finished.
 
@@ -42,25 +43,26 @@ class TracksController:
             attributes (dict[str, np.ndarray]): dictionary containing at least time and position attributes
         """
 
-        action = self._add_nodes(nodes, attributes)
+        action = self._add_nodes(nodes, attributes, pixels)
         self.action_history.append(action)
         action.apply()
         self.tracks.refresh.emit(nodes[0] if nodes else None)
 
     def _add_nodes(
-        self, nodes: np.ndarray[int], attributes: Attributes
+        self, nodes: list[Node], attributes: Attributes, pixels: SegMask
     ) -> TracksAction:
         """Add nodes to the graph. Includes all attributes and the segmentation.
 
         Args:
-            nodes (np.ndarray[int]): an array of node ids
-            attributes (dict[str, np.ndarray]): dictionary containing at least time and position attributes
+            nodes (list[Node]): a list of node ids
+            attributes (Attributes): dictionary containing at least time and position attributes
         """
         actions = [
             AddNodes(
                 tracks=self.tracks,
                 nodes=nodes,
                 attributes=attributes,
+                pixels=pixels,
             )
         ]
         for idx, node in enumerate(nodes):
