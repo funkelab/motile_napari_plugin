@@ -165,6 +165,9 @@ class Tracks:
             self.track_time_to_node[track_id] = {}
         self.track_time_to_node[track_id][time] = node
 
+    def get_node(self, track_id, time):
+        return self.track_time_to_node.get(track_id, {}).get(time, None)
+
     @property
     def node_id_to_track_id(self) -> dict[Node, int]:
         return nx.get_node_attributes(self.graph, NodeAttr.TRACK_ID.value)
@@ -210,6 +213,9 @@ class Tracks:
                 Can be used to directly index the segmentation.
             value (int): The value to set each pixel to
         """
+        if len(pixels) < len(self.segmentation.shape):
+            # add dummy hypothesis dimension
+            pixels = (pixels[0], np.zeros_like(pixels[0]), *pixels[1:])
         self.segmentation[pixels] = value
 
     def get_pixels(self, nodes: list[Node]) -> list[tuple[np.ndarray, ...]] | None:
