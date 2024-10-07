@@ -59,28 +59,29 @@ class Tracks:
         self.time_attr = time_attr
         self.pos_attr = pos_attr
         self.scale = scale
+        self.track_time_to_node: dict[dict[int, Node]] = {}
 
         if graph.number_of_nodes() != 0:
-            self.create_node_id_to_track_id()
+            self._create_track_time_to_node()
         else:
-            self.node_id_to_track_id: dict[Node, int] = {}
             self.max_track_id = 0
 
-    # pydantic does not check numpy arrays
-    model_config = {"arbitrary_types_allowed": True}
-
-    def create_node_id_to_track_id(self) -> None:
-        """Create a dictionary mapping the node_id to the tracklet_id, and specify the max_track_id"""
-
-        self.node_id_to_track_id = {}
-        try:  # try to get existing track ids
-            for node, data in self.graph.nodes(data=True):
-                self.node_id_to_track_id[node] = data[NodeAttr.TRACK_ID.value]
-            self.max_track_id = max(self.node_id_to_track_id.values())
-        except KeyError:
+    def _create_track_time_to_node(self) -> None:
+        """Create a dictionary mapping (track_id -> dict(time_point -> node_id),
+        and specify the max_track_id.
+        Will also assign track IDs if they aren't present.
+        """
+        if len(self.node_id_to_track_id) < self.graph.number_of_nodes():
+            # not all nodes have a track id: reassign
             _, _, self.max_track_id = assign_tracklet_ids(self.graph)
-            for node, data in self.graph.nodes(data=True):
-                self.node_id_to_track_id[node] = data[NodeAttr.TRACK_ID.value]
+        else:
+            self.max_track_id = max(self.node_id_to_track_id.values())
+        for node in self.graph.nodes():
+            track_id = self.get_track_id(node)
+            if track_id not in self.track_time_to_node:
+                self.track_time_to_node[track_id] = {}
+            time = self.get_time(node)
+            self.track_time_to_node[track_id][time] = node
 
     def get_location(self, node: Any, incl_time: bool = False) -> list:
         """Get the location of a node in the graph. Optionally include the
@@ -131,6 +132,42 @@ class Tracks:
             int: The time frame that the node is in
         """
         return self.graph.nodes[node][NodeAttr.TRACK_ID.value]
+
+    def set_track_id(self, node: Any, track_id: int) -> None:
+        """Get the time frame of a given node. Raises an error if the node
+        is not in the graph.
+
+        Args:
+            node (Any): The node id to get the time frame for
+
+        Returns:
+            int: The time frame that the node is in
+        """
+        time = self.get_time(node)
+        old_id = self.graph.nodes[node][NodeAttr.TRACK_ID.value]
+        del self.track_time_to_node[old_id][time]
+        self.graph.nodes[node][NodeAttr.TRACK_ID.value] = track_id
+        if track_id not in self.track_time_to_node:
+            self.track_time_to_node[track_id] = {}
+        self.track_time_to_node[track_id][time] = node
+
+    def remove_node(self, node):
+        time = self.get_time(node)
+        old_id = self.get_track_id(node)
+        del self.track_time_to_node[old_id][time]
+        self.graph.remove_node(node)
+
+    def add_node(self, node, attrs):
+        self.graph.add_node(node, **attrs)
+        time = self.get_time(node)
+        track_id = self.get_track_id(node)
+        if track_id not in self.track_time_to_node:
+            self.track_time_to_node[track_id] = {}
+        self.track_time_to_node[track_id][time] = node
+
+    @property
+    def node_id_to_track_id(self) -> dict[Node, int]:
+        return nx.get_node_attributes(self.graph, NodeAttr.TRACK_ID.value)
 
     def get_area(self, node: Node) -> int:
         """Get the area/volume of a given node. Raises an error if the node

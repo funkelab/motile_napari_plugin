@@ -11,11 +11,12 @@ def test_tracks(graph_3d):
     with pytest.raises(KeyError):
         tracks.get_location("0")
 
-    tracks_wrong_attr = Tracks(graph=graph_3d, time_attr="test", pos_attr="test")
+    with pytest.raises(KeyError):  # raises error at construction if time is wrong
+        tracks_wrong_attr = Tracks(graph=graph_3d, time_attr="test")
+
+    tracks_wrong_attr = Tracks(graph=graph_3d, pos_attr="test")
     with pytest.raises(KeyError):
         tracks_wrong_attr.get_location("0_1")
-    with pytest.raises(KeyError):
-        tracks_wrong_attr.get_time("0_1")
 
     # test multiple position attrs
     pos_attr = ("z", "y", "x")

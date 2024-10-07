@@ -80,9 +80,8 @@ class AddNodes(TracksAction):
         """Apply the action, and set segmentation if provided in self.pixels"""
         for idx, node in enumerate(self.nodes):
             attrs = {attr: val[idx] for attr, val in self.attributes.items()}
-            self.tracks.graph.add_node(node, **attrs)
-            track_id = attrs[NodeAttr.TRACK_ID.value]
-            self.tracks.node_id_to_track_id[node] = track_id
+            self.tracks.add_node(node, attrs)
+            track_id = self.tracks.get_track_id(node)
             if self.pixels is not None and self.pixels[idx] is not None:
                 self.tracks.set_pixels(self.pixels[idx], track_id)
 
@@ -116,8 +115,7 @@ class DeleteNodes(TracksAction):
         for idx, node in enumerate(self.nodes):
             if self.pixels is not None:
                 self.tracks.set_pixels(self.pixels[idx], 0)
-            self.tracks.graph.remove_node(node)
-            del self.tracks.node_id_to_track_id[node]
+            self.tracks.remove_node(node)
 
 
 class UpdateNodes(TracksAction):
@@ -206,10 +204,7 @@ class UpdateTrackID(TracksAction):
         curr_node = self.start_node
         while self.tracks.get_track_id(curr_node) == old_track_id:
             # update the track id
-            self.tracks.graph.nodes[curr_node][NodeAttr.TRACK_ID.value] = (
-                self.new_track_id
-            )
-            self.tracks.node_id_to_track_id[curr_node] = self.new_track_id
+            self.tracks.set_track_id(curr_node, self.new_track_id)
             if self.tracks.segmentation is not None:
                 time = self.tracks.get_time(curr_node)
                 # update the segmentation to match the new track id

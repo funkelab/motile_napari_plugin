@@ -69,13 +69,9 @@ class TracksController:
             attrs = {attr: val[idx] for attr, val in attributes.items()}
             current_time = attrs[NodeAttr.TIME.value]
             track_id = attrs[NodeAttr.TRACK_ID.value]
-            if track_id in self.tracks.node_id_to_track_id.values():
+            if track_id in self.tracks.track_time_to_node:
                 # this track_id already exists, find the nearest predecessor and nearest successor to create new edge
-                candidates = [
-                    n
-                    for n in self.tracks.node_id_to_track_id
-                    if self.tracks.node_id_to_track_id[n] == track_id
-                ]
+                candidates = self.tracks.track_time_to_node[track_id].values()
 
                 # Sort candidates by their 'time' attribute
                 candidates.sort(
