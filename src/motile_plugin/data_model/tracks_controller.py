@@ -2,7 +2,6 @@ from typing import Any
 
 import numpy as np
 from motile_toolbox.candidate_graph import NodeAttr
-from motile_toolbox.candidate_graph.utils import get_node_id
 from napari.utils.notifications import show_warning
 from qtpy.QtWidgets import QMessageBox
 from skimage import measure
@@ -34,7 +33,7 @@ class TracksController:
         self,
         nodes: list[Node],
         attributes: Attributes,
-        pixels: SegMask,
+        pixels: list[SegMask] | None,
     ) -> None:
         """Calls the _add_nodes function to add nodes. Calls the refresh signal when finished.
 
@@ -49,7 +48,10 @@ class TracksController:
         self.tracks.refresh.emit(nodes[0] if nodes else None)
 
     def _add_nodes(
-        self, nodes: list[Node], attributes: Attributes, pixels: SegMask
+        self,
+        nodes: list[Node],
+        attributes: Attributes,
+        pixels: list[SegMask] | None = None,
     ) -> TracksAction:
         """Add nodes to the graph. Includes all attributes and the segmentation.
 
@@ -57,6 +59,9 @@ class TracksController:
             nodes (list[Node]): a list of node ids
             attributes (Attributes): dictionary containing at least time and position attributes
         """
+        if pixels is not None:
+            seg_attrs = self._get_seg_attrs(nodes, pixels, added=True)
+            attributes.update(seg_attrs)
         actions = [
             AddNodes(
                 tracks=self.tracks,
@@ -170,7 +175,7 @@ class TracksController:
     def update_nodes(
         self, nodes: np.ndarray[Any], attributes: dict[str, np.ndarray]
     ) -> None:
-        """Calls the _update_nodes function to update the node attributtes in given array.
+        """Calls the _update_node_segs function to update the node attributtes in given array.
         Then calls the refresh signal.
 
         Args:
@@ -178,22 +183,26 @@ class TracksController:
         attributes (dict[str, np.ndarray]): dictionary containing the attributes to be updated
 
         """
-
-        action = self._update_nodes(nodes, attributes)
+        action = self._update_node_segs(nodes, attributes)
         self.action_history.append(action)
         action.apply()
         self.tracks.refresh.emit()
 
-    def _update_nodes(
-        self, nodes: np.ndarray[Any], attributes: dict[str, np.ndarray]
+    def _update_node_segs(
+        self,
+        nodes: np.ndarray[Any],
+        pixels: list[SegMask],
+        added=False,
     ) -> TracksAction:
-        """Update the attributes for the nodes in the given array.
+        """Update the segmentation and segmentation-managed attributes for
+        a set of nodes.
 
         Args:
         nodes (np.ndarray[int]):an array of node ids
         attributes (dict[str, np.ndarray]): dictionary containing the attributes to be updated
         """
-        return UpdateNodes(self.tracks, nodes, attributes)
+        attributes = self._get_seg_attrs(nodes, pixels, added=added)
+        return UpdateNodes(self.tracks, nodes, attributes, pixels, added=added)
 
     def add_edges(
         self, edges: np.ndarray[int], attributes: dict[str, np.ndarray]
@@ -385,7 +394,18 @@ class TracksController:
     def update_edges(self, edges: np.ndarray, attributes: Attributes):
         pass
 
-    def _get_updated_node_attributes(self, nodes, pixels, added=True):
+    def _get_seg_attrs(self, nodes, pixels, added=True):
+        """Get the node attributes that are determined by the segmentation:
+        Time, positions, seg_id, track_id, and area.
+
+        Args:
+            nodes (_type_): _description_
+            pixels (_type_): _description_
+            added (bool, optional): _description_. Defaults to True.
+
+        Returns:
+            _type_: _description_
+        """
         new_node_attrs = {
             self.tracks.time_attr: [],
             NodeAttr.SEG_ID.value: [],
@@ -435,57 +455,25 @@ class TracksController:
         actions = []
         node_to_select = None
         if len(to_remove) > 0:
-            actions.append(DeleteNodes(self.tracks, to_remove))
+            actions.append(self._delete_nodes(to_remove))
         if len(to_update_smaller) > 0:
             nodes = [node_id for node_id, _ in to_update_smaller]
             pixels = [pixels for _, pixels in to_update_smaller]
-            attributes = self._get_updated_node_attributes(nodes, pixels, added=False)
-            actions.append(
-                UpdateNodes(
-                    self.tracks,
-                    nodes,
-                    pixels=pixels,
-                    attributes=attributes,
-                    added=False,
-                )
-            )
+            actions.append(self._update_node_segs(nodes, pixels, added=False))
         if len(to_update_bigger) > 0:
             nodes = [node_id for node_id, _ in to_update_bigger]
             pixels = [pixels for _, pixels in to_update_bigger]
-            attributes = self._get_updated_node_attributes(nodes, pixels, added=True)
-            actions.append(
-                UpdateNodes(
-                    self.tracks, nodes, pixels=pixels, attributes=attributes, added=True
-                )
-            )
+            actions.append(self._update_node_segs(nodes, pixels, added=True))
         if len(to_add) > 0:
-            new_nodes = []
-            new_node_attrs = {
-                self.tracks.time_attr: [],
-                NodeAttr.SEG_ID.value: [],
-                NodeAttr.TRACK_ID.value: [],
-                NodeAttr.AREA.value: [],
-                self.tracks.pos_attr: [],
-            }
-            for track_id, pix in to_add:
-                t = pix[0][0]
-                array = np.zeros_like(self.tracks.segmentation[t][0])
-                array[pix[1:]] = 1
-                node_id = get_node_id(t, track_id)
-                new_nodes.append(node_id)
-                new_node_attrs[self.tracks.time_attr].append(t)
-                new_node_attrs[NodeAttr.TRACK_ID.value].append(track_id)
-                new_node_attrs[NodeAttr.SEG_ID.value].append(track_id)
-                new_node_attrs[self.tracks.pos_attr].append(
-                    measure.centroid(array, spacing=self.tracks.scale)
-                )
-                new_node_attrs[NodeAttr.AREA.value].append(
-                    np.sum(array) * np.prod(self.tracks.scale)
-                )
+            nodes = [node for node, _ in to_add]
+            pixels = [pix for _, pix in to_add]
+            actions.append(self._add_nodes(nodes, attributes={}, pixels=pixels))
 
             # if this is the time point where the user added a node, select the new node
-            if t == current_timepoint:
-                node_to_select = new_nodes[0] if new_nodes else None
+            times = [pix[0][0] for pix in pixels]
+            if current_timepoint in times:
+                index = times.index(current_timepoint)
+                node_to_select = nodes[index]
 
         action_group = ActionGroup(self.tracks, actions)
         self.action_history.append(action_group)

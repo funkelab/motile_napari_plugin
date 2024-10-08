@@ -56,7 +56,10 @@ class TrackPoints(napari.layers.Points):
             symbol=symbols,
             face_color=colors,
             size=5,
-            properties={"node_id": self.nodes, "track_id": track_ids},
+            properties={
+                "node_id": self.nodes,
+                "track_id": track_ids,
+            },  # TODO: use features
             border_color=[1, 1, 1, 1],
             blending="translucent_no_depth",
         )
