@@ -136,7 +136,7 @@ class TracksController:
         self.tracks.refresh.emit()
 
     def _delete_nodes(
-        self, nodes: np.ndarray[Any], pixels: list[SegMask] | None
+        self, nodes: np.ndarray[Any], pixels: list[SegMask] | None = None
     ) -> TracksAction:
         """Delete the nodes provided by the array from the graph but maintain successor track_ids. Reconnect to the
         nearest predecessor and/or nearest successor, if any.
