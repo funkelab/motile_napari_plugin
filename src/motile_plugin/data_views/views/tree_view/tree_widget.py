@@ -28,6 +28,8 @@ from .tree_widget_utils import (
 
 
 class CustomViewBox(pg.ViewBox):
+    selected_rect = Signal(Any)
+
     def __init__(self, *args, **kwds):
         kwds["enableMenu"] = False
         pg.ViewBox.__init__(self, *args, **kwds)
@@ -38,29 +40,47 @@ class CustomViewBox(pg.ViewBox):
         if ev.button() == QtCore.Qt.MouseButton.RightButton:
             self.autoRange()
 
-    ## reimplement mouseDragEvent to disable continuous axis zoom
-    def mouseDragEvent(self, ev, axis=None):
-        if ev.modifiers() == Qt.ShiftModifier:
-            # If Shift is pressed, enable rectangular zoom mode
-            self.setMouseMode(self.RectMode)
-        else:
-            # Otherwise, disable rectangular zoom mode
-            self.setMouseMode(self.PanMode)
+    def showAxRect(self, ax, **kwargs):
+        """Set the visible range to the given rectangle
+        Emits sigRangeChangedManually without changing the range.
+        """
+        # Emit the signal without setting the range
+        self.sigRangeChangedManually.emit(self.state["mouseEnabled"])
 
-        if axis is not None and ev.button() == QtCore.Qt.MouseButton.RightButton:
-            ev.ignore()
+    def mouseDragEvent(self, ev, axis=None):
+        """Modified mouseDragEvent function to check which mouse mode to use
+        and to submit rectangle coordinates for selecting multiple nodes if necessary"""
+
+        super().mouseDragEvent(ev, axis)
+
+        # use RectMode when pressing shift
+        if ev.modifiers() == QtCore.Qt.ShiftModifier:
+            self.setMouseMode(self.RectMode)
+
+            if ev.isStart():
+                self.mouse_start_pos = self.mapSceneToView(ev.scenePos())
+            elif ev.isFinish():
+                rect_end_pos = self.mapSceneToView(ev.scenePos())
+                rect = QtCore.QRectF(self.mouse_start_pos, rect_end_pos).normalized()
+                self.selected_rect.emit(rect)  # emit the rectangle
+                ev.accept()
+            else:
+                ev.ignore()
         else:
-            pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
+            # Otherwise, set pan mode
+            self.setMouseMode(self.PanMode)
 
 
 class TreePlot(pg.PlotWidget):
     node_clicked = Signal(Any, bool)  # node_id, append
+    nodes_selected = Signal(list, bool)
 
     def __init__(self) -> pg.PlotWidget:
         """Construct the pyqtgraph treewidget. This is the actual canvas
         on which the tree view is drawn.
         """
         super().__init__(viewBox=CustomViewBox())
+
         self.setFocusPolicy(Qt.StrongFocus)
         self.setTitle("Lineage Tree")
 
@@ -79,6 +99,22 @@ class TreePlot(pg.PlotWidget):
         self.g.scatter.sigClicked.connect(self._on_click)
         self.addItem(self.g)
         self.set_view("vertical", feature="tree")
+        self.getViewBox().selected_rect.connect(self.select_points_in_rect)
+
+    def select_points_in_rect(self, rect: QtCore.QRectF):
+        """Select all nodes in given rectangle"""
+
+        scatter_data = self.g.scatter.data
+        x = scatter_data["x"]
+        y = scatter_data["y"]
+        data = scatter_data["data"]
+
+        # Filter points that are within the rectangle
+        points_within_rect = [
+            (x[i], y[i], data[i]) for i in range(len(x)) if rect.contains(x[i], y[i])
+        ]
+        selected_nodes = [point[2] for point in points_within_rect]
+        self.nodes_selected.emit(selected_nodes, True)
 
     def update(
         self,
@@ -270,23 +306,59 @@ class TreePlot(pg.PlotWidget):
         axis_label = (
             "area" if feature == "area" else "x_axis_pos"
         )  # check what is currently being shown, to know how to scale  the view
-        for i, node_id in enumerate(selected_nodes):
-            node_df = self.track_df.loc[self.track_df["node_id"] == node_id]
-            if not node_df.empty:
-                x_axis_value = node_df[axis_label].values[0]
-                t = node_df["t"].values[0]
 
-                # Update size and outline
-                index = self.node_ids.index(node_id)
-                size[index] += 5
-                outlines[index] = pg.mkPen(color="c", width=2)
+        if len(selected_nodes) > 0:
+            x_values = []
+            t_values = []
+            for node_id in selected_nodes:
+                node_df = self.track_df.loc[self.track_df["node_id"] == node_id]
+                if not node_df.empty:
+                    x_axis_value = node_df[axis_label].values[0]
+                    t = node_df["t"].values[0]
 
-                # Center view based on the first selected node
-                if i == 0:
-                    self._center_view(x_axis_value, t)
+                    x_values.append(x_axis_value)
+                    t_values.append(t)
+
+                    # Update size and outline
+                    index = self.node_ids.index(node_id)
+                    size[index] += 5
+                    outlines[index] = pg.mkPen(color="c", width=2)
+
+            # Center view, but only if a single node is selected
+            if len(selected_nodes) == 1:
+                self._center_view(x_axis_value, t)
+            else:
+                min_x = np.min(x_values)
+                max_x = np.max(x_values)
+                min_t = np.min(t_values)
+                max_t = np.max(t_values)
+                self._center_range(min_x, max_x, min_t, max_t)
 
         self.g.scatter.setPen(outlines)
         self.g.scatter.setSize(size)
+
+    def _center_range(self, min_x: int, max_x: int, min_t: int, max_t: int):
+        """Check whether viewbox contains current range and adjust if not"""
+
+        if self.view_direction == "horizontal":
+            min_x, max_x, min_t, max_t = min_t, max_t, min_x, max_x
+
+        view_box = self.plotItem.getViewBox()
+        current_range = view_box.viewRange()
+
+        x_range = current_range[0]
+        y_range = current_range[1]
+
+        # Check if the new range is within the current range
+        if (
+            x_range[0] <= min_x
+            and x_range[1] >= max_x
+            and y_range[0] <= min_t
+            and y_range[1] >= max_t
+        ):
+            return
+        else:
+            view_box.setRange(xRange=(min_x, max_x), yRange=(min_t, max_t), padding=2)
 
     def _center_view(self, center_x: int, center_y: int):
         """Center the Viewbox on given coordinates"""
@@ -349,6 +421,7 @@ class TreeWidget(QWidget):
 
         self.tree_widget: TreePlot = TreePlot()
         self.tree_widget.node_clicked.connect(self.selected_nodes.add)
+        self.tree_widget.nodes_selected.connect(self.selected_nodes.add_list)
 
         # Add radiobuttons for switching between different display modes
         self.mode_widget = TreeViewModeWidget()

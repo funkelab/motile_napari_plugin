@@ -33,6 +33,21 @@ class NodeSelectionList(QObject):
         # emit update signal
         self.list_updated.emit()
 
+    def add_list(self, items: list, append: bool | None = False):
+        """Add nodes from a list and emit a single signal"""
+
+        if append:
+            for item in items:
+                if item in self._list:
+                    self._list.remove(item)
+                else:
+                    self._list.append(item)
+
+        else:
+            self._list = items
+
+        self.list_updated.emit()
+
     def flip(self):
         """Change the order of the items in the list"""
         if len(self) == 2:
