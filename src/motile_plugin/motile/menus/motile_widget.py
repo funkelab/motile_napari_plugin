@@ -211,8 +211,8 @@ class MotileWidget(QScrollArea):
         """
         run.status = "done"
         self.solver_update.emit()
-        if run.track_time_to_node == {}:
-            run._create_track_time_to_node()
+        if run.seg_time_to_node == {}:
+            run._create_seg_time_to_node()
         self.new_run(run, run.run_name)
 
     def _title_widget(self) -> QWidget:

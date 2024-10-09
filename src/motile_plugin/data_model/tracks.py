@@ -5,9 +5,11 @@ from typing import TYPE_CHECKING, Any, Optional, TypeAlias
 
 import networkx as nx
 import numpy as np
-from motile_toolbox.candidate_graph import NodeAttr
+from motile_toolbox.candidate_graph import EdgeAttr, NodeAttr
+from motile_toolbox.candidate_graph.iou import _compute_ious
 from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
 from psygnal import Signal
+from skimage import measure
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -23,6 +25,7 @@ class Tracks:
     The graph nodes represent detections and must have a time attribute and
     position attribute. Edges in the graph represent links across time.
     Each node in the graph has a track_id assigned, if it isn't present in the graph already
+    TODO: remove track_ids from the generic data structure, to allow candidate graphs
 
     Attributes:
         graph (nx.DiGraph): A graph with nodes representing detections and
@@ -58,30 +61,35 @@ class Tracks:
         self.segmentation = segmentation
         self.time_attr = time_attr
         self.pos_attr = pos_attr
-        self.scale = scale
-        self.track_time_to_node: dict[dict[int, Node]] = {}
+        self.scale = scale  # TODO: everything breaks if scale is NOne
+
+        self.seg_managed_node_attrs = (self.pos_attr, NodeAttr.AREA.value)
+        self.seg_managed_edge_attrs = (EdgeAttr.IOU.value,)
 
         if graph.number_of_nodes() != 0:
-            self._create_track_time_to_node()
+            if len(self.node_id_to_track_id) < self.graph.number_of_nodes():
+                # not all nodes have a track id: reassign
+                _, _, self.max_track_id = assign_tracklet_ids(self.graph)
+            else:
+                self.max_track_id = max(self.node_id_to_track_id.values())
+            self.seg_time_to_node = self._create_seg_time_to_node()
         else:
             self.max_track_id = 0
+            self.seg_time_to_node: dict[dict[int, Node]] = {}
 
-    def _create_track_time_to_node(self) -> None:
-        """Create a dictionary mapping (track_id -> dict(time_point -> node_id),
-        and specify the max_track_id.
-        Will also assign track IDs if they aren't present.
-        """
-        if len(self.node_id_to_track_id) < self.graph.number_of_nodes():
-            # not all nodes have a track id: reassign
-            _, _, self.max_track_id = assign_tracklet_ids(self.graph)
-        else:
-            self.max_track_id = max(self.node_id_to_track_id.values())
+    def _create_seg_time_to_node(self) -> dict[dict[int, Node]]:
+        """Create a dictionary mapping seg_id -> dict(time_point -> node_id)"""
+        seg_time_to_node: dict[dict[int, Node]] = {}
+        if self.segmentation is None:
+            return seg_time_to_node
+
         for node in self.graph.nodes():
-            track_id = self.get_track_id(node)
-            if track_id not in self.track_time_to_node:
-                self.track_time_to_node[track_id] = {}
+            seg_id = self.get_seg_id(node)
+            if seg_id not in seg_time_to_node:
+                seg_time_to_node[seg_id] = {}
             time = self.get_time(node)
-            self.track_time_to_node[track_id][time] = node
+            seg_time_to_node[seg_id][time] = node
+        return seg_time_to_node
 
     def get_location(self, node: Any, incl_time: bool = False) -> list:
         """Get the location of a node in the graph. Optionally include the
@@ -121,8 +129,8 @@ class Tracks:
         """
         return self.graph.nodes[node][self.time_attr]
 
-    def get_track_id(self, node: Any) -> int:
-        """Get the time frame of a given node. Raises an error if the node
+    def get_node_attribute(self, node: Any, attr: str) -> int:
+        """Get the attribute of a given node. Raises an error if the node
         is not in the graph.
 
         Args:
@@ -131,50 +139,210 @@ class Tracks:
         Returns:
             int: The time frame that the node is in
         """
-        return self.graph.nodes[node][NodeAttr.TRACK_ID.value]
+        return self.graph.nodes[node][attr]
 
-    def set_track_id(self, node: Any, track_id: int) -> None:
-        """Get the time frame of a given node. Raises an error if the node
-        is not in the graph.
+    def get_seg_id(self, node: Any) -> int | None:
+        """Get the segmentation id of a given node. Raises a KeyError if the node
+        is not in the graph. Returns None if the node does not have an associated
+        segmentation.
 
         Args:
-            node (Any): The node id to get the time frame for
+            node (Any): The node id to get the seg id of
 
         Returns:
-            int: The time frame that the node is in
+            int | None: The seg id of the node, or None if the node does not have a
+            segmentation
         """
-        time = self.get_time(node)
-        old_id = self.graph.nodes[node][NodeAttr.TRACK_ID.value]
-        del self.track_time_to_node[old_id][time]
+        return self.graph.nodes[node].get(NodeAttr.SEG_ID.value, None)
+
+    def get_track_id(self, node: Any) -> int | None:
+        """Get the track id of a given node. Raises a KeyError if the node
+        is not in the graph. Returns None if the node does not have an associated
+        segmentation.
+
+        Args:
+            node (Any): The node id to get the seg id of
+
+        Returns:
+            int | None: The seg id of the node, or None if the node does not have a
+            segmentation
+        """
+        return self.graph.nodes[node].get(NodeAttr.TRACK_ID.value, None)
+
+    def set_track_id(self, node: Any, track_id: int) -> int | None:
+        """Get the track id of a given node. Raises a KeyError if the node
+        is not in the graph. Returns None if the node does not have an associated
+        segmentation.
+
+        Args:
+            node (Any): The node id to get the seg id of
+
+        Returns:
+            int | None: The seg id of the node, or None if the node does not have a
+            segmentation
+        """
         self.graph.nodes[node][NodeAttr.TRACK_ID.value] = track_id
-        if track_id not in self.track_time_to_node:
-            self.track_time_to_node[track_id] = {}
-        self.track_time_to_node[track_id][time] = node
 
-    def remove_node(self, node):
+    def set_seg_id(self, node: Node, seg_id: int) -> None:
+        """Set the segmentation id attribute for a given node, and update
+        the internal mappings. Does not update the segmentation, if present.
+        Args:
+            node (Node): The node id to set the seg_id of
+            seg_id (int): The segmentation id to set the attribute to
+        """
         time = self.get_time(node)
-        old_id = self.get_track_id(node)
-        del self.track_time_to_node[old_id][time]
+        old_id = self.graph.nodes[node].get(NodeAttr.SEG_ID.value)
+        if old_id is not None:
+            del self.seg_time_to_node[old_id][time]
+        self.graph.nodes[node][NodeAttr.SEG_ID.value] = seg_id
+        if seg_id not in self.seg_time_to_node:
+            self.seg_time_to_node[seg_id] = {}
+        self.seg_time_to_node[seg_id][time] = node
+
+    def remove_node(self, node: Node):
+        """Remove the node from the graph and update the internal mappings.
+        Does not update the segmentation if present.
+
+        Args:
+            node (Node): The node to remove from the graph
+        """
+        time = self.get_time(node)
+        old_id = self.get_seg_id(node)
+        if old_id is not None:
+            del self.seg_time_to_node[old_id][time]
         self.graph.remove_node(node)
 
-    def add_node(self, node, attrs):
-        self.graph.add_node(node, **attrs)
-        time = self.get_time(node)
-        track_id = self.get_track_id(node)
-        if track_id not in self.track_time_to_node:
-            self.track_time_to_node[track_id] = {}
-        self.track_time_to_node[track_id][time] = node
+    def add_node(
+        self,
+        node: Node,
+        time: int,
+        position: Any | None = None,
+        seg_id: int | None = None,
+        attrs: dict[str, Any] | None = None,
+    ):
+        """Add a node to the graph. Will update the internal mappings and generate the
+        segmentation-controlled attributes if there is a segmentation present.
+        The segmentation should have been previously updated, otherwise the
+        attributes will not update properly.
 
-    def get_node(self, track_id, time):
-        return self.track_time_to_node.get(track_id, {}).get(time, None)
+        Args:
+            node (Node): The node id to add
+            time (int): the time frame of the node to add
+            position (Any | None): The spatial position of the node (excluding time).
+                Can be None if it should be automatically detected from the segmentation.
+                Either seg_id or position must be provided. Defaults to None.
+            seg_id (int | None): The segmentation id of the node, used to match the node
+                to the segmentation at the given time, or None if the node does not have
+                a matching segmentation. Either seg_id or position must be provided.
+                Defaults to None.
+            attrs (dict[str, Any] | None, optional): A dictionary of additional
+                attributes for the node, or None if there are no additional attributes.
+                Attributes with the same name as "controlled" attributes will be
+                overwritten. Defaults to None
+        """
+        if attrs is None:
+            attrs = {}
+        attrs[self.time_attr] = time
+        attrs[self.pos_attr] = position
+        if self.segmentation is not None:
+            attrs.update(self._compute_node_attrs(seg_id, time))
+        assert (
+            attrs[self.pos_attr] is not None
+        ), f"Unknown position for node {node} in time {time} with seg_id {seg_id}"
+        self.graph.add_node(node, **attrs)
+        if seg_id not in self.seg_time_to_node:
+            self.seg_time_to_node[seg_id] = {}
+        self.seg_time_to_node[seg_id][time] = node
+
+    def _compute_node_attrs(self, seg_id: int, time: int) -> dict[str, Any]:
+        """Get the segmentation controlled node attributes (area and position)
+        from the segmentation with label seg_id in the given time point.
+
+        Args:
+            seg_id (int): The label id to query the current segmentation for
+            time (int): The time frame of the current segmentation to query
+
+        Returns:
+            dict[str, int]: A dictionary containing the attributes that could be
+                determined from the segmentation. It will be empty if self.segmentation
+                is None. If self.segmentation exists but seg_id is not present in time,
+                area will be 0 and position will not be included. If self.segmentation
+                exists and seg_id is present in time, area and position will be included.
+        """
+        attrs = {}
+        if self.segmentation is None:
+            return attrs
+        seg = self.segmentation[time][0] == seg_id
+        area = np.sum(seg)
+        if self.scale is not None:
+            area *= np.prod(self.scale)
+        attrs[NodeAttr.AREA.value] = area
+        if area > 0:
+            # only include the position if the segmentation was actually there
+            pos = measure.centroid(seg, spacing=self.scale)
+            attrs[self.pos_attr] = pos
+        return attrs
+
+    def add_edge(self, edge: Edge, attrs: dict[str, Any] | None = None):
+        if attrs is None:
+            attrs = {}
+        attrs.update(self._compute_edge_attrs(edge))
+        self.graph.add_edge(edge[0], edge[1], **attrs)
+
+    def _compute_edge_attrs(self, edge: Edge) -> dict[str, Any]:
+        """Get the segmentation controlled edge attributes (IOU)
+        from the segmentations associated with the endpoints of the edge.
+        The endpoints should already exist and have associated segmentations.
+
+        Args:
+            edge (Edge): The edge to compute the segmentation-based attributes from
+
+        Returns:
+            dict[str, int]: A dictionary containing the attributes that could be
+                determined from the segmentation. It will be empty if self.segmentation
+                is None or if self.segmentation exists but the endpoint segmentations
+                are not found.
+        """
+        attrs = {}
+        source, target = edge
+        source_seg = self.get_seg_id(source)
+        target_seg = self.get_seg_id(target)
+        if self.segmentation is None or source_seg is None or target_seg is None:
+            return attrs
+        source_time = self.get_time(source)
+        target_time = self.get_time(target)
+
+        source_arr = self.segmentation[source_time][0] == source_seg
+        target_arr = self.segmentation[target_time][0] == target_seg
+
+        iou_list = _compute_ious(source_arr, target_arr)  # list of (id1, id2, iou)
+        iou = 0 if len(iou_list) == 0 else iou_list[0][2]
+
+        attrs[EdgeAttr.IOU.value] = iou
+        return attrs
+
+    def get_node(self, seg_id: int, time: int) -> Node | None:
+        """Get the node with the given segmentation ID in the given time point.
+        Useful for going from segmentation labels to graph nodes.
+
+        Args:
+            seg_id (int): The segmentation id of the node
+            time (int): the time point of the node
+
+        Returns:
+            Node | None: the node id with the given seg_id in the given time, or None
+                if no such node exists.
+        """
+        return self.seg_time_to_node.get(seg_id, {}).get(time, None)
 
     @property
     def node_id_to_track_id(self) -> dict[Node, int]:
         return nx.get_node_attributes(self.graph, NodeAttr.TRACK_ID.value)
 
     def get_area(self, node: Node) -> int:
-        """Get the area/volume of a given node. Raises an error if the node
-        is not in the graph. Returns None if area is not an attribute.
+        """Get the area/volume of a given node. Raises a KeyError if the node
+        is not in the graph. Returns None if the given node does not have an Area
+        attribute.
 
         Args:
             node (Node): The node id to get the area/volume for
@@ -182,18 +350,12 @@ class Tracks:
         Returns:
             int: The area/volume of the node
         """
-
-        # Check if the node exists in the graph
-        if node not in self.graph.nodes:
-            raise ValueError(f"Node {node} is not in the graph.")
-
-        # Return the area attribute if it exists, otherwise None
         return self.graph.nodes[node].get("area")
 
     def get_next_track_id(self) -> int:
         """Return the next available track_id and update self.max_track_id"""
 
-        self.max_track_id = max(self.node_id_to_track_id.values()) + 1
+        self.max_track_id = self.max_track_id + 1
         return self.max_track_id
 
     def change_segmentation_label(self, time, old_label, new_label):
@@ -236,36 +398,30 @@ class Tracks:
         for node in nodes:
             track_id = self.get_track_id(node)
             time = self.get_time(node)
-            loc_pixels = np.nonzero(self.segmentation[time] == track_id)
+            loc_pixels = np.nonzero(self.segmentation[time][0] == track_id)
             time_array = np.ones_like(loc_pixels[0]) * time
             pix_list.append((time_array, *loc_pixels))
         return pix_list
 
-    def update_segmentation(self, updated_pixels: list) -> None:
-        """Updates the pixels at given indices to the new values
-
-        Args:
-            updated_pixels (list[(tuple(np.ndarray, np.ndarray, np.ndarray), np.ndarray, int|np.ndarray])):
-                A list of len 3 tuples with paint event 'atoms'.
-                The first element is a tuple of np.ndarrays with involved indices for each dimension.
-                The second element is an array of the previous values at these indices (not used here).
-                The last element is an integer or np.ndarray with the new values.
+    def update_segmentation(self, node: Node, pixels: SegMask, added=True) -> None:
+        """Updates the segmentation of the given node. Also updates the
+        auto-computed attributes of the node and incident edges.
         """
+        time = self.get_time(node)
+        seg_id = self.get_seg_id(node)
+        value = seg_id if added else 0
+        self.set_pixels(pixels, value)
+        new_node_attrs = self._compute_node_attrs(seg_id, time)
+        new_node_attrs = {attr: [val] for attr, val in new_node_attrs.items()}
+        self.set_node_attributes([node], new_node_attrs)
 
-        for prev_indices, _, next_values in reversed(
-            updated_pixels
-        ):  # reversed because a paint event has to be undone in reversed order,
-            # and we do not need to ever 'forward apply' the paint event because that is handled in the napari layer
-            if len(prev_indices) == len(self.segmentation.shape):
-                self.segmentation[prev_indices] = next_values
-            elif (
-                len(prev_indices) == len(self.segmentation.shape) - 1
-            ):  # this is because the events coming from the segmentation do not have the extra dimension the tracks.segmentaton has
-                self.segmentation[(prev_indices[0], 0) + prev_indices[1:]] = next_values
-            else:
-                raise ValueError(
-                    f"Indices have the wrong length: {len(prev_indices)}, while the segmentation shape has length {len(self.segmentation.shape)}"
-                )
+        incident_edges = list(self.graph.in_edges(node)) + list(
+            self.graph.out_edges(node)
+        )
+        for edge in incident_edges:
+            new_edge_attrs = self._compute_edge_attrs(edge)
+            new_edge_attrs = {attr: [val] for attr, val in new_edge_attrs.items()}
+            self.set_edge_attributes([edge], new_edge_attrs)
 
     def set_node_attributes(self, nodes: list[Node], attributes: Attributes):
         """Update the attributes for given nodes"""

@@ -74,9 +74,9 @@ class TracksController:
             attrs = {attr: val[idx] for attr, val in attributes.items()}
             current_time = attrs[NodeAttr.TIME.value]
             track_id = attrs[NodeAttr.TRACK_ID.value]
-            if track_id in self.tracks.track_time_to_node:
+            if track_id in self.tracks.seg_time_to_node:
                 # this track_id already exists, find the nearest predecessor and nearest successor to create new edge
-                candidates = self.tracks.track_time_to_node[track_id].values()
+                candidates = self.tracks.seg_time_to_node[track_id].values()
 
                 # Sort candidates by their 'time' attribute
                 candidates.sort(
@@ -135,7 +135,9 @@ class TracksController:
         action.apply()
         self.tracks.refresh.emit()
 
-    def _delete_nodes(self, nodes: np.ndarray[Any]) -> TracksAction:
+    def _delete_nodes(
+        self, nodes: np.ndarray[Any], pixels: list[SegMask] | None
+    ) -> TracksAction:
         """Delete the nodes provided by the array from the graph but maintain successor track_ids. Reconnect to the
         nearest predecessor and/or nearest successor, if any.
 
@@ -146,14 +148,16 @@ class TracksController:
         for node in nodes:
             preds = list(self.tracks.graph.predecessors(node))
             succs = list(self.tracks.graph.successors(node))
+
+            # remove incident edges in an undo-able fashion
+            for pred in preds:
+                actions.append(DeleteEdges(self.tracks, [(pred, node)]))
+            for succ in succs:
+                actions.append(DeleteEdges(self.tracks, [(node, succ)]))
+
             if len(preds) == 0:  # do nothing - track ids are fine
                 continue
             pred = preds[0]  # assume can't have two preds, no merging (yet)
-
-            # remove incident edges in an undo-able fashion
-            actions.append(DeleteEdges(self.tracks, [(pred, node)]))
-            for succ in succs:
-                actions.append(DeleteEdges(self.tracks, [(node, succ)]))
 
             # determine if we need to relabel any tracks or add skip edges
             siblings = list(self.tracks.graph.successors(pred))
@@ -169,7 +173,7 @@ class TracksController:
             # if succs == 2, do nothing = the children already have different track ids
 
         # remove the nodes last
-        actions.append(DeleteNodes(self.tracks, nodes))
+        actions.append(DeleteNodes(self.tracks, nodes, pixels=pixels))
         return ActionGroup(self.tracks, actions=actions)
 
     def update_nodes(
@@ -216,11 +220,20 @@ class TracksController:
             attributes (dict[str, np.ndarray]): dictionary mapping attribute names to
                 an array of values, where the index in the array matches the edge index
         """
+        make_valid_actions = []
         for edge in edges:
-            if not self.is_valid(edge):
+            is_valid, valid_action = self.is_valid(edge)
+            if not is_valid:
                 # warning was printed with details in is_valid call
                 return
-        action = self._add_edges(edges, attributes)
+            if valid_action is not None:
+                make_valid_actions.append(valid_action)
+        main_action = self._add_edges(edges, attributes)
+        if len(make_valid_actions) > 0:
+            make_valid_actions.append(main_action)
+            action = ActionGroup(self.tracks, make_valid_actions)
+        else:
+            action = main_action
         self.action_history.append(action)
         action.apply()
         self.tracks.refresh.emit()
@@ -262,7 +275,7 @@ class TracksController:
                 )
         return ActionGroup(self.tracks, actions)
 
-    def is_valid(self, edge):
+    def is_valid(self, edge) -> tuple[bool, TracksAction | None]:
         """Check if this edge is valid.
         Criteria:
         - not horizontal
@@ -284,12 +297,12 @@ class TracksController:
         if time1 > time2:
             edge = (edge[1], edge[0])
             time1, time2 = time2, time1
-
+        action = None
         # do all checks
         # reject if edge already exists
         if self.tracks.graph.has_edge(edge[0], edge[1]):
             show_warning("Edge is rejected because it exists already.")
-            return False
+            return False, action
 
         # reject if edge is horizontal
         elif (
@@ -297,7 +310,7 @@ class TracksController:
             == self.tracks.graph.nodes[edge[1]][NodeAttr.TIME.value]
         ):
             show_warning("Edge is rejected because it is horizontal.")
-            return False
+            return False, action
 
         # reject if target node already has an incoming edge
         elif self.tracks.graph.in_degree(edge[1]) > 0:
@@ -321,20 +334,18 @@ class TracksController:
                 # identify incoming edge in the target node and insert a delete action
                 pred = next(self.tracks.graph.predecessors(edge[1]))
                 action = self._delete_edges(edges=np.array([[pred, edge[1]]]))
-                self.action_history.append(action)
-                action.apply()
 
             elif result == QMessageBox.Cancel:
                 show_warning(
                     "Edge is rejected because merges are currently not allowed."
                 )
-                return False
+                return False, action
 
         elif self.tracks.graph.out_degree(edge[0]) > 1:
             show_warning(
                 "Edge is rejected because triple divisions are currently not allowed."
             )
-            return False
+            return False, action
 
         elif time2 - time1 > 1:
             track_id2 = self.tracks.graph.nodes[edge[1]][NodeAttr.TRACK_ID.value]
@@ -348,10 +359,10 @@ class TracksController:
                 ]
                 if len(nodes) > 0:
                     show_warning("Please connect to the closest node")
-                    return False
+                    return False, action
 
         # all checks passed!
-        return True
+        return True, action
 
     def delete_edges(self, edges: np.ndarray):
         """Delete edges from the graph.
@@ -436,7 +447,7 @@ class TracksController:
 
     def update_segmentations(
         self,
-        to_remove: list[Node],  # node ids to delete
+        to_remove: list[Node],  # (node_ids, pixels)
         to_update_smaller: list[tuple],  # (node_id, pixels)
         to_update_bigger: list[tuple],  # (node_id, pixels)
         to_add: list[tuple],  # (track_id, pixels)
@@ -455,7 +466,9 @@ class TracksController:
         actions = []
         node_to_select = None
         if len(to_remove) > 0:
-            actions.append(self._delete_nodes(to_remove))
+            nodes = [node_id for node_id, _ in to_remove]
+            pixels = [pixels for _, pixels in to_remove]
+            actions.append(self._delete_nodes(nodes, pixels=pixels))
         if len(to_update_smaller) > 0:
             nodes = [node_id for node_id, _ in to_update_smaller]
             pixels = [pixels for _, pixels in to_update_smaller]
@@ -492,14 +505,17 @@ class TracksController:
     def undo(self) -> None:
         """Obtain the action to undo from the history, and invert and apply it"""
         action_to_undo = self.action_history.previous()
+        if isinstance(action_to_undo, ActionGroup):
+            for action in action_to_undo.actions:
+                print(action)
         if action_to_undo is not None:
             inverse_action = action_to_undo.inverse()
-            inverse_action.apply(apply_seg=True)
+            inverse_action.apply()
             self.tracks.refresh()
 
     def redo(self) -> None:
         """Obtain the action to redo from the history and apply it"""
         action_to_redo = self.action_history.next()
         if action_to_redo is not None:
-            action_to_redo.apply(apply_seg=True)
+            action_to_redo.apply()
             self.tracks.refresh()
