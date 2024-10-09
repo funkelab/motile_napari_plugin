@@ -192,7 +192,7 @@ class Tracks:
         """
         time = self.get_time(node)
         old_id = self.graph.nodes[node].get(NodeAttr.SEG_ID.value)
-        if old_id is not None:
+        if old_id is not None and old_id in self.seg_time_to_node:
             del self.seg_time_to_node[old_id][time]
         self.graph.nodes[node][NodeAttr.SEG_ID.value] = seg_id
         if seg_id not in self.seg_time_to_node:
