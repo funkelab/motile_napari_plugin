@@ -33,7 +33,7 @@ class TracksController:
         self,
         nodes: list[Node],
         attributes: Attributes,
-        pixels: list[SegMask] | None,
+        pixels: list[SegMask] | None = None,
     ) -> None:
         """Calls the _add_nodes function to add nodes. Calls the refresh signal when finished.
 
@@ -59,6 +59,7 @@ class TracksController:
             nodes (list[Node]): a list of node ids
             attributes (Attributes): dictionary containing at least time and position attributes
         """
+
         if pixels is not None:
             seg_attrs = self._get_seg_attrs(nodes, pixels, added=True)
             attributes.update(seg_attrs)
@@ -376,6 +377,7 @@ class TracksController:
             if not self.tracks.graph.has_edge(edge[0], edge[1]):
                 show_warning("Cannot delete non-existing edge!")
                 return
+        print("delete these edges", edges)
         action = self._delete_edges(edges)
         self.action_history.append(action)
         action.apply()
@@ -387,6 +389,7 @@ class TracksController:
             out_degree = self.tracks.graph.out_degree(edge[0])
             if out_degree == 1:  # removing a normal (non division) edge
                 new_track_id = self.tracks.get_next_track_id()
+                print("new track id is ", new_track_id)
                 actions.append(UpdateTrackID(self.tracks, edge[1], new_track_id))
             elif out_degree == 2:  # removing a division edge
                 sibling = next(
@@ -395,6 +398,7 @@ class TracksController:
                     if succ != edge[1]
                 )
                 new_track_id = self.tracks.get_track_id(edge[0])
+                print("new track id", new_track_id)
                 actions.append(UpdateTrackID(self.tracks, sibling, new_track_id))
             else:
                 raise RuntimeError(
@@ -425,6 +429,9 @@ class TracksController:
             self.tracks.pos_attr: [],
         }
         for node, pix in zip(nodes, pixels, strict=False):
+            print("get attrs for", node, pix)
+            if node not in self.tracks.graph.nodes:
+                print("this node does not yet exist")
             time = self.tracks.get_time(node)
             track_id = self.tracks.get_track_id(node)
             # can't assume that the segmentation has already been updated, need to
