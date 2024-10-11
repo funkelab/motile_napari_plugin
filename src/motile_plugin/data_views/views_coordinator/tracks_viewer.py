@@ -90,12 +90,13 @@ class TracksViewer:
 
         self.tracking_layers._refresh()
 
-        # if a new node was added, we would like to select this one now
+        self.tracks_updated.emit(refresh_view)
+
+        # if a new node was added, we would like to select this one now (call this after emitting the signal, because if the node is a new node, we have to update the table in the tree widget first, or it won't be present)
         if node is not None:
             self.selected_nodes.add(node)
 
-        self.tracks_updated.emit(refresh_view)
-        self.selected_nodes.list_updated.emit()  # to restore selection and/or highlighting in all components
+        # self.selected_nodes.list_updated.emit()  # to restore selection and/or highlighting in all components
         # TODO: is this second signal necessary if we emit tracks_updated already?
 
     def update_tracks(self, tracks: Tracks, name: str) -> None:
@@ -108,6 +109,8 @@ class TracksViewer:
         """
         self.selected_nodes._list = []
         self.tracks = tracks
+        tracks.seg_time_to_node = tracks._create_seg_time_to_node()
+        tracks._update_max_track_id()
         self.tracks_controller = TracksController(self.tracks)
 
         # listen to refresh signals from the tracks

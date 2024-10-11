@@ -91,6 +91,13 @@ class Tracks:
             seg_time_to_node[seg_id][time] = node
         return seg_time_to_node
 
+    def _update_max_track_id(self):
+        if len(self.node_id_to_track_id) < self.graph.number_of_nodes():
+            # not all nodes have a track id: reassign
+            _, _, self.max_track_id = assign_tracklet_ids(self.graph)
+        else:
+            self.max_track_id = max(self.node_id_to_track_id.values())
+
     def get_location(self, node: Any, incl_time: bool = False) -> list:
         """Get the location of a node in the graph. Optionally include the
         time frame as the first dimension. Raises an error if the node
@@ -192,7 +199,11 @@ class Tracks:
         """
         time = self.get_time(node)
         old_id = self.graph.nodes[node].get(NodeAttr.SEG_ID.value)
-        if old_id is not None and old_id in self.seg_time_to_node:
+        if (
+            old_id is not None
+            and old_id in self.seg_time_to_node
+            and time in self.seg_time_to_node[old_id]
+        ):
             del self.seg_time_to_node[old_id][time]
         self.graph.nodes[node][NodeAttr.SEG_ID.value] = seg_id
         if seg_id not in self.seg_time_to_node:
@@ -208,7 +219,7 @@ class Tracks:
         """
         time = self.get_time(node)
         old_id = self.get_seg_id(node)
-        if old_id is not None:
+        if old_id is not None and old_id in self.seg_time_to_node:
             del self.seg_time_to_node[old_id][time]
         self.graph.remove_node(node)
 
