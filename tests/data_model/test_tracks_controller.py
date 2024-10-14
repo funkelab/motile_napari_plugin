@@ -270,3 +270,47 @@ def test__delete_nodes_with_seg(graph_2d, segmentation_2d):
     assert tracks.get_track_id("1_3") == 1  # update track id for other child
     assert tracks.get_track_id(4) == 1  # update track id for other child
     action.inverse().apply()
+
+
+def test__add_remove_edges_no_seg(graph_2d):
+    tracks = SolutionTracks(graph_2d, ndim=3)
+    controller = TracksController(tracks)
+    num_edges = tracks.graph.number_of_edges()
+
+    # delete continuation edge
+    edge = ("1_3", 2)
+    track_id = 3
+    action = controller._delete_edges([edge])
+    action.apply()
+    assert not tracks.graph.has_edge(*edge)
+    assert tracks.get_track_id(edge[1]) != track_id  # relabeled the rest of the track
+    assert tracks.graph.number_of_edges() == num_edges - 1
+
+    # add back in continuation edge
+    action = controller._add_edges([edge])
+    action.apply()
+    assert tracks.graph.has_edge(*edge)
+    assert tracks.get_track_id(edge[1]) == track_id  # track id was changed back
+    assert tracks.graph.number_of_edges() == num_edges
+
+    # delete division edge
+    edge = ("0_1", "1_3")
+    track_id = 3
+    action = controller._delete_edges([edge])
+    action.apply()
+    assert not tracks.graph.has_edge(*edge)
+    assert tracks.get_track_id(edge[1]) == track_id  # dont relabel after removal
+    assert tracks.get_track_id("1_2") == 1  # but do relabel the sibling
+    assert tracks.graph.number_of_edges() == num_edges - 1
+
+    # add back in division edge
+    edge = ("0_1", "1_3")
+    track_id = 3
+    action = controller._add_edges([edge])
+    action.apply()
+    assert tracks.graph.has_edge(*edge)
+    assert tracks.get_track_id(edge[1]) == track_id  # dont relabel after removal
+    assert (
+        tracks.get_track_id("1_2") != 1
+    )  # give sibling new id again (not necessarily 2)
+    assert tracks.graph.number_of_edges() == num_edges

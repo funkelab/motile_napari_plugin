@@ -41,7 +41,6 @@ class TracksController:
             nodes (np.ndarray[int]):an array of node ids
             attributes (dict[str, np.ndarray]): dictionary containing at least time and position attributes
         """
-        print(f"Adding nodes with attributes {attributes}")
         action, nodes = self._add_nodes(attributes, pixels)
         self.action_history.append(action)
         action.apply()
@@ -215,17 +214,13 @@ class TracksController:
         """
         return UpdateNodeSegs(self.tracks, nodes, pixels, added=added)
 
-    def add_edges(
-        self, edges: np.ndarray[int], attributes: dict[str, np.ndarray]
-    ) -> None:
+    def add_edges(self, edges: np.ndarray[int]) -> None:
         """Add edges and attributes to the graph. Also update the track ids and
         corresponding segmentations if applicable
 
         Args:
             edges (np.array[int]): An Nx2 array of N edges, each with source and target
                 node ids
-            attributes (dict[str, np.ndarray]): dictionary mapping attribute names to
-                an array of values, where the index in the array matches the edge index
         """
         make_valid_actions = []
         for edge in edges:
@@ -235,7 +230,7 @@ class TracksController:
                 return
             if valid_action is not None:
                 make_valid_actions.append(valid_action)
-        main_action = self._add_edges(edges, attributes)
+        main_action = self._add_edges(edges)
         if len(make_valid_actions) > 0:
             make_valid_actions.append(main_action)
             action = ActionGroup(self.tracks, make_valid_actions)
@@ -245,9 +240,7 @@ class TracksController:
         action.apply()
         self.tracks.refresh.emit()
 
-    def _add_edges(
-        self, edges: np.ndarray[int], attributes: dict[str, np.ndarray]
-    ) -> TracksAction:
+    def _add_edges(self, edges: np.ndarray[int]) -> TracksAction:
         """Add edges and attributes to the graph. Also update the track ids and
         corresponding segmentations of the target node tracks and potentially sibling
         tracks.
@@ -470,15 +463,6 @@ class TracksController:
         self.action_history.append(action_group)
         action_group.apply()
         self.tracks.refresh.emit(node_to_select)
-
-    def add_node_attribute(self, name: str, values: any):
-        pass
-
-    def add_edge_attribute(self, name: str, values: any):
-        pass
-
-    def remove_node_attribute(self, name: str):
-        pass
 
     def undo(self) -> None:
         """Obtain the action to undo from the history, and invert and apply it"""
