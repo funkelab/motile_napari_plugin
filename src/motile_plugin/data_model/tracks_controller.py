@@ -59,7 +59,7 @@ class TracksController:
         - track_id
         If there is not a segmentation, the attributes must include:
         - time
-        - position
+        - pos
         - track_id
 
         Args:
@@ -145,8 +145,9 @@ class TracksController:
     def _delete_nodes(
         self, nodes: np.ndarray[Any], pixels: list[SegMask] | None = None
     ) -> TracksAction:
-        """Delete the nodes provided by the array from the graph but maintain successor track_ids. Reconnect to the
-        nearest predecessor and/or nearest successor, if any.
+        """Delete the nodes provided by the array from the graph but maintain successor
+        track_ids. Reconnect to the nearest predecessor and/or nearest successor
+        on the same track, if any.
 
         Args:
             nodes (np.ndarray): array of node_ids to be deleted

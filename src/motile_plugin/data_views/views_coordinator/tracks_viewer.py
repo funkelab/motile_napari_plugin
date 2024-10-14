@@ -110,7 +110,6 @@ class TracksViewer:
         self.selected_nodes._list = []
         self.tracks = tracks
         tracks.seg_time_to_node = tracks._create_seg_time_to_node()
-        tracks._update_max_track_id()
         self.tracks_controller = TracksController(self.tracks)
 
         # listen to refresh signals from the tracks

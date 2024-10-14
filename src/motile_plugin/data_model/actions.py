@@ -276,8 +276,8 @@ class UpdateTrackID(TracksAction):
             self.tracks.set_track_id(curr_node, self.new_track_id)
             if self.tracks.segmentation is not None:
                 # update the segmentation to match the new track id
-                pix = self.tracks.get_pixels([curr_node])[0]
-                self.tracks.set_pixels(pix, self.new_track_id)
+                pix = self.tracks.get_pixels([curr_node])
+                self.tracks.set_pixels(pix, [self.new_track_id])
                 # update the graph seg_id attr to match the new seg id
                 self.tracks.set_seg_id(curr_node, self.new_track_id)
             # getting the next node (picks one if there are two)

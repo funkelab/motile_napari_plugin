@@ -162,3 +162,143 @@ def test__add_nodes_with_seg(graph_2d, segmentation_2d):
     assert tracks.graph.has_edge("1_3", node)
     assert tracks.graph.has_edge(node, 4)
     assert not tracks.graph.has_edge("1_3", 4)
+
+
+def test__delete_nodes_no_seg(graph_2d):
+    # extend track 3
+    graph_2d.add_node(2, pos=[0, 2], time=2, track_id=3)
+    graph_2d.add_node(3, pos=[0, 2], time=3, track_id=3)
+    graph_2d.add_node(4, pos=[0, 2], time=4, track_id=3)
+
+    # unconnected node
+    graph_2d.add_node(5, pos=[0, 2], time=4, track_id=5)
+    graph_2d.add_edge("1_3", 2)
+    graph_2d.add_edge(2, 3)
+    graph_2d.add_edge(3, 4)
+
+    tracks = SolutionTracks(graph_2d, ndim=3)
+    controller = TracksController(tracks)
+    num_edges = tracks.graph.number_of_edges()
+
+    # delete unconnected node
+    node = 5
+    action = controller._delete_nodes([node])
+    action.apply()
+    assert not tracks.graph.has_node(node)
+    assert tracks.graph.number_of_edges() == num_edges
+    action.inverse().apply()
+
+    # delete end node
+    node = 4
+    action = controller._delete_nodes([node])
+    action.apply()
+    assert not tracks.graph.has_node(node)
+    assert not tracks.graph.has_edge(3, node)
+    action.inverse().apply()
+
+    # delete continuation node
+    node = 2
+    action = controller._delete_nodes([node])
+    action.apply()
+    assert not tracks.graph.has_node(node)
+    assert not tracks.graph.has_edge("1_3", node)
+    assert not tracks.graph.has_edge(node, 3)
+    assert tracks.graph.has_edge("1_3", 3)
+    assert tracks.get_track_id(3) == 3
+    action.inverse().apply()
+
+    # delete div parent
+    node = "0_1"
+    action = controller._delete_nodes([node])
+    action.apply()
+    assert not tracks.graph.has_node(node)
+    assert not tracks.graph.has_edge(node, "1_2")
+    assert not tracks.graph.has_edge(node, "1_3")
+    action.inverse().apply()
+
+    # delete div child
+    node = "1_2"
+    action = controller._delete_nodes([node])
+    action.apply()
+    assert not tracks.graph.has_node(node)
+    assert tracks.get_track_id("1_3") == 1  # update track id for other child
+    assert tracks.get_track_id(4) == 1  # update track id for other child
+
+
+def test__delete_nodes_with_seg(graph_2d, segmentation_2d):
+    # extend track 3
+    graph_2d.add_node(2, pos=[2, 2], time=2, seg_id=3, track_id=3)
+    graph_2d.add_node(3, pos=[2, 2], time=3, seg_id=3, track_id=3)
+    graph_2d.add_node(4, pos=[2, 2], time=4, seg_id=3, track_id=3)
+    graph_2d.add_edge("1_3", 2)
+    graph_2d.add_edge(2, 3)
+    graph_2d.add_edge(3, 4)
+    segmentation_2d[2:5, :, 0:4, 0:4] = 3
+
+    # add unconnected node
+    graph_2d.add_node(5, pos=[2, 2], time=4, seg_id=5, track_id=5)
+    segmentation_2d[4, :, 0:4, 0:4] = 5
+
+    tracks = SolutionTracks(graph_2d, segmentation=segmentation_2d)
+    controller = TracksController(tracks)
+    num_edges = tracks.graph.number_of_edges()
+
+    # delete unconnected node
+    node = 5
+    track_id = 5
+    time = 4
+    action = controller._delete_nodes([node])
+    action.apply()
+    assert not tracks.graph.has_node(node)
+    assert track_id not in np.unique(tracks.segmentation[time])
+    assert tracks.graph.number_of_edges() == num_edges
+    action.inverse().apply()
+
+    # delete end node
+    node = 4
+    track_id = 3
+    time = 4
+    action = controller._delete_nodes([node])
+    action.apply()
+    assert not tracks.graph.has_node(node)
+    assert track_id not in np.unique(tracks.segmentation[time])
+    assert not tracks.graph.has_edge(3, node)
+    action.inverse().apply()
+
+    # delete continuation node
+    node = 2
+    track_id = 3
+    time = 2
+    action = controller._delete_nodes([node])
+    action.apply()
+    assert not tracks.graph.has_node(node)
+    assert track_id not in np.unique(tracks.segmentation[time])
+    assert not tracks.graph.has_edge("1_3", node)
+    assert not tracks.graph.has_edge(node, 3)
+    assert tracks.graph.has_edge("1_3", 3)
+    assert tracks.get_track_id(3) == 3
+    action.inverse().apply()
+
+    # delete div parent
+    node = "0_1"
+    track_id = 1
+    time = 0
+    action = controller._delete_nodes([node])
+    action.apply()
+    assert not tracks.graph.has_node(node)
+    assert track_id not in np.unique(tracks.segmentation[time])
+    assert not tracks.graph.has_edge(node, "1_2")
+    assert not tracks.graph.has_edge(node, "1_3")
+    action.inverse().apply()
+
+    # delete div child
+    node = "1_2"
+    track_id = 2
+    time = 1
+    action = controller._delete_nodes([node])
+    action.apply()
+    assert not tracks.graph.has_node(node)
+    assert track_id not in np.unique(tracks.segmentation[time])
+    assert tracks.get_track_id("1_3") == 1  # update track id for other child
+    assert tracks.get_track_id(4) == 1  # update track id for other child
+    action.inverse().apply()
