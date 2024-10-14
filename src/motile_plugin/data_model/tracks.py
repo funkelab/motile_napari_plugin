@@ -106,8 +106,6 @@ class Tracks:
 
         if incl_time:
             times = np.array(self._get_nodes_attr(nodes, self.time_attr, required=True))
-            print(times.shape)
-            print(positions.shape)
             positions = np.c_[times, positions]
 
         return positions
@@ -222,6 +220,7 @@ class Tracks:
         self.graph.add_nodes_from(nodes)
         self.set_times(nodes, times)
         final_pos: np.ndarray
+        print(f"{seg_ids=}")
         if seg_ids is not None and self.segmentation is not None:
             self.set_seg_ids(nodes, seg_ids)
             computed_attrs = self._compute_node_attrs(seg_ids, times)
@@ -403,7 +402,7 @@ class Tracks:
             if len(pix) == self.ndim:
                 # add dummy hypothesis dimension for now
                 pix = (pix[0], np.zeros_like(pix[0]), *pix[1:])
-
+            print(f"Setting segmentation pixels {pixels} to value {val}")
             self.segmentation[pix] = val
 
     def update_segmentations(
@@ -718,18 +717,23 @@ class Tracks:
             NodeAttr.AREA.value: [],
         }
         for seg_id, time in zip(seg_ids, times, strict=False):
+            print(f"{seg_id=}, {time=}")
             if seg_id is None:
                 area = None
                 pos = None
             else:
                 seg = self.segmentation[time][0] == seg_id
+                print(np.where(self.segmentation[time][0] == seg_id))
                 area = np.sum(seg)
+                print(area)
                 if self.scale is not None:
                     area *= np.prod(self.scale)
                 # only include the position if the segmentation was actually there
                 pos = measure.centroid(seg, spacing=self.scale) if area > 0 else None
             attrs[NodeAttr.AREA.value].append(area)
             attrs[NodeAttr.POS.value].append(pos)
+
+        attrs[NodeAttr.POS.value] = np.array(attrs[NodeAttr.POS.value])
         return attrs
 
     def _compute_edge_attrs(self, edges: Iterable[Edge]) -> Attrs:
@@ -754,16 +758,19 @@ class Tracks:
             source, target = edge
             source_seg = self.get_seg_id(source)
             target_seg = self.get_seg_id(target)
-            if self.segmentation is None or source_seg is None or target_seg is None:
-                return attrs
-            source_time = self.get_time(source)
-            target_time = self.get_time(target)
+            if source_seg is None or target_seg is None:
+                iou = 0
+            else:
+                source_time = self.get_time(source)
+                target_time = self.get_time(target)
 
-            source_arr = self.segmentation[source_time][0] == source_seg
-            target_arr = self.segmentation[target_time][0] == target_seg
+                source_arr = self.segmentation[source_time][0] == source_seg
+                target_arr = self.segmentation[target_time][0] == target_seg
 
-            iou_list = _compute_ious(source_arr, target_arr)  # list of (id1, id2, iou)
-            iou = 0 if len(iou_list) == 0 else iou_list[0][2]
+                iou_list = _compute_ious(
+                    source_arr, target_arr
+                )  # list of (id1, id2, iou)
+                iou = 0 if len(iou_list) == 0 else iou_list[0][2]
 
             attrs[EdgeAttr.IOU.value].append(iou)
         return attrs

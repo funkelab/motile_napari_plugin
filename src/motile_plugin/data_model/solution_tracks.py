@@ -57,9 +57,7 @@ class SolutionTracks(Tracks):
         return self.max_track_id
 
     def get_track_id(self, node) -> int:
-        track_id = self.get_seg_id(node)
-        if track_id is None:
-            raise ValueError(f"Node {node} has no track id")
+        track_id = self._get_node_attr(node, NodeAttr.TRACK_ID.value, required=True)
         return track_id
 
     def set_track_id(self, node: Node, value: int):

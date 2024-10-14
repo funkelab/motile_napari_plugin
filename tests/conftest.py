@@ -8,7 +8,7 @@ from skimage.draw import disk
 @pytest.fixture
 def segmentation_2d():
     frame_shape = (100, 100)
-    total_shape = (2, *frame_shape)
+    total_shape = (5, *frame_shape)
     segmentation = np.zeros(total_shape, dtype="int32")
     # make frame with one cell in center with label 1
     rr, cc = disk(center=(50, 50), radius=20, shape=(100, 100))
