@@ -1,4 +1,5 @@
 import logging
+import os
 import shutil
 import zipfile
 from pathlib import Path
@@ -10,6 +11,22 @@ from appdirs import AppDirs
 from napari.types import LayerData
 
 logger = logging.getLogger(__name__)
+
+
+def Mouse_Embryo_Membrane() -> list[LayerData]:
+    """Loads the Mouse Embryo Membrane raw data and segmentation data from
+    the appdir "user data dir". Will download it from the Zenodo DOI if it is not present already.
+    Returns:
+        list[LayerData]: An image layer of raw data and a segmentation labels
+            layer
+    """
+    ds_name = "Mouse_Embryo_Membrane"
+    appdir = AppDirs("motile-plugin")
+    data_dir = Path(appdir.user_data_dir)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    raw_name = "imaging.tif"
+    label_name = "segmentation.tif"
+    return read_zenodo_dataset(ds_name, raw_name, label_name, data_dir)
 
 
 def Fluo_N2DL_HeLa() -> list[LayerData]:
@@ -25,6 +42,34 @@ def Fluo_N2DL_HeLa() -> list[LayerData]:
     data_dir = Path(appdir.user_data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
     return read_ctc_dataset(ds_name, data_dir)
+
+
+def read_zenodo_dataset(
+    ds_name: str, raw_name: str, label_name: str, data_dir: Path
+) -> list[LayerData]:
+    """Read a zenodo dataset (assumes pre-downloaded)
+    and returns a list of layer data for making napari layers
+
+    Args:
+        ds_name (str): name to give to the dataset
+        raw_name (str): name of the file that points to the intensity data
+        label_name (str): name of the file that points to the segmentation data
+        data_dir (Path): Path to the directory containing the images
+
+    Returns:
+        list[LayerData]: An image layer of raw data and a segmentation labels
+            layer
+    """
+    ds_zarr = data_dir / (ds_name + ".zarr")
+    if not ds_zarr.exists():
+        logger.info("Downloading %s", ds_name)
+        download_zenodo_dataset(ds_name, raw_name, label_name, data_dir)
+
+    raw_data = zarr.open(store=ds_zarr, path="01_membrane", dimension_separator="/")[:]
+    raw_layer_data = (raw_data, {"name": "01_membrane"}, "image")
+    seg_data = zarr.open(ds_zarr, path="01_labels", dimension_separator="/")[:]
+    seg_layer_data = (seg_data, {"name": "01_labels"}, "labels")
+    return [raw_layer_data, seg_layer_data]
 
 
 def read_ctc_dataset(ds_name: str, data_dir: Path) -> list[LayerData]:
@@ -51,6 +96,43 @@ def read_ctc_dataset(ds_name: str, data_dir: Path) -> list[LayerData]:
     return [raw_layer_data, seg_layer_data]
 
 
+def download_zenodo_dataset(
+    ds_name: str, raw_name: str, label_name: str, data_dir: Path
+) -> None:
+    """Download a sample dataset from zenodo doi and unzip it, then delete the zip. Then convert the tiffs to
+    zarrs for the first training set consisting of 3D membrane intensity images and segmentation.
+
+    Args:
+        ds_name (str): Name to give to the dataset
+        raw_name (str): Name of the file that contains the intensity data
+        label_name (str): Name of the file that contains the label data
+        data_dir (Path): The directory in which to store the data.
+    """
+    ds_file_raw = data_dir / raw_name
+    ds_file_labels = data_dir / label_name
+    ds_zarr = data_dir / (ds_name + ".zarr")
+    url_raw = "https://zenodo.org/records/13903500/files/imaging.zip"
+    url_labels = "https://zenodo.org/records/13903500/files/segmentation.zip"
+    zip_filename_raw = data_dir / "imaging.zip"
+    zip_filename_labels = data_dir / "segmentation.zip"
+
+    if not zip_filename_raw.is_file():
+        urlretrieve(url_raw, filename=zip_filename_raw)
+    if not zip_filename_labels.is_file():
+        urlretrieve(url_labels, filename=zip_filename_labels)
+
+    with zipfile.ZipFile(zip_filename_raw, "r") as zip_ref:
+        zip_ref.extractall(data_dir)
+    with zipfile.ZipFile(zip_filename_labels, "r") as zip_ref:
+        zip_ref.extractall(data_dir)
+
+    zip_filename_raw.unlink()
+    zip_filename_labels.unlink()
+
+    convert_4d_arr_to_zarr(ds_file_raw, ds_zarr, "01_membrane")
+    convert_4d_arr_to_zarr(ds_file_labels, ds_zarr, "01_labels")
+
+
 def download_ctc_dataset(ds_name: str, data_dir: Path) -> None:
     """Download a dataset from the Cell Tracking Challenge
     and unzip it, then delete the zip. Then convert the tiffs to
@@ -73,6 +155,34 @@ def download_ctc_dataset(ds_name: str, data_dir: Path) -> None:
     convert_to_zarr(ds_dir / "01", ds_zarr, "01")
     convert_to_zarr(ds_dir / "01_ST" / "SEG", ds_zarr, "01_ST")
     shutil.rmtree(ds_dir)
+
+
+def convert_4d_arr_to_zarr(tiff_file: str, zarr_path: str, zarr_group: str):
+    """Convert 4D tiff file image data to zarr. Also deletes the tiffs!
+    Args:
+        tiff_file (str): string representing path to tif file to be converted
+        zarr_path (str): path to the zarr file to write the output to
+        zarr_group (str): group within the zarr store to write the data to
+    """
+    img = tifffile.imread(tiff_file)
+    data_shape = img.shape
+    data_dtype = img.dtype
+
+    # prepare zarr
+    if not os.path.exists(zarr_path):
+        os.mkdir(zarr_path)
+    store = zarr.NestedDirectoryStore(zarr_path)
+    zarr_array = zarr.open(
+        store=store,
+        mode="w",
+        path=zarr_group,
+        shape=data_shape,
+        dtype=data_dtype,
+    )
+    # save the time points to the zarr file
+    for t in range(img.shape[0]):
+        zarr_array[t] = img[t]
+    os.remove(tiff_file)
 
 
 def convert_to_zarr(tiff_path: Path, zarr_path: Path, zarr_group: str):

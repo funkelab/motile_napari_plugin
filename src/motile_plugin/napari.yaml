@@ -32,6 +32,9 @@ contributions:
     - id: motile-plugin.Fluo_N2DL_HeLa
       python_name: motile_plugin.example_data:Fluo_N2DL_HeLa
       title: "Load Fluo-N2DL-HeLa tracking dataset"
+    - id: motile-plugin.Mouse_Embryo_Membrane
+      python_name: motile_plugin.example_data:Mouse_Embryo_Membrane
+      title: "Load Mouse Embryo_Membrane tracking dataset"
   widgets:
     - command: motile-plugin.multi_widget
       display_name: Combined Motile Widgets
@@ -46,4 +49,7 @@ contributions:
   sample_data:
     - command: motile-plugin.Fluo_N2DL_HeLa
       key: "Fluo-N2DL-HeLa"
-      display_name: "Fluo-N2DL-HeLa"
+      display_name: "Fluo-N2DL-HeLa (2D)"
+    - command: motile-plugin.Mouse_Embryo_Membrane
+      key: "Mouse_Embryo_Membrane"
+      display_name: "Mouse Embryo Membranes (3D)"
