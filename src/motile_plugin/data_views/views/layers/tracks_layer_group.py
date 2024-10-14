@@ -44,6 +44,8 @@ class TracksLayerGroup:
                 scale=self.tracks.scale,
                 tracks_viewer=self.tracks_viewer,
             )
+        else:
+            self.seg_layer = None
 
         if (
             self.tracks is not None
@@ -59,6 +61,9 @@ class TracksLayerGroup:
                 name=self.name + "_points",
                 tracks_viewer=self.tracks_viewer,
             )
+        else:
+            self.tracks_layer = None
+            self.points_layer = None
         self.add_napari_layers()
 
     def remove_napari_layer(self, layer: napari.layers.Layer | None) -> None:
