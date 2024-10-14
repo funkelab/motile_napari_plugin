@@ -16,7 +16,7 @@ Napari viewer and layer key bindings and mouse functions
      - Sdd this node to selection
    * - Mouse drag with point layer selection tool active
      - Select multiple nodes at once
-   * - T
+   * - Q
      - | Toggle between viewing all nodes in the
        | points/labels or only those for the currently
        | selected lineages
@@ -35,20 +35,20 @@ Tree view key and mouse functions
      - Add this node to selection
    * - Scroll
      - Zoom in or out
-   * - Scroll + X
+   * - Scroll + X / Right mouse click + drag horizontally
      - Restrict zoom to the x-axis of the tree view
-   * - Scroll + Y
+   * - Scroll + Y / Right mouse click + drag vertically
      - Restrict zoom to the y-axis of the tree view
    * - Mouse drag
      - Pan
    * - SHIFT + Mouse drag
-     - Rectangular zoom
+     - Rectangular selection of nodes
    * - Right mouse click
      - Reset view
-   * - L
+   * - Q
      - | Switch between viewing all lineages (vertically)\
        | or the currently selected lineages (horizontally)
-   * - A
+   * - W
      - | Switch between plotting the lineage tree and the
        | object size
    * - Left arrow
@@ -64,12 +64,38 @@ Tree view key and mouse functions
        | lineages) or the previous adjacent lineage
        | (horizontal view of selected lineage)
 
+Key bindings for editing the tracks
+***********************************
+.. list-table::
+   :widths: 25 25
+   :header-rows: 1
+
+   * - Mouse / Key binding
+     - Action
+   * - D
+     - Delete selected nodes
+   * - S
+     - Mark selected nodes as split/forks (not yet implemented)
+   * - E
+     - Mark selected nodes as endpoint (not yet implemented)
+   * - C
+     - Mark selected nodes linear nodes (not yet implemented)
+   * - B
+     - Break edge between two selected nodes, if existing
+   * - A
+     - Create edge between two selected nodes, if valid
+   * - Z
+     - Undo last editing action
+   * - R
+     - Redo last editing action
+
+
 Key bindings tutorial video
 ***************************
 This `video`_ shows how to use the different key bindings in the napari layers and the tree view.
 
 .. raw:: html
 
-  <iframe src="https://drive.google.com/file/d/1oYgH6PjimofYr4o7HbSTRPMr6mtVE1S5/preview" width="640" height="480" allow="autoplay"></iframe>
+  <iframe src="https://drive.google.com/file/d/1mSK3CFHfIVD4ioHHsNMVQaxiLbPYMhwU/preview" width="640" height="480" allow="autoplay"></iframe>
 
-.. _video: https://drive.google.com/file/d/1oYgH6PjimofYr4o7HbSTRPMr6mtVE1S5/preview
+.. _video: https://drive.google.com/file/d/1mSK3CFHfIVD4ioHHsNMVQaxiLbPYMhwU/preview
