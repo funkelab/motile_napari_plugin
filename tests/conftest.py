@@ -22,6 +22,14 @@ def segmentation_2d():
     rr, cc = disk(center=(60, 45), radius=15, shape=frame_shape)
     segmentation[1][rr, cc] = 3
 
+    # continue track 3 with squares from 0 to 4 in x and y with label 3
+    segmentation[2, 0:4, 0:4] = 3
+    segmentation[4, 0:4, 0:4] = 3
+
+    # unconnected node
+    segmentation[4, 96:100, 96:100] = 5
+    print(np.sum(segmentation == 5))
+
     return np.expand_dims(segmentation, 1)
 
 
@@ -98,6 +106,37 @@ def graph_2d():
                 NodeAttr.TRACK_ID.value: 3,
             },
         ),
+        (
+            2,
+            {
+                NodeAttr.POS.value: [1.5, 1.5],
+                NodeAttr.TIME.value: 2,
+                NodeAttr.SEG_ID.value: 3,
+                NodeAttr.AREA.value: 16,
+                NodeAttr.TRACK_ID.value: 3,
+            },
+        ),
+        (
+            4,
+            {
+                NodeAttr.POS.value: [1.5, 1.5],
+                NodeAttr.TIME.value: 4,
+                NodeAttr.SEG_ID.value: 3,
+                NodeAttr.AREA.value: 16,
+                NodeAttr.TRACK_ID.value: 3,
+            },
+        ),
+        # unconnected node
+        (
+            5,
+            {
+                NodeAttr.POS.value: [97.5, 97.5],
+                NodeAttr.TIME.value: 4,
+                NodeAttr.SEG_ID.value: 5,
+                NodeAttr.AREA.value: 16,
+                NodeAttr.TRACK_ID.value: 5,
+            },
+        ),
     ]
     edges = [
         (
@@ -110,9 +149,20 @@ def graph_2d():
             "1_3",
             {EdgeAttr.IOU.value: 0.395},
         ),
+        (
+            "1_3",
+            2,
+            {EdgeAttr.IOU.value: 0.0},
+        ),
+        (
+            2,
+            4,
+            {EdgeAttr.IOU.value: 1.0},
+        ),
     ]
     graph.add_nodes_from(nodes)
     graph.add_edges_from(edges)
+
     return graph
 
 

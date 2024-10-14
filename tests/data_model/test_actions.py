@@ -16,7 +16,6 @@ def test_add_delete_nodes(segmentation_2d, graph_2d):
     empty_seg = np.zeros_like(segmentation_2d)
     tracks = Tracks(empty_graph, segmentation=empty_seg)
     nodes = list(graph_2d.nodes())
-
     attrs = {}
     attrs[NodeAttr.TIME.value] = [
         graph_2d.nodes[node][NodeAttr.TIME.value] for node in nodes
@@ -31,8 +30,14 @@ def test_add_delete_nodes(segmentation_2d, graph_2d):
         graph_2d.nodes[node][NodeAttr.SEG_ID.value] for node in nodes
     ]
     pixels = [
-        np.nonzero(segmentation_2d == track_id)
-        for track_id in attrs[NodeAttr.TRACK_ID.value]
+        np.nonzero(segmentation_2d[time] == track_id)
+        for time, track_id in zip(
+            attrs[NodeAttr.TIME.value], attrs[NodeAttr.TRACK_ID.value], strict=False
+        )
+    ]
+    pixels = [
+        (np.ones_like(pix[0]) * time, *pix)
+        for time, pix in zip(attrs[NodeAttr.TIME.value], pixels, strict=False)
     ]
     add_nodes = AddNodes(tracks, nodes, attributes=attrs, pixels=pixels)
     add_nodes.apply()
@@ -108,7 +113,7 @@ def test_add_delete_edges(graph_2d, segmentation_2d):
     node_graph = nx.create_empty_copy(graph_2d, with_data=True)
     tracks = Tracks(node_graph, segmentation_2d)
 
-    edges = [["0_1", "1_2"], ["0_1", "1_3"]]
+    edges = [["0_1", "1_2"], ["0_1", "1_3"], ["1_3", 2], [2, 4]]
 
     action = AddEdges(tracks, edges)
     action.apply()

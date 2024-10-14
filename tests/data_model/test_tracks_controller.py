@@ -5,9 +5,6 @@ from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 
 
 def test__add_nodes_no_seg(graph_2d):
-    graph_2d.add_node(4, pos=[0, 2], time=4, track_id=3)
-    graph_2d.add_edge("1_3", 4)
-
     # add without segmentation
     tracks = SolutionTracks(graph_2d, ndim=3)
     controller = TracksController(tracks)
@@ -18,7 +15,7 @@ def test__add_nodes_no_seg(graph_2d):
     attrs = {
         NodeAttr.TIME.value: [0],
         NodeAttr.POS.value: np.array([[1, 3]]),
-        NodeAttr.TRACK_ID.value: [5],
+        NodeAttr.TRACK_ID.value: [6],
     }
 
     action, node_ids = controller._add_nodes(attrs)
@@ -26,7 +23,7 @@ def test__add_nodes_no_seg(graph_2d):
 
     node = node_ids[0]
     assert tracks.get_position(node) == [1, 3]
-    assert tracks.get_track_id(node) == 5
+    assert tracks.get_track_id(node) == 6
     assert tracks.get_seg_id(node) is None
 
     assert tracks.graph.number_of_edges() == num_edges  # no edges added
@@ -50,7 +47,7 @@ def test__add_nodes_no_seg(graph_2d):
 
     # add node to middle of existing track
     attrs = {
-        NodeAttr.TIME.value: [2],
+        NodeAttr.TIME.value: [3],
         NodeAttr.POS.value: np.array([[1, 3]]),
         NodeAttr.TRACK_ID.value: [3],
     }
@@ -63,16 +60,12 @@ def test__add_nodes_no_seg(graph_2d):
     assert tracks.get_track_id(node) == 3
     assert tracks.get_seg_id(node) is None
 
-    assert tracks.graph.has_edge("1_3", node)
+    assert tracks.graph.has_edge(2, node)
     assert tracks.graph.has_edge(node, 4)
-    assert not tracks.graph.has_edge("1_3", 4)
+    assert not tracks.graph.has_edge(2, 4)
 
 
 def test__add_nodes_with_seg(graph_2d, segmentation_2d):
-    graph_2d.add_node(4, pos=[0, 2], time=4, track_id=3)
-    graph_2d.add_edge("1_3", 4)
-
-    segmentation_2d[4, 0, 0, 0:4] = 3
     # add with segmentation
     tracks = SolutionTracks(graph_2d, segmentation=segmentation_2d)
     controller = TracksController(tracks)
@@ -81,9 +74,9 @@ def test__add_nodes_with_seg(graph_2d, segmentation_2d):
 
     new_seg = segmentation_2d.copy()
     time = 0
-    seg_id = 5
-    new_seg[time, 0, 0:10, 0:4] = seg_id
-    expected_center = [4.5, 1.5]
+    seg_id = 6
+    new_seg[time, 0, 90:100, 0:4] = seg_id
+    expected_center = [94.5, 1.5]
     # start a new track
     attrs = {
         NodeAttr.TIME.value: [time],
@@ -101,8 +94,8 @@ def test__add_nodes_with_seg(graph_2d, segmentation_2d):
     node = node_ids[0]
     assert tracks.get_time(node) == 0
     assert tracks.get_position(node) == expected_center
-    assert tracks.get_track_id(node) == 5
-    assert tracks.get_seg_id(node) == 5
+    assert tracks.get_track_id(node) == 6
+    assert tracks.get_seg_id(node) == 6
     assert np.sum(tracks.segmentation != new_seg) == 0
 
     assert tracks.graph.number_of_edges() == num_edges  # no edges added
@@ -135,11 +128,10 @@ def test__add_nodes_with_seg(graph_2d, segmentation_2d):
     assert tracks.graph.has_edge("1_2", node)
 
     # add node to middle of existing track
-    time = 2
+    time = 3
     seg_id = 3
     new_seg[time, 0, 0:10, 0:4] = seg_id
     expected_center = [4.5, 1.5]
-    # start a new track
     attrs = {
         NodeAttr.TIME.value: [time],
         NodeAttr.TRACK_ID.value: [seg_id],
@@ -159,23 +151,12 @@ def test__add_nodes_with_seg(graph_2d, segmentation_2d):
     assert tracks.get_track_id(node) == 3
     assert np.sum(tracks.segmentation != new_seg) == 0
 
-    assert tracks.graph.has_edge("1_3", node)
+    assert tracks.graph.has_edge(2, node)
     assert tracks.graph.has_edge(node, 4)
-    assert not tracks.graph.has_edge("1_3", 4)
+    assert not tracks.graph.has_edge(2, 4)
 
 
 def test__delete_nodes_no_seg(graph_2d):
-    # extend track 3
-    graph_2d.add_node(2, pos=[0, 2], time=2, track_id=3)
-    graph_2d.add_node(3, pos=[0, 2], time=3, track_id=3)
-    graph_2d.add_node(4, pos=[0, 2], time=4, track_id=3)
-
-    # unconnected node
-    graph_2d.add_node(5, pos=[0, 2], time=4, track_id=5)
-    graph_2d.add_edge("1_3", 2)
-    graph_2d.add_edge(2, 3)
-    graph_2d.add_edge(3, 4)
-
     tracks = SolutionTracks(graph_2d, ndim=3)
     controller = TracksController(tracks)
     num_edges = tracks.graph.number_of_edges()
@@ -202,9 +183,9 @@ def test__delete_nodes_no_seg(graph_2d):
     action.apply()
     assert not tracks.graph.has_node(node)
     assert not tracks.graph.has_edge("1_3", node)
-    assert not tracks.graph.has_edge(node, 3)
-    assert tracks.graph.has_edge("1_3", 3)
-    assert tracks.get_track_id(3) == 3
+    assert not tracks.graph.has_edge(node, 4)
+    assert tracks.graph.has_edge("1_3", 4)
+    assert tracks.get_track_id(4) == 3
     action.inverse().apply()
 
     # delete div parent
@@ -226,19 +207,6 @@ def test__delete_nodes_no_seg(graph_2d):
 
 
 def test__delete_nodes_with_seg(graph_2d, segmentation_2d):
-    # extend track 3
-    graph_2d.add_node(2, pos=[2, 2], time=2, seg_id=3, track_id=3)
-    graph_2d.add_node(3, pos=[2, 2], time=3, seg_id=3, track_id=3)
-    graph_2d.add_node(4, pos=[2, 2], time=4, seg_id=3, track_id=3)
-    graph_2d.add_edge("1_3", 2)
-    graph_2d.add_edge(2, 3)
-    graph_2d.add_edge(3, 4)
-    segmentation_2d[2:5, :, 0:4, 0:4] = 3
-
-    # add unconnected node
-    graph_2d.add_node(5, pos=[2, 2], time=4, seg_id=5, track_id=5)
-    segmentation_2d[4, :, 0:4, 0:4] = 5
-
     tracks = SolutionTracks(graph_2d, segmentation=segmentation_2d)
     controller = TracksController(tracks)
     num_edges = tracks.graph.number_of_edges()
@@ -274,9 +242,9 @@ def test__delete_nodes_with_seg(graph_2d, segmentation_2d):
     assert not tracks.graph.has_node(node)
     assert track_id not in np.unique(tracks.segmentation[time])
     assert not tracks.graph.has_edge("1_3", node)
-    assert not tracks.graph.has_edge(node, 3)
-    assert tracks.graph.has_edge("1_3", 3)
-    assert tracks.get_track_id(3) == 3
+    assert not tracks.graph.has_edge(node, 4)
+    assert tracks.graph.has_edge("1_3", 4)
+    assert tracks.get_track_id(4) == 3
     action.inverse().apply()
 
     # delete div parent

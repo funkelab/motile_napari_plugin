@@ -18,11 +18,14 @@ from many low-level actions.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 
 from .tracks import Edge, Node, SegMask, Tracks
+
+if TYPE_CHECKING:
+    from .solution_tracks import SolutionTracks
 
 
 class TracksAction:
@@ -248,7 +251,7 @@ class DeleteEdges(TracksAction):
 
 
 class UpdateTrackID(TracksAction):
-    def __init__(self, tracks: Tracks, start_node: Node, track_id: int):
+    def __init__(self, tracks: SolutionTracks, start_node: Node, track_id: int):
         """Args:
         tracks (Tracks): The tracks to update
         start_node (Any): The node ID of the first node in the track. All successors

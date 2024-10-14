@@ -220,7 +220,6 @@ class Tracks:
         self.graph.add_nodes_from(nodes)
         self.set_times(nodes, times)
         final_pos: np.ndarray
-        print(f"{seg_ids=}")
         if seg_ids is not None and self.segmentation is not None:
             self.set_seg_ids(nodes, seg_ids)
             computed_attrs = self._compute_node_attrs(seg_ids, times)
@@ -373,7 +372,7 @@ class Tracks:
         for node in nodes:
             seg_id = self.get_seg_id(node)
             if seg_id is None:
-                pix_list.append(([],) * self.ndim)
+                pix_list.append((np.array([], dtype=np.uint64),) * self.ndim)
             else:
                 time = self.get_time(node)
                 loc_pixels = np.nonzero(self.segmentation[time][0] == seg_id)
@@ -402,7 +401,6 @@ class Tracks:
             if len(pix) == self.ndim:
                 # add dummy hypothesis dimension for now
                 pix = (pix[0], np.zeros_like(pix[0]), *pix[1:])
-            print(f"Setting segmentation pixels {pixels} to value {val}")
             self.segmentation[pix] = val
 
     def update_segmentations(
@@ -717,22 +715,27 @@ class Tracks:
             NodeAttr.AREA.value: [],
         }
         for seg_id, time in zip(seg_ids, times, strict=False):
-            print(f"{seg_id=}, {time=}")
             if seg_id is None:
                 area = None
                 pos = None
             else:
                 seg = self.segmentation[time][0] == seg_id
-                print(np.where(self.segmentation[time][0] == seg_id))
                 area = np.sum(seg)
-                print(area)
                 if self.scale is not None:
                     area *= np.prod(self.scale)
                 # only include the position if the segmentation was actually there
-                pos = measure.centroid(seg, spacing=self.scale) if area > 0 else None
+                pos = (
+                    measure.centroid(seg, spacing=self.scale)
+                    if area > 0
+                    else np.array(
+                        [
+                            None,
+                        ]
+                        * (self.ndim - 1)
+                    )
+                )
             attrs[NodeAttr.AREA.value].append(area)
             attrs[NodeAttr.POS.value].append(pos)
-
         attrs[NodeAttr.POS.value] = np.array(attrs[NodeAttr.POS.value])
         return attrs
 

@@ -249,7 +249,8 @@ class TracksController:
         self, edges: np.ndarray[int], attributes: dict[str, np.ndarray]
     ) -> TracksAction:
         """Add edges and attributes to the graph. Also update the track ids and
-        corresponding segmentations if applicable
+        corresponding segmentations of the target node tracks and potentially sibling
+        tracks.
 
         Args:
             edges (np.array[int]): An Nx2 array of N edges, each with source and target
@@ -482,9 +483,6 @@ class TracksController:
     def undo(self) -> None:
         """Obtain the action to undo from the history, and invert and apply it"""
         action_to_undo = self.action_history.previous()
-        if isinstance(action_to_undo, ActionGroup):
-            for action in action_to_undo.actions:
-                print(action)
         if action_to_undo is not None:
             inverse_action = action_to_undo.inverse()
             inverse_action.apply()

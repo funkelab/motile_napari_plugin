@@ -118,18 +118,19 @@ def test_add_remove_edges(graph_2d, segmentation_2d):
 
     # create track with graph and seg
     tracks = Tracks(graph=graph_2d, segmentation=segmentation_2d)
+    num_edges = tracks.graph.number_of_edges()
 
     edge = ("0_1", "1_3")
     iou = tracks.get_iou(edge)
     tracks.remove_edge(edge)
-    assert tracks.graph.number_of_edges() == 1
+    assert tracks.graph.number_of_edges() == num_edges - 1
     tracks.add_edge(edge)
-    assert tracks.graph.number_of_edges() == 2
+    assert tracks.graph.number_of_edges() == num_edges
     assert pytest.approx(tracks.get_iou(edge), abs=0.01) == iou
 
     edges = [("0_1", "1_3"), ("0_1", "1_2")]
     tracks.remove_edges(edges)
-    assert tracks.graph.number_of_edges() == 0
+    assert tracks.graph.number_of_edges() == num_edges - 2
 
     with pytest.raises(KeyError):
         tracks.remove_edge((1, 2))
