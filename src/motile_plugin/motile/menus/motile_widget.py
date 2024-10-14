@@ -4,7 +4,7 @@ import logging
 
 import networkx as nx
 import numpy as np
-from motile_plugin.data_model import Tracks
+from motile_plugin.data_model import SolutionTracks
 from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 from motile_plugin.motile.backend import MotileRun, solve
 from motile_toolbox.candidate_graph import NodeAttr
@@ -34,7 +34,7 @@ class MotileWidget(QScrollArea):
     # A signal for passing events from the motile solver to the run view widget
     # To provide updates on progress of the solver
     solver_update = Signal()
-    new_run = Signal(Tracks, str)
+    new_run = Signal(SolutionTracks, str)
     remove_layers = Signal()
 
     def __init__(self, viewer: Viewer):
@@ -64,7 +64,7 @@ class MotileWidget(QScrollArea):
         self.setWidget(main_widget)
         self.setWidgetResizable(True)
 
-    def view_run(self, tracks: Tracks) -> None:
+    def view_run(self, tracks: SolutionTracks) -> None:
         """Populates the run viewer with the output
         of the provided run.
 
@@ -172,6 +172,7 @@ class MotileWidget(QScrollArea):
             lambda event_data: self._on_solver_event(run, event_data),
             scale=run.scale,
         )
+        run._initialize_track_ids()
         if run.input_segmentation is not None:
             run.segmentation = self.relabel_segmentation(
                 run.graph, run.input_segmentation

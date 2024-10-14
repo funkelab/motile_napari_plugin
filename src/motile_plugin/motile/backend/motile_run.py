@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
-from motile_plugin.data_model import Tracks
+from motile_plugin.data_model import SolutionTracks
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 
 from .solver_params import SolverParams
@@ -21,7 +21,7 @@ IN_POINTS_FILENAME = "input_points.npy"
 GAPS_FILENAME = "gaps.txt"
 
 
-class MotileRun(Tracks):
+class MotileRun(SolutionTracks):
     """An object representing a motile tracking run. Contains a name,
     parameters, time of creation, information about the solving process
     (status and list of solver gaps), and optionally the input and output
@@ -138,7 +138,7 @@ class MotileRun(Tracks):
         input_segmentation = cls._load_array(run_dir, IN_SEG_FILENAME, required=False)
         input_points = cls._load_array(run_dir, IN_POINTS_FILENAME, required=False)
         output_seg_required = output_required and input_segmentation is not None
-        tracks = Tracks.load(run_dir, seg_required=output_seg_required)
+        tracks = SolutionTracks.load(run_dir, seg_required=output_seg_required)
         gaps = cls._load_list(run_dir=run_dir, filename=GAPS_FILENAME, required=False)
         return cls(
             graph=tracks.graph,
