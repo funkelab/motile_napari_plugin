@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 import napari
 import numpy as np
-from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 from napari.utils import DirectLabelColormap
 
 if TYPE_CHECKING:
@@ -29,17 +28,7 @@ class TrackLabels(napari.layers.Labels):
         tracks_viewer: TracksViewer,
     ):
         self.tracks_viewer = tracks_viewer
-
-        self.node_properties = {"node_id": [], "track_id": [], "t": [], "color": []}
-
-        for node, node_data in self.tracks_viewer.tracks.graph.nodes(data=True):
-            track_id = node_data[NodeAttr.TRACK_ID.value]
-            self.node_properties["node_id"].append(node)
-            self.node_properties["track_id"].append(track_id)
-            self.node_properties["t"].append(node_data[NodeAttr.TIME.value])
-            self.node_properties["color"].append(
-                self.tracks_viewer.colormap.map(track_id)
-            )
+        self.node_properties = self._get_node_properties()
 
         colormap = DirectLabelColormap(
             color_dict={
@@ -114,6 +103,14 @@ class TrackLabels(napari.layers.Labels):
         # Listen to paint events and changing the selected label
         self.events.paint.connect(self._on_paint)
         self.events.selected_label.connect(self._check_selected_label)
+
+    def _get_node_properties(self):
+        tracks = self.tracks_viewer.tracks
+        nodes = list(tracks.graph.nodes())
+        track_ids = tracks.get_seg_ids(nodes)
+        times = tracks.get_times(nodes)
+        colors = [self.tracks_viewer.colormap.map(tid) for tid in track_ids]
+        return {"node_id": nodes, "track_id": track_ids, "t": times, "color": colors}
 
     def redo(self):
         """Overwrite the redo functionality of the labels layer and invoke redo action on the tracks_viewer.tracks_controller first"""
@@ -209,16 +206,7 @@ class TrackLabels(napari.layers.Labels):
         """Refresh the data in the labels layer"""
 
         self.data = self.tracks_viewer.tracks.segmentation[:, 0]
-        self.node_properties = {"node_id": [], "track_id": [], "t": [], "color": []}
-
-        for node, data in self.tracks_viewer.tracks.graph.nodes(data=True):
-            track_id = data[NodeAttr.TRACK_ID.value]
-            self.node_properties["node_id"].append(node)
-            self.node_properties["track_id"].append(track_id)
-            self.node_properties["t"].append(data[NodeAttr.TIME.value])
-            self.node_properties["color"].append(
-                self.tracks_viewer.colormap.map(track_id)
-            )
+        self.node_properties = self._get_node_properties()
 
         self.colormap = DirectLabelColormap(
             color_dict={
@@ -240,7 +228,7 @@ class TrackLabels(napari.layers.Labels):
         and optionally hide cells not belonging to the current lineage"""
 
         highlighted = [
-            self.tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
+            self.tracks_viewer.tracks.get_track_id(node)
             for node in self.tracks_viewer.selected_nodes
             if self.tracks_viewer.tracks.get_time(node)
             == self.viewer.dims.current_step[0]

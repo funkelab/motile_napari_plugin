@@ -6,11 +6,11 @@ from motile_plugin.data_model.tracks import Tracks
 
 def test_action_history():
     history = ActionHistory()
-    tracks = Tracks(nx.DiGraph())
+    tracks = Tracks(nx.DiGraph(), ndim=3)
     action1 = AddNodes(
-        tracks, nodes=[0, 1], attributes={"t": [0, 1], "pos": [[0, 1], [1, 2]]}
+        tracks, nodes=[0, 1], attributes={"time": [0, 1], "pos": [[0, 1], [1, 2]]}
     )
-    action2 = AddEdges(tracks, [[0, 1]], {})
+    action2 = AddEdges(tracks, [[0, 1]])
     action3 = DeleteEdges(tracks, [[0, 1]])
 
     history.append(action1)

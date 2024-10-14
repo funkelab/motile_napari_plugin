@@ -54,10 +54,10 @@ def extract_sorted_tracks(
             node_set,
             key=lambda node: tracks.get_time(node),
         )
+        positions = tracks.get_positions(sorted_nodes).tolist()
 
         parent_track_id = None
-        for node in sorted_nodes:
-            pos = tracks.get_location(node)
+        for node, pos in zip(sorted_nodes, positions, strict=False):
             if node in parent_nodes:
                 state = NodeType.SPLIT
                 symbol = "t1"

@@ -1,6 +1,6 @@
 import napari
 import pandas as pd
-from motile_plugin.data_model import Tracks
+from motile_plugin.data_model import SolutionTracks
 from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
     extract_sorted_tracks,
 )
@@ -8,7 +8,7 @@ from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
 
 
 def test_track_df(graph_2d):
-    tracks = Tracks(graph=graph_2d)
+    tracks = SolutionTracks(graph=graph_2d, ndim=3)
 
     assert tracks.get_area("0_1") == 1245
     assert tracks.get_area("1_2") is None

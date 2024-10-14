@@ -85,6 +85,7 @@ def graph_2d():
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_ID.value: 2,
                 NodeAttr.TRACK_ID.value: 2,
+                # NodeAttr.AREA.value: 305,
             },
         ),
         (

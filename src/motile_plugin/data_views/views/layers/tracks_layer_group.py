@@ -103,7 +103,7 @@ class TracksLayerGroup:
         location, if the node is not already in the field of view"""
 
         if self.seg_layer is None or self.seg_layer.mode == "pan_zoom":
-            location = self.tracks.get_location(node, incl_time=True)
+            location = self.tracks.get_positions([node], incl_time=True)[0].tolist()
             assert (
                 len(location) == self.viewer.dims.ndim
             ), f"Location {location} does not match viewer number of dims {self.viewer.dims.ndim}"

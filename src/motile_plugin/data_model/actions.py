@@ -22,7 +22,7 @@ from typing import Any
 
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 
-from .tracks import Attributes, Edge, Node, SegMask, Tracks
+from .tracks import Edge, Node, SegMask, Tracks
 
 
 class TracksAction:
@@ -105,13 +105,23 @@ class AddNodes(TracksAction):
         Args:
             tracks (Tracks): The Tracks to add the n
             nodes (Node): _description_
-            attributes (dict[str, list[Any]]): _description_
+            attributes (dict[str, list[Any]]): Includes times, positions, and seg_ids
             pixels (list | None, optional): _description_. Defaults to None.
         """
         super().__init__(tracks)
         self.nodes = nodes
-        self.attributes = attributes
+        user_attrs = attributes.copy()
+        self.times = attributes.get(tracks.time_attr, None)
+        if tracks.time_attr in attributes:
+            del user_attrs[tracks.time_attr]
+        self.positions = attributes.get(tracks.pos_attr, None)
+        if tracks.pos_attr in attributes:
+            del user_attrs[tracks.pos_attr]
+        self.seg_ids = attributes.get(NodeAttr.SEG_ID.value, None)
+        if NodeAttr.SEG_ID.value in attributes:
+            del user_attrs[NodeAttr.SEG_ID.value]
         self.pixels = pixels
+        self.attributes = user_attrs
 
     def inverse(self):
         """Invert the action to delete nodes instead"""
@@ -119,17 +129,11 @@ class AddNodes(TracksAction):
 
     def apply(self):
         """Apply the action, and set segmentation if provided in self.pixels"""
-        for idx, node in enumerate(self.nodes):
-            attrs = {attr: val[idx] for attr, val in self.attributes.items()}
-            seg_id = attrs.get(NodeAttr.SEG_ID.value, None)
-            if self.pixels is not None and self.pixels[idx] is not None:
-                assert (
-                    seg_id is not None
-                ), f"Could not get seg_id to set pixels to for new node {node}"
-                self.tracks.set_pixels(self.pixels[idx], seg_id)
-            time = attrs[self.tracks.time_attr]
-            pos = attrs[self.tracks.pos_attr]
-            self.tracks.add_node(node, time, position=pos, seg_id=seg_id, attrs=attrs)
+        if self.pixels is not None:
+            self.tracks.set_pixels(self.pixels, self.seg_ids)
+        self.tracks.add_nodes(
+            self.nodes, self.times, self.positions, self.seg_ids, attrs=self.attributes
+        )
 
 
 class DeleteNodes(TracksAction):
@@ -138,12 +142,20 @@ class DeleteNodes(TracksAction):
     operation for setting involved pixels to zero
     """
 
-    def __init__(self, tracks: Tracks, nodes: list[Node], pixels: list[SegMask] | None):
+    def __init__(
+        self, tracks: Tracks, nodes: list[Node], pixels: list[SegMask] | None = None
+    ):
         super().__init__(tracks)
         self.nodes = nodes
-        self.attributes = self.tracks.get_node_attributes(nodes)
+        self.attributes = {
+            self.tracks.time_attr: self.tracks.get_times(nodes),
+            self.tracks.pos_attr: self.tracks.get_positions(nodes),
+            NodeAttr.SEG_ID.value: self.tracks.get_seg_ids(nodes),
+            NodeAttr.TRACK_ID.value: self.tracks._get_nodes_attr(
+                nodes, NodeAttr.TRACK_ID.value
+            ),
+        }
         self.pixels = self.tracks.get_pixels(nodes) if pixels is None else pixels
-        self.tracks = tracks
 
     def inverse(self):
         """Invert this action, and provide inverse segmentation operation if given"""
@@ -158,56 +170,52 @@ class DeleteNodes(TracksAction):
             set pixels to 0 if self.pixels is provided
         - Remove nodes from graph
         """
-        for idx, node in enumerate(self.nodes):
-            if self.pixels is not None:
-                self.tracks.set_pixels(self.pixels[idx], 0)
-            self.tracks.remove_node(node)
+        if self.pixels is not None:
+            self.tracks.set_pixels(
+                self.pixels,
+                [
+                    0,
+                ]
+                * len(self.pixels),
+            )
+        self.tracks.remove_nodes(self.nodes)
 
 
-class UpdateNodes(TracksAction):
-    """Action for updating the attributes of nodes, including the segmentation"""
+class UpdateNodeSegs(TracksAction):
+    """Action for updating the segmentation associated with nodes"""
 
     def __init__(
         self,
         tracks: Tracks,
         nodes: list[Node],
-        attributes: Attributes,
-        pixels: list[SegMask] | None = None,
+        pixels: list[SegMask],
         added: bool = True,
     ):
         super().__init__(tracks)
         self.nodes = nodes
-        self.old_attrs = self.tracks.get_node_attributes(nodes)
-        self.new_attrs = attributes
         self.pixels = pixels
         self.added = added
 
     def inverse(self):
         """Restore previous attributes"""
-        return UpdateNodes(
+        return UpdateNodeSegs(
             self.tracks,
             self.nodes,
-            attributes=self.old_attrs,
             pixels=self.pixels,
             added=not self.added,
         )
 
     def apply(self):
         """Set new attributes"""
-        self.tracks.set_node_attributes(self.nodes, self.new_attrs)
-        if self.pixels is not None:
-            for node, pix in zip(self.nodes, self.pixels, strict=False):
-                if pix is not None:
-                    self.tracks.update_segmentation(node, pix, self.added)
+        self.tracks.update_segmentations(self.nodes, self.pixels, self.added)
 
 
 class AddEdges(TracksAction):
     """Action for adding new edges"""
 
-    def __init__(self, tracks: Tracks, edges: list[Edge], attributes: Attributes):
+    def __init__(self, tracks: Tracks, edges: list[Edge]):
         super().__init__(tracks)
         self.edges = edges
-        self.attributes = attributes
 
     def inverse(self):
         """Delete edges"""
@@ -218,9 +226,25 @@ class AddEdges(TracksAction):
         Steps:
         - add each edge to the graph. Assumes all edges are valid (they should be checked at this point already)
         """
-        for idx, edge in enumerate(self.edges):
-            attrs = {attr: val[idx] for attr, val in self.attributes.items()}
-            self.tracks.add_edge(edge, attrs)
+        self.tracks.add_edges(self.edges)
+
+
+class DeleteEdges(TracksAction):
+    """Action for deleting edges"""
+
+    def __init__(self, tracks: Tracks, edges: list[Edge]):
+        super().__init__(tracks)
+        self.edges = edges
+
+    def inverse(self):
+        """Restore edges and their attributes"""
+        return AddEdges(self.tracks, self.edges)
+
+    def apply(self):
+        """Steps:
+        - Remove the edges from the graph
+        """
+        self.tracks.remove_edges(self.edges)
 
 
 class UpdateTrackID(TracksAction):
@@ -233,7 +257,7 @@ class UpdateTrackID(TracksAction):
         """
         super().__init__(tracks)
         self.start_node = start_node
-        self.old_track_id = self.tracks.get_seg_id(start_node)
+        self.old_track_id = self.tracks.get_track_id(start_node)
         self.new_track_id = track_id
 
     def inverse(self) -> TracksAction:
@@ -251,11 +275,9 @@ class UpdateTrackID(TracksAction):
             # update the track id
             self.tracks.set_track_id(curr_node, self.new_track_id)
             if self.tracks.segmentation is not None:
-                time = self.tracks.get_time(curr_node)
                 # update the segmentation to match the new track id
-                self.tracks.change_segmentation_label(
-                    time, old_track_id, self.new_track_id
-                )
+                pix = self.tracks.get_pixels([curr_node])[0]
+                self.tracks.set_pixels(pix, self.new_track_id)
                 # update the graph seg_id attr to match the new seg id
                 self.tracks.set_seg_id(curr_node, self.new_track_id)
             # getting the next node (picks one if there are two)
@@ -263,42 +285,3 @@ class UpdateTrackID(TracksAction):
             if len(successors) == 0:
                 break
             curr_node = successors[0]
-
-
-class DeleteEdges(TracksAction):
-    """Action for deleting edges"""
-
-    def __init__(self, tracks: Tracks, edges: list[Edge]):
-        super().__init__(tracks)
-        self.edges = edges
-        self.attributes = tracks.get_edge_attributes(self.edges)
-
-    def inverse(self):
-        """Restore edges and their attributes"""
-        return AddEdges(self.tracks, self.edges, self.attributes)
-
-    def apply(self):
-        """Steps:
-        - Remove the edges from the graph
-        """
-        self.tracks.graph.remove_edges_from(self.edges)
-
-
-class UpdateEdges(TracksAction):
-    """Action to update the attributes of edges"""
-
-    def __init__(self, tracks: Tracks, edges: list[Edge], attributes: Attributes):
-        super().__init__(tracks)
-        self.edges = edges
-        self.old_attrs = tracks.get_edge_attributes(self.edges)
-        self.new_attrs = attributes
-
-    def inverse(self):
-        """Restore previous attributes"""
-        return UpdateEdges(self.tracks, self.edges, self.old_attrs)
-
-    def apply(self):
-        """Steps:
-        - update the attributes of all edges to the new values
-        """
-        self.tracks.set_edge_attributes(self.edges, self.new_attrs)

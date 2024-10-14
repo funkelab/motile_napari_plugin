@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import napari
-import networkx as nx
 import numpy as np
 from motile_toolbox.candidate_graph import NodeAttr
 
@@ -37,10 +36,7 @@ class TrackPoints(napari.layers.Points):
             )
         )
 
-        points = [
-            self.tracks_viewer.tracks.get_location(node, incl_time=True)
-            for node in self.nodes
-        ]
+        points = self.tracks_viewer.tracks.get_positions(self.nodes, incl_time=True)
         track_ids = [
             self.tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
             for node in self.nodes
@@ -120,10 +116,7 @@ class TrackPoints(napari.layers.Points):
             self.tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
             for node in self.nodes
         ]
-        self.data = [
-            self.tracks_viewer.tracks.get_location(node, incl_time=True)
-            for node in self.nodes
-        ]
+        self.data = self.tracks_viewer.tracks.get_positions(self.nodes, incl_time=True)
         self.symbol = self.get_symbols(
             self.tracks_viewer.tracks, self.tracks_viewer.symbolmap
         )
@@ -144,21 +137,14 @@ class TrackPoints(napari.layers.Points):
         t = int(new_point[0])
         nodes_with_time_t = [
             n
-            for n, attr in self.tracks_viewer.tracks.graph.nodes(data=True)
-            if attr.get(NodeAttr.TIME.value) == t
+            for n in self.tracks_viewer.tracks.graph.nodes()
+            if self.tracks_viewer.tracks.get_time(n) == t
         ]
         max_id = max([int(str(node).split("_")[1]) for node in nodes_with_time_t])
         node_id = str(t) + "_" + str(max_id + 1)
 
         track_id = self.tracks_viewer.tracks.get_next_track_id()
-        seg_id = (
-            max(
-                nx.get_node_attributes(
-                    self.tracks_viewer.tracks.graph, "seg_id"
-                ).values()
-            )
-            + 1
-        )
+        seg_id = track_id
         area = 0
 
         nodes = np.array([node_id])
@@ -177,6 +163,7 @@ class TrackPoints(napari.layers.Points):
         if event.action == "added":
             new_point = event.value[-1]
             nodes, attributes = self._create_node_attrs(new_point)
+            print(f"{attributes=}")
             self.tracks_viewer.tracks_controller.add_nodes(nodes, attributes)
 
         if event.action == "removed":
@@ -197,7 +184,7 @@ class TrackPoints(napari.layers.Points):
                     node_ids.append(node_id)
 
                 attributes = {NodeAttr.POS.value: np.array(positions)}
-                self.tracks_viewer.tracks_controller.update_nodes(
+                self.tracks_viewer.tracks_controller.update_node_segs(
                     np.array(node_ids), attributes
                 )
             else:

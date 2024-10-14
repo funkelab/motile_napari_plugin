@@ -4,7 +4,6 @@ import numpy as np
 from motile_toolbox.candidate_graph import NodeAttr
 from napari.utils.notifications import show_warning
 from qtpy.QtWidgets import QMessageBox
-from skimage import measure
 
 from .action_history import ActionHistory
 from .actions import (
@@ -14,10 +13,10 @@ from .actions import (
     DeleteEdges,
     DeleteNodes,
     TracksAction,
-    UpdateNodes,
+    UpdateNodeSegs,
     UpdateTrackID,
 )
-from .tracks import Attributes, Node, SegMask, Tracks
+from .tracks import Attrs, Node, SegMask, Tracks
 
 
 class TracksController:
@@ -32,7 +31,7 @@ class TracksController:
     def add_nodes(
         self,
         nodes: list[Node],
-        attributes: Attributes,
+        attributes: Attrs,
         pixels: list[SegMask] | None = None,
     ) -> None:
         """Calls the _add_nodes function to add nodes. Calls the refresh signal when finished.
@@ -41,7 +40,7 @@ class TracksController:
             nodes (np.ndarray[int]):an array of node ids
             attributes (dict[str, np.ndarray]): dictionary containing at least time and position attributes
         """
-
+        print(f"Adding nodes with attributes {attributes}")
         action = self._add_nodes(nodes, attributes, pixels)
         self.action_history.append(action)
         action.apply()
@@ -50,7 +49,7 @@ class TracksController:
     def _add_nodes(
         self,
         nodes: list[Node],
-        attributes: Attributes,
+        attributes: Attrs,
         pixels: list[SegMask] | None = None,
     ) -> TracksAction:
         """Add nodes to the graph. Includes all attributes and the segmentation.
@@ -60,9 +59,6 @@ class TracksController:
             attributes (Attributes): dictionary containing at least time and position attributes
         """
 
-        if pixels is not None:
-            seg_attrs = self._get_seg_attrs(nodes, pixels, added=True)
-            attributes.update(seg_attrs)
         actions = [
             AddNodes(
                 tracks=self.tracks,
@@ -71,25 +67,22 @@ class TracksController:
                 pixels=pixels,
             )
         ]
+        print(attributes)
         for idx, node in enumerate(nodes):
             attrs = {attr: val[idx] for attr, val in attributes.items()}
-            current_time = attrs[NodeAttr.TIME.value]
+            current_time = attrs[self.tracks.time_attr]
             track_id = attrs[NodeAttr.TRACK_ID.value]
             if track_id in self.tracks.seg_time_to_node:
                 # this track_id already exists, find the nearest predecessor and nearest successor to create new edge
-                candidates = self.tracks.seg_time_to_node[track_id].values()
+                candidates = list(self.tracks.seg_time_to_node[track_id].values())
 
                 # Sort candidates by their 'time' attribute
-                candidates.sort(
-                    key=lambda n: self.tracks.graph.nodes[n][NodeAttr.TIME.value]
-                )
+                candidates.sort(key=lambda n: self.tracks.get_time(n))
                 closest_predecessor = None
                 closest_successor = None
 
                 for candidate in candidates:
-                    candidate_time = self.tracks.graph.nodes[candidate][
-                        NodeAttr.TIME.value
-                    ]
+                    candidate_time = self.tracks.get_time(candidate)
                     if candidate_time < current_time:
                         closest_predecessor = candidate
                     elif candidate_time > current_time and closest_successor is None:
@@ -112,15 +105,11 @@ class TracksController:
                 if closest_predecessor is not None and not self.tracks.graph.has_edge(
                     closest_predecessor, node
                 ):
-                    actions.append(
-                        AddEdges(self.tracks, [(closest_predecessor, node)], {})
-                    )
+                    actions.append(AddEdges(self.tracks, [(closest_predecessor, node)]))
                 if closest_successor is not None and not self.tracks.graph.has_edge(
                     node, closest_successor
                 ):
-                    actions.append(
-                        AddEdges(self.tracks, [(node, closest_successor)], {})
-                    )
+                    actions.append(AddEdges(self.tracks, [(node, closest_successor)]))
 
         return ActionGroup(self.tracks, actions)
 
@@ -170,14 +159,14 @@ class TracksController:
                 actions.append(UpdateTrackID(self.tracks, siblings[0], new_track_id))
             elif len(succs) == 1 and len(preds) == 1:
                 # make new (skip) edge between predecessor and successor
-                actions.append(AddEdges(self.tracks, [(preds[0], succs[0])], {}))
+                actions.append(AddEdges(self.tracks, [(preds[0], succs[0])]))
             # if succs == 2, do nothing = the children already have different track ids
 
         # remove the nodes last
         actions.append(DeleteNodes(self.tracks, nodes, pixels=pixels))
         return ActionGroup(self.tracks, actions=actions)
 
-    def update_nodes(
+    def update_node_segs(
         self, nodes: np.ndarray[Any], attributes: dict[str, np.ndarray]
     ) -> None:
         """Calls the _update_node_segs function to update the node attributtes in given array.
@@ -206,8 +195,7 @@ class TracksController:
         nodes (np.ndarray[int]):an array of node ids
         attributes (dict[str, np.ndarray]): dictionary containing the attributes to be updated
         """
-        attributes = self._get_seg_attrs(nodes, pixels, added=added)
-        return UpdateNodes(self.tracks, nodes, attributes, pixels, added=added)
+        return UpdateNodeSegs(self.tracks, nodes, pixels, added=added)
 
     def add_edges(
         self, edges: np.ndarray[int], attributes: dict[str, np.ndarray]
@@ -254,7 +242,7 @@ class TracksController:
         Returns:
             True if the edges were successfully added, False if any edge was invalid.
         """
-        actions = [AddEdges(self.tracks, edges, attributes)]
+        actions = [AddEdges(self.tracks, edges)]
         for edge in edges:
             out_degree = self.tracks.graph.out_degree(edge[0])
             if out_degree == 0:  # joining two segments
@@ -406,51 +394,8 @@ class TracksController:
                 )
         return ActionGroup(self.tracks, actions)
 
-    def update_edges(self, edges: np.ndarray, attributes: Attributes):
+    def update_edges(self, edges: np.ndarray, attributes: Attrs):
         pass
-
-    def _get_seg_attrs(self, nodes, pixels, added=True):
-        """Get the node attributes that are determined by the segmentation:
-        Time, positions, seg_id, track_id, and area.
-
-        Args:
-            nodes (_type_): _description_
-            pixels (_type_): _description_
-            added (bool, optional): _description_. Defaults to True.
-
-        Returns:
-            _type_: _description_
-        """
-        new_node_attrs = {
-            self.tracks.time_attr: [],
-            NodeAttr.SEG_ID.value: [],
-            NodeAttr.TRACK_ID.value: [],
-            NodeAttr.AREA.value: [],
-            self.tracks.pos_attr: [],
-        }
-        for node, pix in zip(nodes, pixels, strict=False):
-            print("get attrs for", node, pix)
-            if node not in self.tracks.graph.nodes:
-                print("this node does not yet exist")
-            time = self.tracks.get_time(node)
-            track_id = self.tracks.get_track_id(node)
-            # can't assume that the segmentation has already been updated, need to
-            # simulate it here (or move computation into update)
-            array = (self.tracks.segmentation[time][0] == track_id).copy()
-            if added:
-                array[pix[1:]] = 1
-            else:
-                array[pix[1:]] = 0
-
-            area = np.sum(array) * np.prod(self.tracks.scale)
-            pos = measure.centroid(array, spacing=self.tracks.scale)
-
-            new_node_attrs[self.tracks.time_attr].append(time)
-            new_node_attrs[NodeAttr.POS.value].append(pos)
-            new_node_attrs[NodeAttr.AREA.value].append(area)
-            new_node_attrs[NodeAttr.TRACK_ID.value].append(track_id)
-            new_node_attrs[NodeAttr.SEG_ID.value].append(track_id)
-        return new_node_attrs
 
     def update_segmentations(
         self,
@@ -487,10 +432,17 @@ class TracksController:
         if len(to_add) > 0:
             nodes = [node for node, _ in to_add]
             pixels = [pix for _, pix in to_add]
-            actions.append(self._add_nodes(nodes, attributes={}, pixels=pixels))
+            seg_ids = [val for val, _ in to_add]
+            times = [pix[0][0] for pix in pixels]
+            attributes = {
+                NodeAttr.SEG_ID.value: seg_ids,
+                NodeAttr.TRACK_ID.value: seg_ids,
+                self.tracks.time_attr: times,
+            }
+            actions.append(self._add_nodes(nodes, attributes=attributes, pixels=pixels))
 
             # if this is the time point where the user added a node, select the new node
-            times = [pix[0][0] for pix in pixels]
+
             if current_timepoint in times:
                 index = times.index(current_timepoint)
                 node_to_select = nodes[index]
