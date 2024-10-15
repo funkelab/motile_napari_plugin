@@ -33,6 +33,7 @@ class TracksAction:
         """An modular change that can be applied to the given Tracks. The tracks must
         be passed in at construction time so that metadata needed to invert the action
         can be extracted.
+        The change should be actually applied in the init function.
 
         Args:
             tracks (Tracks): The tracks that this action will edit
@@ -50,14 +51,6 @@ class TracksAction:
                 back to the exact state it had before applying this action.
         """
         raise NotImplementedError("Inverse not implemented")
-
-    def apply(self):
-        """Apply this action to the tracks object stored in the action.
-
-        Raises:
-            NotImplementedError: if the apply function is not implemented in the subclass
-        """
-        raise NotImplementedError("Apply not implemented")
 
 
 class ActionGroup(TracksAction):
@@ -81,10 +74,6 @@ class ActionGroup(TracksAction):
     def inverse(self) -> ActionGroup:
         actions = [action.inverse() for action in self.actions[::-1]]
         return ActionGroup(self.tracks, actions)
-
-    def apply(self):
-        for action in self.actions:
-            action.apply()
 
 
 class AddNodes(TracksAction):
@@ -125,12 +114,13 @@ class AddNodes(TracksAction):
             del user_attrs[NodeAttr.SEG_ID.value]
         self.pixels = pixels
         self.attributes = user_attrs
+        self._apply()
 
     def inverse(self):
         """Invert the action to delete nodes instead"""
         return DeleteNodes(self.tracks, self.nodes)
 
-    def apply(self):
+    def _apply(self):
         """Apply the action, and set segmentation if provided in self.pixels"""
         if self.pixels is not None:
             self.tracks.set_pixels(self.pixels, self.seg_ids)
@@ -159,13 +149,14 @@ class DeleteNodes(TracksAction):
             ),
         }
         self.pixels = self.tracks.get_pixels(nodes) if pixels is None else pixels
+        self._apply()
 
     def inverse(self):
         """Invert this action, and provide inverse segmentation operation if given"""
 
         return AddNodes(self.tracks, self.nodes, self.attributes, pixels=self.pixels)
 
-    def apply(self):
+    def _apply(self):
         """ASSUMES THERE ARE NO INCIDENT EDGES - raises valueerror if an edge will be removed
         by this operation
         Steps:
@@ -198,6 +189,7 @@ class UpdateNodeSegs(TracksAction):
         self.nodes = nodes
         self.pixels = pixels
         self.added = added
+        self._apply()
 
     def inverse(self):
         """Restore previous attributes"""
@@ -208,7 +200,7 @@ class UpdateNodeSegs(TracksAction):
             added=not self.added,
         )
 
-    def apply(self):
+    def _apply(self):
         """Set new attributes"""
         self.tracks.update_segmentations(self.nodes, self.pixels, self.added)
 
@@ -219,12 +211,13 @@ class AddEdges(TracksAction):
     def __init__(self, tracks: Tracks, edges: list[Edge]):
         super().__init__(tracks)
         self.edges = edges
+        self._apply()
 
     def inverse(self):
         """Delete edges"""
         return DeleteEdges(self.tracks, self.edges)
 
-    def apply(self):
+    def _apply(self):
         """
         Steps:
         - add each edge to the graph. Assumes all edges are valid (they should be checked at this point already)
@@ -238,12 +231,13 @@ class DeleteEdges(TracksAction):
     def __init__(self, tracks: Tracks, edges: list[Edge]):
         super().__init__(tracks)
         self.edges = edges
+        self._apply()
 
     def inverse(self):
         """Restore edges and their attributes"""
         return AddEdges(self.tracks, self.edges)
 
-    def apply(self):
+    def _apply(self):
         """Steps:
         - Remove the edges from the graph
         """
@@ -262,12 +256,13 @@ class UpdateTrackID(TracksAction):
         self.start_node = start_node
         self.old_track_id = self.tracks.get_track_id(start_node)
         self.new_track_id = track_id
+        self._apply()
 
     def inverse(self) -> TracksAction:
         """Restore the previous track_id"""
         return UpdateTrackID(self.tracks, self.start_node, self.old_track_id)
 
-    def apply(self):
+    def _apply(self):
         """Assign a new track id to the track starting with start_node.
         Will also update the self.tracks.segmentation array and seg_id on the
         self.tracks.graph if a segmentation exists.
