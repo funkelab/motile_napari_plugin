@@ -114,7 +114,10 @@ class Tracks:
         return self.get_positions([node], incl_time=incl_time)[0].tolist()
 
     def set_positions(
-        self, nodes: Iterable[Node], positions: np.ndarray, incl_time: bool = False
+        self,
+        nodes: Iterable[Node],
+        positions: np.ndarray | Iterable[Edge],
+        incl_time: bool = False,
     ):
         """Set the location of a node in the graph. Optionally include the
         time frame as the first dimension. Raises an error if the node
@@ -127,6 +130,8 @@ class Tracks:
             incl_time (bool, optional): If true, include the time as the
                 first element of the location array. Defaults to False.
         """
+        if not isinstance(positions, np.ndarray):
+            positions = np.array(positions)
         if incl_time:
             self.set_times(nodes, positions[:, 0].tolist())
             positions = positions[:, 1:]

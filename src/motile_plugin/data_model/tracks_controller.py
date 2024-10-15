@@ -42,7 +42,7 @@ class TracksController:
             attributes (dict[str, np.ndarray]): dictionary containing at least time and position attributes
         """
         action, nodes = self._add_nodes(attributes, pixels)
-        self.action_history.append(action)
+        self.action_history.add_new_action(action)
         self.tracks.refresh.emit(nodes[0] if nodes else None)
 
     def _add_nodes(
@@ -136,7 +136,7 @@ class TracksController:
         """
 
         action = self._delete_nodes(nodes)
-        self.action_history.append(action)
+        self.action_history.add_new_action(action)
         self.tracks.refresh.emit()
 
     def _delete_nodes(
@@ -193,7 +193,7 @@ class TracksController:
 
         """
         action = self._update_node_segs(nodes, attributes)
-        self.action_history.append(action)
+        self.action_history.add_new_action(action)
         self.tracks.refresh.emit()
 
     def _update_node_segs(
@@ -233,7 +233,7 @@ class TracksController:
             action = ActionGroup(self.tracks, make_valid_actions)
         else:
             action = main_action
-        self.action_history.append(action)
+        self.action_history.add_new_action(action)
         self.tracks.refresh.emit()
 
     def _add_edges(self, edges: np.ndarray[int]) -> TracksAction:
@@ -375,7 +375,7 @@ class TracksController:
                 return
         print("delete these edges", edges)
         action = self._delete_edges(edges)
-        self.action_history.append(action)
+        self.action_history.add_new_action(action)
         self.tracks.refresh.emit()
 
     def _delete_edges(self, edges: np.ndarray) -> ActionGroup:
@@ -452,21 +452,22 @@ class TracksController:
                 node_to_select = nodes[index]
 
         action_group = ActionGroup(self.tracks, actions)
-        self.action_history.append(action_group)
+        self.action_history.add_new_action(action_group)
         self.tracks.refresh.emit(node_to_select)
 
     def undo(self) -> None:
         """Obtain the action to undo from the history, and invert"""
-        action_to_undo = self.action_history.previous()
-        if action_to_undo is not None:
-            action_to_undo.inverse()
+        if self.action_history.undo():
             self.tracks.refresh()
+        else:
+            show_warning("No more actions to undo")
 
     def redo(self) -> None:
         """Obtain the action to redo from the history"""
-        action_to_redo = self.action_history.next()
-        if action_to_redo is not None:
+        if self.action_history.redo():
             self.tracks.refresh()
+        else:
+            show_warning("No more actions to redo")
 
     def _get_new_node_ids(self, n: int) -> list[Node]:
         """Get a list of new node ids for creating new nodes.
