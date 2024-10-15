@@ -13,7 +13,7 @@ Napari viewer and layer key bindings and mouse functions
    * - Click on a point or label
      - Select this node (center view if necessary)
    * - SHIFT + click on point or label
-     - Sdd this node to selection
+     - Add this node to selection
    * - Mouse drag with point layer selection tool active
      - Select multiple nodes at once
    * - Q
