@@ -178,81 +178,60 @@ class TracksController:
         track_ids. Reconnect to the nearest predecessor and/or nearest successor
         on the same track, if any.
 
+        Function logic:
+        - delete all edges incident to the nodes
+        - delete the nodes
+        - add edges to preds and succs of nodes if they have the same track id
+        - update track ids if we removed a division by deleting the dge
+
         Args:
             nodes (np.ndarray): array of node_ids to be deleted
         """
         actions = []
 
-        all_preds = []
-        all_succs = []
-
-        # first find all the edges that should be deleted (no duplicates) and put them in a single action
-        edges_to_delete = []
+        # find all the edges that should be deleted (no duplicates) and put them in a single action
+        # also keep track of which deletions removed a division, and save the sibling nodes so we can
+        # update the track ids
+        edges_to_delete = set()
+        new_track_ids = []
         for node in nodes:
-            preds = list(self.tracks.graph.predecessors(node))
-            succs = list(self.tracks.graph.successors(node))
+            for pred in self.tracks.graph.predecessors(node):
+                edges_to_delete.add((pred, node))
+                # determine if we need to relabel any tracks
+                siblings = list(self.tracks.graph.successors(pred))
+                if len(siblings) == 2:
+                    # need to relabel the track id of the sibling to match the pred because
+                    # you are implicitly deleting a division
+                    siblings.remove(node)
+                    sib = siblings[0]
+                    # check if the sibling is also deleted, because then relabeling is not needed
+                    if sib not in nodes:
+                        new_track_id = self.tracks.get_track_id(pred)
+                        new_track_ids.append((sib, new_track_id))
+            for succ in self.tracks.graph.successors(node):
+                edges_to_delete.add((node, succ))
+        if len(edges_to_delete) > 0:
+            actions.append(DeleteEdges(self.tracks, list(edges_to_delete)))
 
-            for pred in preds:
-                # add to all_predecessors list if not yet there
-                if pred not in all_preds and pred not in nodes:
-                    all_preds.append(pred)
-                # check if this edge is already in the edges_to_delete list
-                if (pred, node) not in edges_to_delete:
-                    edges_to_delete.append((pred, node))
-            for succ in succs:
-                # add to all_succs list if not yet there
-                if succ not in all_succs and succ not in nodes:
-                    all_succs.append(succ)
-                # add to edges_to_delete if not yet there
-                if (node, succ) not in edges_to_delete:
-                    edges_to_delete.append((node, succ))
+        if len(new_track_ids) > 0:
+            for node, track_id in new_track_ids:
+                actions.append(UpdateTrackID(self.tracks, node, track_id))
 
-        # find all the skip edges to be made (no duplicates or intermediates to nodes that are deleted) and put them in a single action
-        skip_edges = []
-        for pred in all_preds:
-            track_id = self.tracks.get_track_id(pred)
-            # check if there are any successors left that have the same track id as the remaining predecessor
-            matching_succs = [
-                succ
-                for succ in all_succs
-                if self.tracks.get_track_id(succ) == track_id
-                and self.tracks.get_time(succ) > self.tracks.get_time(pred)
-            ]
-
-            if len(matching_succs) == 1:
-                skip_edges.append((pred, matching_succs[0]))
-            elif len(matching_succs) > 1:
-                # take successor that is closest in time
-                matching_succs.sort(key=lambda n: self.tracks.get_time(n))
-                skip_edges.append((pred, matching_succs[0]))
-
-        # find all the track ids that need to be updated
+        # find all the skip edges to be made (no duplicates or intermediates to nodes
+        # that are deleted) and put them in a single action
+        skip_edges = set()
         for node in nodes:
-            preds = list(self.tracks.graph.predecessors(node))
-            succs = list(self.tracks.graph.successors(node))
+            track_id = self.tracks.get_track_id(node)
+            time = self.tracks.get_time(node)
+            pred, succ = self._get_pred_and_succ(track_id, time)
+            if pred is not None and succ is not None:
+                skip_edges.add((pred, succ))
+        if len(skip_edges) > 0:
+            actions.append(AddEdges(self.tracks, list(skip_edges)))
 
-            if len(preds) == 0:  # do nothing - track ids are fine
-                continue
-            pred = preds[0]  # assume can't have two preds, no merging (yet)
-
-            # determine if we need to relabel any tracks or add skip edges
-            siblings = list(self.tracks.graph.successors(pred))
-            if len(siblings) == 2:
-                # need to relabel the track id of the sibling to match the pred because
-                # you are implicitly deleting a division
-                siblings.remove(node)
-                if (
-                    siblings[0] not in nodes
-                ):  # check if the sibling is not also deleted, because then relabeling is not needed
-                    new_track_id = self.tracks.get_track_id(pred)
-                    actions.append(
-                        UpdateTrackID(self.tracks, siblings[0], new_track_id)
-                    )
-
-        # Add all the actions in the order delete_edges, add_edges, delete_nodes
-        actions.append(DeleteEdges(self.tracks, edges_to_delete))
-        actions.append(AddEdges(self.tracks, skip_edges))
+        # remove nodes
         actions.append(DeleteNodes(self.tracks, nodes, pixels=pixels))
+
         return ActionGroup(self.tracks, actions=actions)
 
     def update_node_segs(
@@ -324,7 +303,7 @@ class TracksController:
         Returns:
             True if the edges were successfully added, False if any edge was invalid.
         """
-        actions = [AddEdges(self.tracks, edges)]
+        actions = []
         for edge in edges:
             out_degree = self.tracks.graph.out_degree(edge[0])
             if out_degree == 0:  # joining two segments
@@ -344,6 +323,8 @@ class TracksController:
                 raise RuntimeError(
                     f"Expected degree of 0 or 1 before adding edge, got {out_degree}"
                 )
+
+        actions.append(AddEdges(self.tracks, edges))
         return ActionGroup(self.tracks, actions)
 
     def is_valid(self, edge) -> tuple[bool, TracksAction | None]:
@@ -447,7 +428,6 @@ class TracksController:
             if not self.tracks.graph.has_edge(edge[0], edge[1]):
                 show_warning("Cannot delete non-existing edge!")
                 return
-        print("delete these edges", edges)
         action = self._delete_edges(edges)
         self.action_history.add_new_action(action)
         self.tracks.refresh.emit()
@@ -456,22 +436,16 @@ class TracksController:
         actions = [DeleteEdges(self.tracks, edges)]
         for edge in edges:
             out_degree = self.tracks.graph.out_degree(edge[0])
-            if out_degree == 1:  # removing a normal (non division) edge
+            if out_degree == 0:  # removed a normal (non division) edge
                 new_track_id = self.tracks.get_next_track_id()
-                print("new track id is ", new_track_id)
                 actions.append(UpdateTrackID(self.tracks, edge[1], new_track_id))
-            elif out_degree == 2:  # removing a division edge
-                sibling = next(
-                    succ
-                    for succ in self.tracks.graph.successors(edge[0])
-                    if succ != edge[1]
-                )
+            elif out_degree == 1:  # removed a division edge
+                sibling = next(self.tracks.graph.successors(edge[0]))
                 new_track_id = self.tracks.get_track_id(edge[0])
-                print("new track id", new_track_id)
                 actions.append(UpdateTrackID(self.tracks, sibling, new_track_id))
             else:
                 raise RuntimeError(
-                    f"Expected degree of 1 or 2 before removing edge, got {out_degree}"
+                    f"Expected degree of 0 or 1 after removing edge, got {out_degree}"
                 )
         return ActionGroup(self.tracks, actions)
 
