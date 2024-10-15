@@ -132,22 +132,13 @@ class TrackPoints(napari.layers.Points):
         )  # reconnect listening to update events
 
     def _create_node_attrs(self, new_point: np.array) -> tuple[np.array, dict]:
-        """Create a node_id and attributes for a new node at given time point"""
+        """Create attributes for a new node at given time point"""
 
         t = int(new_point[0])
-        nodes_with_time_t = [
-            n
-            for n in self.tracks_viewer.tracks.graph.nodes()
-            if self.tracks_viewer.tracks.get_time(n) == t
-        ]
-        max_id = max([int(str(node).split("_")[1]) for node in nodes_with_time_t])
-        node_id = str(t) + "_" + str(max_id + 1)
-
         track_id = self.tracks_viewer.tracks.get_next_track_id()
         seg_id = track_id
         area = 0
 
-        nodes = np.array([node_id])
         attributes = {
             NodeAttr.POS.value: np.array([new_point[1:]]),
             NodeAttr.TIME.value: np.array([t]),
@@ -155,16 +146,16 @@ class TrackPoints(napari.layers.Points):
             NodeAttr.AREA.value: np.array([area]),
             NodeAttr.SEG_ID.value: np.array([seg_id]),
         }
-        return nodes, attributes
+        return attributes
 
     def _update_data(self, event):
         """Calls the tracks controller with to update the data in the Tracks object and dispatch the update"""
 
         if event.action == "added":
             new_point = event.value[-1]
-            nodes, attributes = self._create_node_attrs(new_point)
+            attributes = self._create_node_attrs(new_point)
             print(f"{attributes=}")
-            self.tracks_viewer.tracks_controller.add_nodes(nodes, attributes)
+            self.tracks_viewer.tracks_controller.add_nodes(attributes)
 
         if event.action == "removed":
             self.tracks_viewer.tracks_controller.delete_nodes(
