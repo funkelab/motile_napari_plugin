@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 
-from .tracks import Edge, Node, SegMask, Tracks
+from .tracks import Attrs, Edge, Node, SegMask, Tracks
 
 if TYPE_CHECKING:
     from .solution_tracks import SolutionTracks
@@ -203,6 +203,46 @@ class UpdateNodeSegs(TracksAction):
     def _apply(self):
         """Set new attributes"""
         self.tracks.update_segmentations(self.nodes, self.pixels, self.added)
+
+
+class UpdateNodeAttrs(TracksAction):
+    """Action for updating the segmentation associated with nodes"""
+
+    def __init__(
+        self,
+        tracks: Tracks,
+        nodes: list[Node],
+        attrs: Attrs,
+    ):
+        super().__init__(tracks)
+        protected_attrs = [
+            NodeAttr.TIME.value,
+            NodeAttr.AREA.value,
+            NodeAttr.SEG_ID.value,
+            NodeAttr.TRACK_ID.value,
+        ]
+        for attr in attrs:
+            if attr in protected_attrs:
+                raise ValueError(f"Cannot update attribute {attr} manually")
+        self.nodes = nodes
+        self.prev_attrs = {
+            attr: self.tracks._get_nodes_attr(nodes, attr) for attr in attrs
+        }
+        self.new_attrs = attrs
+        self._apply()
+
+    def inverse(self):
+        """Restore previous attributes"""
+        return UpdateNodeAttrs(
+            self.tracks,
+            self.nodes,
+            self.prev_attrs,
+        )
+
+    def _apply(self):
+        """Set new attributes"""
+        for attr, values in self.new_attrs.items():
+            self.tracks._set_nodes_attr(self.nodes, attr, values)
 
 
 class AddEdges(TracksAction):

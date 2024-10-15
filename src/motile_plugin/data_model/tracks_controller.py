@@ -14,6 +14,7 @@ from .actions import (
     DeleteEdges,
     DeleteNodes,
     TracksAction,
+    UpdateNodeAttrs,
     UpdateNodeSegs,
     UpdateTrackID,
 )
@@ -236,7 +237,7 @@ class TracksController:
         return ActionGroup(self.tracks, actions=actions)
 
     def update_node_segs(
-        self, nodes: np.ndarray[Any], attributes: dict[str, np.ndarray]
+        self, nodes: Iterable[Node], attributes: dict[str, np.ndarray]
     ) -> None:
         """Calls the _update_node_segs function to update the node attributtes in given array.
         Then calls the refresh signal.
@@ -249,6 +250,14 @@ class TracksController:
         action = self._update_node_segs(nodes, attributes)
         self.action_history.add_new_action(action)
         self.tracks.refresh.emit()
+
+    def update_node_attrs(self, nodes: Iterable[Node], attributes: Attrs):
+        action = self._update_node_attrs(nodes, attributes)
+        self.action_history.add_new_action(action)
+        self.tracks.refresh.emit()
+
+    def _update_node_attrs(self, nodes: Iterable[Node], attributes: Attrs):
+        return UpdateNodeAttrs(self.tracks, nodes, attributes)
 
     def _update_node_segs(
         self,

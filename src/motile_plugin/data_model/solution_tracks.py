@@ -70,13 +70,13 @@ class SolutionTracks(Tracks):
         self.max_track_id = 0
         self.track_id_to_node = {}
 
-        if self.graph.number_of_nodes() == 0:
+        if self.graph.number_of_nodes() != 0:
             if len(self.node_id_to_track_id) < self.graph.number_of_nodes():
                 # not all nodes have a track id: reassign
                 self._assign_tracklet_ids(self.graph)
             else:
                 self.max_track_id = max(self.node_id_to_track_id.values())
-                for node, track_id in self.node_id_to_track_id():
+                for node, track_id in self.node_id_to_track_id.items():
                     if track_id not in self.track_id_to_node:
                         self.track_id_to_node[track_id] = []
                     self.track_id_to_node[track_id].append(node)

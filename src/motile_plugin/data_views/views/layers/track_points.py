@@ -169,14 +169,14 @@ class TrackPoints(napari.layers.Points):
                 node_ids = []
                 for ind in self.selected_data:
                     point = self.data[ind]
-                    pos = np.array(point[1:])
+                    pos = point[1:]
                     positions.append(pos)
                     node_id = self.properties["node_id"][ind]
                     node_ids.append(node_id)
 
-                attributes = {NodeAttr.POS.value: np.array(positions)}
-                self.tracks_viewer.tracks_controller.update_node_segs(
-                    np.array(node_ids), attributes
+                attributes = {NodeAttr.POS.value: positions}
+                self.tracks_viewer.tracks_controller.update_node_attrs(
+                    node_ids, attributes
                 )
             else:
                 self._refresh()  # refresh to move points back where they belong
