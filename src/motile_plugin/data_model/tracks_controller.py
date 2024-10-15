@@ -45,12 +45,51 @@ class TracksController:
         self.action_history.add_new_action(action)
         self.tracks.refresh.emit(nodes[0] if nodes else None)
 
+    def _get_pred_and_succ(
+        self, track_id: int, time: int
+    ) -> tuple[Node | None, Node | None]:
+        """Get the last node with the given track id before time, and the first node
+        with the track id after time, if any. Does not assume that a node with
+        the given track_id and time is already in tracks, but it can be.
+
+        Args:
+            track_id (int): The track id to search for
+            time (int): The time point to find the immediate predecessor and successor
+                for
+
+        Returns:
+            tuple[Node | None, Node | None]: The last node before time with the given
+            track id, and the first node after time with the given track id,
+            or Nones if there are no such nodes.
+        """
+        if track_id not in list(self.tracks.node_id_to_track_id.values()):
+            return None, None
+
+        candidates = [
+            node
+            for node, tid in self.tracks.node_id_to_track_id.items()
+            if tid == track_id and self.tracks.get_time(node) != time
+        ]
+        candidates.sort(key=lambda n: self.tracks.get_time(n))
+
+        pred = None
+        succ = None
+        for cand in candidates:
+            if self.tracks.get_time(cand) < time:
+                pred = cand
+            elif self.tracks.get_time(cand) > time:
+                succ = cand
+                break
+        return pred, succ
+
     def _add_nodes(
         self,
         attributes: Attrs,
         pixels: list[SegMask] | None = None,
     ) -> tuple[TracksAction, list[Node]]:
         """Add nodes to the graph. Includes all attributes and the segmentation.
+        Will return the actions needed to add the nodes, and the node ids generated for the
+        new nodes.
         If there is a segmentation, the attributes must include:
         - time
         - seg_id
@@ -60,6 +99,13 @@ class TracksController:
         - pos
         - track_id
 
+        Logic of the function:
+        - remove edges (when we add a node in a track between two nodes
+            connected by a skip edge)
+        - add the nodes
+        - add edges (to connect each node to its immediate
+            predecessor and successor with the same track_id, if any)
+
         Args:
             nodes (list[Node]): a list of node ids
             attributes (Attributes): dictionary containing at least time and track id,
@@ -68,63 +114,49 @@ class TracksController:
                 or None if there is no segmentation. These pixels will be updated
                 in the tracks.segmentation, set to the provided seg_id
         """
+        if NodeAttr.TIME.value not in attributes:
+            raise ValueError(
+                f"Cannot add nodes without times. Please add {NodeAttr.TIME.value} attribute"
+            )
+        if NodeAttr.TRACK_ID.value not in attributes:
+            raise ValueError(
+                f"Cannot add nodes without track ids. Please add {NodeAttr.TRACK_ID.value} attribute"
+            )
+
         times = attributes[NodeAttr.TIME.value]
-        if len(times) == 0:
-            raise ValueError("Cannot add nodes without times")
+        track_ids = attributes[NodeAttr.TRACK_ID.value]
         nodes = self._get_new_node_ids(len(times))
-        actions = [
+        actions = []
+
+        # remove skip edges that will be replaced by new edges after adding nodes
+        edges_to_remove = []
+        for time, track_id in zip(times, track_ids, strict=False):
+            pred, succ = self._get_pred_and_succ(track_id, time)
+            if pred is not None and succ is not None:
+                edges_to_remove.append((pred, succ))
+        if len(edges_to_remove) > 0:
+            actions.append(DeleteEdges(self.tracks, edges_to_remove))
+
+        # add nodes
+        actions.append(
             AddNodes(
                 tracks=self.tracks,
                 nodes=nodes,
                 attributes=attributes,
                 pixels=pixels,
             )
-        ]
-        for idx, node in enumerate(nodes):
-            current_time = attributes[self.tracks.time_attr][idx]
-            track_id = attributes[NodeAttr.TRACK_ID.value][idx]
-            if track_id in list(self.tracks.node_id_to_track_id.values()):
-                # this track_id already exists, find the nearest predecessor and nearest successor to create new edge
-                candidates = [
-                    node
-                    for node, tid in self.tracks.node_id_to_track_id.items()
-                    if tid == track_id
-                ]
+        )
 
-                # Sort candidates by their 'time' attribute
-                candidates.sort(key=lambda n: self.tracks.get_time(n))
-                closest_predecessor = None
-                closest_successor = None
-
-                for candidate in candidates:
-                    candidate_time = self.tracks.get_time(candidate)
-                    if candidate_time < current_time:
-                        closest_predecessor = candidate
-                    elif candidate_time > current_time and closest_successor is None:
-                        closest_successor = candidate
-                        break
-
-                if (
-                    closest_predecessor is not None
-                    and closest_successor is not None
-                    and self.tracks.graph.has_edge(
-                        closest_predecessor, closest_successor
-                    )
-                ):
-                    actions.append(
-                        DeleteEdges(
-                            self.tracks, [(closest_predecessor, closest_successor)]
-                        )
-                    )
-
-                if closest_predecessor is not None and not self.tracks.graph.has_edge(
-                    closest_predecessor, node
-                ):
-                    actions.append(AddEdges(self.tracks, [(closest_predecessor, node)]))
-                if closest_successor is not None and not self.tracks.graph.has_edge(
-                    node, closest_successor
-                ):
-                    actions.append(AddEdges(self.tracks, [(node, closest_successor)]))
+        # add in edges to preds and succs with the same track id
+        edges_to_add = set()  # make it a set to avoid double adding edges when you add
+        # two nodes next to each other  in the same track
+        for node, time, track_id in zip(nodes, times, track_ids, strict=False):
+            pred, succ = self._get_pred_and_succ(track_id, time)
+            if pred is not None:
+                edges_to_add.add((pred, node))
+            if succ is not None:
+                edges_to_add.add((node, succ))
+        actions.append(AddEdges(self.tracks, list(edges_to_add)))
 
         return ActionGroup(self.tracks, actions), nodes
 
