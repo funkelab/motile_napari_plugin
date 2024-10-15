@@ -152,15 +152,57 @@ class TracksController:
             nodes (np.ndarray): array of node_ids to be deleted
         """
         actions = []
+
+        all_preds = []
+        all_succs = []
+
+        # first find all the edges that should be deleted (no duplicates) and put them in a single action
+        edges_to_delete = []
         for node in nodes:
             preds = list(self.tracks.graph.predecessors(node))
             succs = list(self.tracks.graph.successors(node))
 
-            # remove incident edges in an undo-able fashion
             for pred in preds:
-                actions.append(DeleteEdges(self.tracks, [(pred, node)]))
+                # add to all_predecessors list if not yet there
+                if pred not in all_preds and pred not in nodes:
+                    all_preds.append(pred)
+                # check if this edge is already in the edges_to_delete list
+                if (pred, node) not in edges_to_delete:
+                    edges_to_delete.append((pred, node))
             for succ in succs:
-                actions.append(DeleteEdges(self.tracks, [(node, succ)]))
+                # add to all_succs list if not yet there
+                if succ not in all_succs and succ not in nodes:
+                    all_succs.append(succ)
+                # add to edges_to_delete if not yet there
+                if (node, succ) not in edges_to_delete:
+                    edges_to_delete.append((node, succ))
+
+        actions.append(DeleteEdges(self.tracks, edges_to_delete))
+
+        # find all the skip edges to be made (no duplicates or intermediates to nodes that are deleted) and put them in a single action
+        skip_edges = []
+        for pred in all_preds:
+            track_id = self.tracks.get_track_id(pred)
+            # check if there are any successors left that have the same track id as the remaining predecessor
+            matching_succs = [
+                succ
+                for succ in all_succs
+                if self.tracks.get_track_id(succ) == track_id
+                and self.tracks.get_time(succ) > self.tracks.get_time(pred)
+            ]
+
+            if len(matching_succs) == 1:
+                skip_edges.append((pred, matching_succs[0]))
+            elif len(matching_succs) > 1:
+                # take successor that is closest in time
+                matching_succs.sort(key=lambda n: self.tracks.get_time(n))
+                skip_edges.append((pred, matching_succs[0]))
+
+        actions.append(AddEdges(self.tracks, skip_edges))
+
+        for node in nodes:
+            preds = list(self.tracks.graph.predecessors(node))
+            succs = list(self.tracks.graph.successors(node))
 
             if len(preds) == 0:  # do nothing - track ids are fine
                 continue
@@ -172,12 +214,13 @@ class TracksController:
                 # need to relabel the track id of the sibling to match the pred because
                 # you are implicitly deleting a division
                 siblings.remove(node)
-                new_track_id = self.tracks.get_track_id(pred)
-                actions.append(UpdateTrackID(self.tracks, siblings[0], new_track_id))
-            elif len(succs) == 1 and len(preds) == 1:
-                # make new (skip) edge between predecessor and successor
-                actions.append(AddEdges(self.tracks, [(preds[0], succs[0])]))
-            # if succs == 2, do nothing = the children already have different track ids
+                if (
+                    siblings[0] not in nodes
+                ):  # check if the sibling is not also deleted, because then relabeling is not needed
+                    new_track_id = self.tracks.get_track_id(pred)
+                    actions.append(
+                        UpdateTrackID(self.tracks, siblings[0], new_track_id)
+                    )
 
         # remove the nodes last
         actions.append(DeleteNodes(self.tracks, nodes, pixels=pixels))
