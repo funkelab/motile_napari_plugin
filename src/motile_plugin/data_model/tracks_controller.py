@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Any
 
 import numpy as np
@@ -160,7 +161,7 @@ class TracksController:
 
         return ActionGroup(self.tracks, actions), nodes
 
-    def delete_nodes(self, nodes: np.ndarray[Any]) -> None:
+    def delete_nodes(self, nodes: Iterable[Any]) -> None:
         """Calls the _delete_nodes function and then emits the refresh signal
 
         Args:
@@ -217,20 +218,20 @@ class TracksController:
             for node, track_id in new_track_ids:
                 actions.append(UpdateTrackID(self.tracks, node, track_id))
 
+        track_ids = [self.tracks.get_track_id(node) for node in nodes]
+        times = self.tracks.get_times(nodes)
+        # remove nodes
+        actions.append(DeleteNodes(self.tracks, nodes, pixels=pixels))
+
         # find all the skip edges to be made (no duplicates or intermediates to nodes
         # that are deleted) and put them in a single action
         skip_edges = set()
-        for node in nodes:
-            track_id = self.tracks.get_track_id(node)
-            time = self.tracks.get_time(node)
+        for track_id, time in zip(track_ids, times, strict=False):
             pred, succ = self._get_pred_and_succ(track_id, time)
             if pred is not None and succ is not None:
                 skip_edges.add((pred, succ))
         if len(skip_edges) > 0:
             actions.append(AddEdges(self.tracks, list(skip_edges)))
-
-        # remove nodes
-        actions.append(DeleteNodes(self.tracks, nodes, pixels=pixels))
 
         return ActionGroup(self.tracks, actions=actions)
 
@@ -527,11 +528,11 @@ class TracksController:
         Returns:
             list[Node]: A list of new node ids.
         """
-        ids = [self.node_id_counter + i for i in range(n)]
+        ids = [str(self.node_id_counter + i) for i in range(n)]
         self.node_id_counter += n
         for idx, _id in enumerate(ids):
             while self.tracks.graph.has_node(_id):
                 self.node_id_counter += 1
-                _id = self.node_id_counter
+                _id = str(self.node_id_counter)
             ids[idx] = _id
         return ids

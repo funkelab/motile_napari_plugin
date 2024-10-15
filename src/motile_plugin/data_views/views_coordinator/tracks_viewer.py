@@ -184,7 +184,7 @@ class TracksViewer:
     def delete_node(self, event=None):
         """Calls the tracks controller to delete currently selected nodes"""
 
-        self.tracks_controller.delete_nodes(np.array(self.selected_nodes._list))
+        self.tracks_controller.delete_nodes(self.selected_nodes._list)
 
     def set_split_node(self, event=None):
         print("split this node")

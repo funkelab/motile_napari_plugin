@@ -53,7 +53,9 @@ class SolutionTracks(Tracks):
 
     def get_next_track_id(self) -> int:
         """Return the next available track_id and update self.max_track_id"""
-
+        computed_max = max(self.node_id_to_track_id.values())
+        if self.max_track_id < computed_max:
+            self.max_track_id = computed_max
         self.max_track_id = self.max_track_id + 1
         return self.max_track_id
 
