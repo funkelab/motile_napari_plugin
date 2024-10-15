@@ -223,9 +223,7 @@ class TracksViewer:
             if time1 > time2:
                 node1, node2 = node2, node1
 
-            self.tracks_controller.add_edges(
-                edges=np.array([[node1, node2]]), attributes={}
-            )
+            self.tracks_controller.add_edges(edges=np.array([[node1, node2]]))
 
     def undo(self, event=None):
         self.tracks_controller.undo()

@@ -443,10 +443,10 @@ class TracksController:
                 NodeAttr.TRACK_ID.value: seg_ids,
                 self.tracks.time_attr: times,
             }
-            actions.append(self._add_nodes(nodes, attributes=attributes, pixels=pixels))
+            action, nodes = self._add_nodes(attributes=attributes, pixels=pixels)
+            actions.append(action)
 
             # if this is the time point where the user added a node, select the new node
-
             if current_timepoint in times:
                 index = times.index(current_timepoint)
                 node_to_select = nodes[index]

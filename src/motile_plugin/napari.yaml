@@ -8,7 +8,7 @@ contributions:
   commands:
     - id: motile-plugin.multi_widget
       python_name: motile_plugin.data_views.menus.multi_widget:MultiWidget
-      title: "Open combined motile widgets"
+      title: "Open Motile Main Widget"
       short_title: "multi widget"
     - id: motile-plugin.motile_widget
       python_name: motile_plugin.motile.menus.motile_widget:MotileWidget
@@ -37,7 +37,7 @@ contributions:
       title: "Load Mouse Embryo_Membrane tracking dataset"
   widgets:
     - command: motile-plugin.multi_widget
-      display_name: Combined Motile Widgets
+      display_name: Motile Main Widget
     - command: motile-plugin.motile_widget
       display_name: Motile Tracking
     - command: motile-plugin.tree_widget
