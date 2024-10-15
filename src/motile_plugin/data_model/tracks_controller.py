@@ -175,8 +175,6 @@ class TracksController:
                 if (node, succ) not in edges_to_delete:
                     edges_to_delete.append((node, succ))
 
-        actions.append(DeleteEdges(self.tracks, edges_to_delete))
-
         # find all the skip edges to be made (no duplicates or intermediates to nodes that are deleted) and put them in a single action
         skip_edges = []
         for pred in all_preds:
@@ -196,8 +194,7 @@ class TracksController:
                 matching_succs.sort(key=lambda n: self.tracks.get_time(n))
                 skip_edges.append((pred, matching_succs[0]))
 
-        actions.append(AddEdges(self.tracks, skip_edges))
-
+        # find all the track ids that need to be updated
         for node in nodes:
             preds = list(self.tracks.graph.predecessors(node))
             succs = list(self.tracks.graph.successors(node))
@@ -220,7 +217,9 @@ class TracksController:
                         UpdateTrackID(self.tracks, siblings[0], new_track_id)
                     )
 
-        # remove the nodes last
+        # Add all the actions in the order delete_edges, add_edges, delete_nodes
+        actions.append(DeleteEdges(self.tracks, edges_to_delete))
+        actions.append(AddEdges(self.tracks, skip_edges))
         actions.append(DeleteNodes(self.tracks, nodes, pixels=pixels))
         return ActionGroup(self.tracks, actions=actions)
 
