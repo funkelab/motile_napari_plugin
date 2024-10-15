@@ -40,7 +40,6 @@ def test_add_delete_nodes(segmentation_2d, graph_2d):
         for time, pix in zip(attrs[NodeAttr.TIME.value], pixels, strict=False)
     ]
     add_nodes = AddNodes(tracks, nodes, attributes=attrs, pixels=pixels)
-    add_nodes.apply()
 
     assert set(tracks.graph.nodes()) == set(graph_2d.nodes())
     for node, data in tracks.graph.nodes(data=True):
@@ -53,12 +52,10 @@ def test_add_delete_nodes(segmentation_2d, graph_2d):
     assert_array_almost_equal(tracks.segmentation, segmentation_2d)
 
     del_nodes = add_nodes.inverse()
-    del_nodes.apply()
     assert set(tracks.graph.nodes()) == set(empty_graph.nodes())
     assert_array_almost_equal(tracks.segmentation, empty_seg)
 
-    re_add = del_nodes.inverse()
-    re_add.apply()
+    del_nodes.inverse()
 
     assert set(tracks.graph.nodes()) == set(graph_2d.nodes())
     for node, data in tracks.graph.nodes(data=True):
@@ -80,7 +77,6 @@ def test_update_node_segs(segmentation_2d, graph_2d):
 
     pixels = [np.nonzero(segmentation_2d != new_seg)]
     action = UpdateNodeSegs(tracks, nodes, pixels=pixels, added=True)
-    action.apply()
 
     assert set(tracks.graph.nodes()) == set(graph_2d.nodes())
     assert tracks.graph.nodes["0_1"][NodeAttr.AREA.value] == 1345
@@ -91,14 +87,12 @@ def test_update_node_segs(segmentation_2d, graph_2d):
     assert_array_almost_equal(tracks.segmentation, new_seg)
 
     inverse = action.inverse()
-    inverse.apply()
     assert set(tracks.graph.nodes()) == set(graph_2d.nodes())
     for node, data in tracks.graph.nodes(data=True):
         assert data == graph_2d.nodes[node]
     assert_array_almost_equal(tracks.segmentation, segmentation_2d)
 
-    redo = inverse.inverse()
-    redo.apply()
+    inverse.inverse()
 
     assert set(tracks.graph.nodes()) == set(graph_2d.nodes())
     assert tracks.graph.nodes["0_1"][NodeAttr.AREA.value] == 1345
@@ -116,7 +110,6 @@ def test_add_delete_edges(graph_2d, segmentation_2d):
     edges = [["0_1", "1_2"], ["0_1", "1_3"], ["1_3", 2], [2, 4]]
 
     action = AddEdges(tracks, edges)
-    action.apply()
     # TODO: What if adding an edge that already exists?
     # TODO: test all the edge cases, invalid operations, etc. for all actions
     assert set(tracks.graph.nodes()) == set(graph_2d.nodes())
@@ -127,12 +120,10 @@ def test_add_delete_edges(graph_2d, segmentation_2d):
     assert_array_almost_equal(tracks.segmentation, segmentation_2d)
 
     inverse = action.inverse()
-    inverse.apply()
     assert set(tracks.graph.edges()) == set()
     assert_array_almost_equal(tracks.segmentation, segmentation_2d)
 
-    redo = inverse.inverse()
-    redo.apply()
+    inverse.inverse()
     assert set(tracks.graph.nodes()) == set(graph_2d.nodes())
     assert set(tracks.graph.edges()) == set(graph_2d.edges())
     for edge in tracks.graph.edges():

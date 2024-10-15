@@ -2,64 +2,65 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from napari.utils.notifications import show_warning
-
 if TYPE_CHECKING:
     from .actions import TracksAction
 
 
 class ActionHistory:
-    """A list of actions in chronological order and a pointer to the last performed
-    action. Actions after the pointer have been un-done, and will be removed if a new
-    action is added to the list.
+    """An action history implementing the ideas from this blog:
+    https://github.com/zaboople/klonk/blob/master/TheGURQ.md
+    Essentially, if you go back and change something after undo-ing, you can always get
+    back to every state if you undo far enough (instead of throwing out
+    the undone actions)
     """
 
     def __init__(self):
-        self.action_list = []
-        self.pointer = -1
+        self.undo_stack: list[TracksAction] = []  # list of actions that can be undone
+        self.redo_stack: list[TracksAction] = []  # list of actions that can be redone
 
-    def append(self, action: TracksAction) -> None:
-        """Delete any actions after the current pointer position and then append the new
-        action and set the pointer to that action
+    @property
+    def undo_pointer(self):
+        return len(self.undo_stack) - len(self.redo_stack) - 1
 
+    def add_new_action(self, action: TracksAction) -> None:
+        """Add a newly performed action to the history.
         Args:
-            action (TracksAction): The new action to be added to the list.
+            action (TracksAction): The new action to be added to the history.
         """
-        self.action_list = self.action_list[: self.pointer + 1]
-        self.action_list.append(action)
-        self.pointer = len(self.action_list) - 1
+        if len(self.redo_stack) > 0:
+            # add all the redo stuff to the undo stack, so that both the originial and
+            # inverse are on the stack
+            self.undo_stack.extend(self.redo_stack)
+            self.redo_stack = []
+        self.undo_stack.append(action)
 
-    def previous(self) -> TracksAction | None:
-        """Get the previous performed action (the one under the pointer), and update the
-        pointer to the action before that. Assumes that the returned action will be
-        un-done (its inverse will be applied).
+    def undo(self) -> bool:
+        """Undo the last performed action
 
         Returns:
-            TracksAction | None: The last performed action, to be un-done, or None
-            if there is no previous action.
+            bool: True if an action was undone, and False
+            if there was no previous action to undo.
         """
-
-        if self.pointer >= 0 and self.pointer < len(self.action_list):
-            action = self.action_list[self.pointer]
-            self.pointer -= 1
-            return action
+        if self.undo_pointer < 0:
+            return False
         else:
-            show_warning("No more actions to undo")
-            return None
+            action = self.undo_stack[self.undo_pointer]
+            inverse = action.inverse()
+            self.redo_stack.append(inverse)
+            return True
 
-    def next(self) -> TracksAction | None:
-        """Get the next action to be performed (the one after the pointer), and
-        update the pointer to that action. Assumes that the returned action will
-        be applied.
+    def redo(self) -> bool:
+        """Redo the last undone action
 
         Returns:
-            TracksAction | None: The next action to apply, or None if the pointer
-            is already at the end of the list or the list is empty.
+            bool: True if an action was redone, and False
+            if there was no undone action to redo.
         """
-
-        if self.pointer < len(self.action_list) - 1:
-            self.pointer += 1
-            return self.action_list[self.pointer]
+        if len(self.redo_stack) == 0:
+            return False
         else:
-            show_warning("No more actions to redo")
-            return None
+            action = self.redo_stack.pop(-1)
+            # apply the inverse but don't save it
+            # (the original is already on the undo stack)
+            action.inverse()
+            return True
