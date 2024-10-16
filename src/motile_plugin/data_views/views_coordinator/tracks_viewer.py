@@ -96,8 +96,8 @@ class TracksViewer:
         if node is not None:
             self.selected_nodes.add(node)
 
-        # self.selected_nodes.list_updated.emit()  # to restore selection and/or highlighting in all components
-        # TODO: is this second signal necessary if we emit tracks_updated already?
+        # restore selection and/or highlighting in all Views (Views do not know about their selection ('all' vs 'lineage'), but TracksViewer does)
+        self.update_selection()
 
     def update_tracks(self, tracks: Tracks, name: str) -> None:
         """Stop viewing a previous set of tracks and replace it with a new one.
