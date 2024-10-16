@@ -35,7 +35,6 @@ class MotileWidget(QScrollArea):
     # To provide updates on progress of the solver
     solver_update = Signal()
     new_run = Signal(SolutionTracks, str)
-    remove_layers = Signal()
 
     def __init__(self, viewer: Viewer):
         super().__init__()
@@ -43,7 +42,6 @@ class MotileWidget(QScrollArea):
         tracks_viewer = TracksViewer.get_instance(self.viewer)
         self.new_run.connect(tracks_viewer.tracks_list.add_tracks)
         tracks_viewer.tracks_list.view_tracks.connect(self.view_run)
-        self.remove_layers.connect(tracks_viewer.tracking_layers.remove_napari_layers)
 
         # Create sub-widgets and connect signals
         self.edit_run_widget = RunEditor(self.viewer)
@@ -90,7 +88,6 @@ class MotileWidget(QScrollArea):
         self.edit_run_widget.show()
         if run:
             self.edit_run_widget.new_run(run)
-        self.remove_layers.emit()
 
     def _generate_tracks(self, run: MotileRun) -> None:
         """Called when we start solving a new run. Switches from run editor to run viewer
