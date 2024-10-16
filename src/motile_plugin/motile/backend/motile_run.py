@@ -237,9 +237,15 @@ class MotileRun(SolutionTracks):
         """
         out_path = directory / self.ATTRS_FILE
         attrs_dict = {
-            "time_attr": self.time_attr,
-            "pos_attr": self.pos_attr,
-            "scale": self.scale,
+            "time_attr": self.time_attr
+            if not isinstance(self.time_attr, np.ndarray)
+            else self.time_attr.tolist(),
+            "pos_attr": self.pos_attr
+            if not isinstance(self.pos_attr, np.ndarray)
+            else self.pos_attr.tolist(),
+            "scale": self.scale
+            if not isinstance(self.scale, np.ndarray)
+            else self.scale.tolist(),
         }
         with open(out_path, "w") as f:
             json.dump(attrs_dict, f)
