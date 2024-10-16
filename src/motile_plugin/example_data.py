@@ -44,6 +44,21 @@ def Fluo_N2DL_HeLa() -> list[LayerData]:
     return read_ctc_dataset(ds_name, data_dir)
 
 
+def Fluo_N2DL_HeLa_crop() -> list[LayerData]:
+    """Loads the Fluo-N2DL-HeLa 01 training raw data and silver truth from
+    the appdir "user data dir". Will download it from the CTC and convert it to
+    zarr if it is not present already.
+    Returns:
+        list[LayerData]: An image layer of 01 training raw data and a labels
+            layer of 01 training silver truth labels
+    """
+    ds_name = "Fluo-N2DL-HeLa"
+    appdir = AppDirs("motile-plugin")
+    data_dir = Path(appdir.user_data_dir)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return read_ctc_dataset(ds_name, data_dir, crop_region=True)
+
+
 def read_zenodo_dataset(
     ds_name: str, raw_name: str, label_name: str, data_dir: Path
 ) -> list[LayerData]:
@@ -72,7 +87,9 @@ def read_zenodo_dataset(
     return [raw_layer_data, seg_layer_data]
 
 
-def read_ctc_dataset(ds_name: str, data_dir: Path) -> list[LayerData]:
+def read_ctc_dataset(
+    ds_name: str, data_dir: Path, crop_region=False
+) -> list[LayerData]:
     """Read a CTC dataset from a zarr (assumes pre-downloaded and converted)
     and returns a list of layer data for making napari layers
 
@@ -88,10 +105,19 @@ def read_ctc_dataset(ds_name: str, data_dir: Path) -> list[LayerData]:
     if not ds_zarr.exists():
         logger.info("Downloading %s", ds_name)
         download_ctc_dataset(ds_name, data_dir)
-
-    raw_data = zarr.open(store=ds_zarr, path="01", dimension_separator="/")[:]
+    raw_data = zarr.open(store=ds_zarr, path="01", dimension_separator="/")
+    seg_data = zarr.open(ds_zarr, path="01_ST", dimension_separator="/")
+    min_y = 90
+    min_x = 700
+    max_y = 300
+    max_x = 1040
+    if crop_region:
+        raw_data = raw_data[:, min_y:max_y, min_x:max_x]
+        seg_data = seg_data[:, min_y:max_y, min_x:max_x]
+    else:
+        raw_data = raw_data[:]
+        seg_data = seg_data[:]
     raw_layer_data = (raw_data, {"name": "01_raw"}, "image")
-    seg_data = zarr.open(ds_zarr, path="01_ST", dimension_separator="/")[:]
     seg_layer_data = (seg_data, {"name": "01_ST"}, "labels")
     return [raw_layer_data, seg_layer_data]
 
