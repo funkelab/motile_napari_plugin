@@ -227,7 +227,14 @@ class RunViewer(QGroupBox):
         self.gap_plot.getPlotItem().clear()
         gaps = self.run.gaps
         if gaps is not None and len(gaps) > 0:
-            self.gap_plot.getPlotItem().plot(range(len(gaps)), gaps)
+            try:
+                self.gap_plot.getPlotItem().plot(range(len(gaps)), gaps)
+            # note: catching pyqt graph exception about range(len(gaps))
+            # and gaps being different lengths. Pyqtgraph uses a generic
+            # Exception :( so we check the string
+            except Exception as e:
+                if "X and Y arrays" not in str(e):
+                    raise e
 
     def reset_progress(self):
         self._set_solver_label("not running")
