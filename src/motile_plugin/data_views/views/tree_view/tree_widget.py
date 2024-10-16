@@ -358,7 +358,7 @@ class TreePlot(pg.PlotWidget):
         ):
             return
         else:
-            view_box.setRange(xRange=(min_x, max_x), yRange=(min_t, max_t), padding=2)
+            view_box.setRange(xRange=(min_x, max_x), yRange=(min_t, max_t))
 
     def _center_view(self, center_x: int, center_y: int):
         """Center the Viewbox on given coordinates"""
