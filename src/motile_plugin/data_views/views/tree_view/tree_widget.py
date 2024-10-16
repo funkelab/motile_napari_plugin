@@ -654,10 +654,9 @@ class TreeWidget(QWidget):
         if len(self.selected_nodes) == 0 and not self.lineage_df.empty:
             # try to restore lineage df based on previous selection, even if those nodes are now deleted.
             # this is to prevent that deleting nodes will remove those lineages from the lineage view, which is confusing.
+            prev_visible_set = set(self.lineage_df["node_id"])
             prev_visible = [
-                node
-                for node in self.graph.nodes
-                if node in list(self.lineage_df["node_id"])
+                node for node in prev_visible_set if self.graph.has_node(node)
             ]
             visible = []
             for node_id in prev_visible:
