@@ -151,10 +151,8 @@ class TreePlot(pg.PlotWidget):
             feature (str): the feature being displayed, it can be either 'tree' or 'area'
         """
 
-        # TODO can we make sure to do autorange when we have a new run but not
-        # when we have updated the data because of an edit?
         if view_direction == self.view_direction and feature == self.feature:
-            if feature == "area" or reset_view:
+            if view_direction == "horizontal" or reset_view:
                 self.autoRange()
             return
         if view_direction == "vertical":
@@ -324,7 +322,7 @@ class TreePlot(pg.PlotWidget):
                     size[index] += 5
                     outlines[index] = pg.mkPen(color="c", width=2)
 
-            # Center view, but only if a single node is selected
+            # Center point if a single node is selected, center range if multiple nodes are selected
             if len(selected_nodes) == 1:
                 self._center_view(x_axis_value, t)
             else:
@@ -565,7 +563,15 @@ class TreeWidget(QWidget):
         else:
             self.feature_widget.show_area_radio.setEnabled(True)
 
-        self.lineage_df = pd.DataFrame()
+        # if reset_view, we got new data and want to reset display and feature before calling the plot update
+        if reset_view:
+            self.lineage_df = pd.DataFrame()
+            self.mode = "all"
+            self.mode_widget.show_all_radio.setChecked(True)
+            self.view_direction = "vertical"
+            self.feature = "tree"
+            self.feature_widget.show_tree_radio.setChecked(True)
+
         # also update the navigation widget
         self.navigation_widget.track_df = self.track_df
         self.navigation_widget.lineage_df = self.lineage_df
@@ -644,9 +650,24 @@ class TreeWidget(QWidget):
 
     def _update_lineage_df(self) -> None:
         """Subset dataframe to include only nodes belonging to the current lineage"""
-        visible = []
-        for node_id in self.selected_nodes:
-            visible += extract_lineage_tree(self.graph, node_id)
+
+        if len(self.selected_nodes) == 0 and not self.lineage_df.empty:
+            # try to restore lineage df based on previous selection, even if those nodes are now deleted.
+            # this is to prevent that deleting nodes will remove those lineages from the lineage view, which is confusing.
+            prev_visible = [
+                node
+                for node in self.graph.nodes
+                if node in list(self.lineage_df["node_id"])
+            ]
+            visible = []
+            for node_id in prev_visible:
+                visible += extract_lineage_tree(self.graph, node_id)
+                if set(prev_visible).issubset(visible):
+                    break
+        else:
+            visible = []
+            for node_id in self.selected_nodes:
+                visible += extract_lineage_tree(self.graph, node_id)
         self.lineage_df = self.track_df[
             self.track_df["node_id"].isin(visible)
         ].reset_index()
