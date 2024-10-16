@@ -73,9 +73,9 @@ class TracksViewer:
         self.viewer.bind_key("d")(self.delete_node)
         self.viewer.bind_key("Delete")(self.delete_node)
         self.viewer.bind_key("b")(self.delete_edge)
-        self.viewer.bind_key("s")(self.set_split_node)
-        self.viewer.bind_key("e")(self.set_endpoint_node)
-        self.viewer.bind_key("c")(self.set_linear_node)
+        # self.viewer.bind_key("s")(self.set_split_node)
+        # self.viewer.bind_key("e")(self.set_endpoint_node)
+        # self.viewer.bind_key("c")(self.set_linear_node)
         self.viewer.bind_key("z")(self.undo)
         self.viewer.bind_key("r")(self.redo)
 

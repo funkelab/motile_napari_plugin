@@ -60,9 +60,9 @@ class TrackLabels(napari.layers.Labels):
         self.bind_key("d")(self.tracks_viewer.delete_node)
         self.bind_key("Delete")(self.tracks_viewer.delete_node)
         self.bind_key("b")(self.tracks_viewer.delete_edge)
-        self.bind_key("s")(self.tracks_viewer.set_split_node)
-        self.bind_key("e")(self.tracks_viewer.set_endpoint_node)
-        self.bind_key("c")(self.tracks_viewer.set_linear_node)
+        # self.bind_key("s")(self.tracks_viewer.set_split_node)
+        # self.bind_key("e")(self.tracks_viewer.set_endpoint_node)
+        # self.bind_key("c")(self.tracks_viewer.set_linear_node)
         self.bind_key("z")(self.tracks_viewer.undo)
         self.bind_key("r")(self.tracks_viewer.redo)
 
