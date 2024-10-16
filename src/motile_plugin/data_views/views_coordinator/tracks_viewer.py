@@ -55,6 +55,7 @@ class TracksViewer:
         }
         self.mode = "all"
         self.tracks = None
+        self.visible = None
         self.tracking_layers = TracksLayerGroup(self.viewer, self.tracks, "", self)
 
         self.selected_nodes = NodeSelectionList()
@@ -96,7 +97,7 @@ class TracksViewer:
         if node is not None:
             self.selected_nodes.add(node)
 
-        # restore selection and/or highlighting in all Views (Views do not know about their selection ('all' vs 'lineage'), but TracksViewer does)
+        # restore selection and/or highlighting in all napari Views (napari Views do not know about their selection ('all' vs 'lineage'), but TracksViewer does)
         self.update_selection()
 
     def update_tracks(self, tracks: Tracks, name: str) -> None:
@@ -153,16 +154,29 @@ class TracksViewer:
 
     def filter_visible_nodes(self) -> list[int]:
         """Construct a list of track_ids that should be displayed"""
+
+        if self.tracks is None or self.tracks.graph is None:
+            return []
         if self.mode == "lineage":
-            visible = []
-            for node in self.selected_nodes:
-                visible += extract_lineage_tree(self.tracks.graph, node)
-            if self.tracks is None or self.tracks.graph is None:
-                return []
+            # if no nodes are selected, check which nodes were previously visible and filter those
+            if len(self.selected_nodes) == 0 and self.visible is not None:
+                prev_visible = [
+                    node for node in self.visible if self.tracks.graph.has_node(node)
+                ]
+                self.visible = []
+                for node_id in prev_visible:
+                    self.visible += extract_lineage_tree(self.tracks.graph, node_id)
+                    if set(prev_visible).issubset(self.visible):
+                        break
+            else:
+                self.visible = []
+                for node in self.selected_nodes:
+                    self.visible += extract_lineage_tree(self.tracks.graph, node)
+
             return list(
                 {
                     self.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
-                    for node in visible
+                    for node in self.visible
                 }
             )
         else:
