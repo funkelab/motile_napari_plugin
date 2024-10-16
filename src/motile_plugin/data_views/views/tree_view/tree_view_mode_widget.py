@@ -33,6 +33,7 @@ class TreeViewModeWidget(QWidget):
         display_layout.addWidget(self.show_lineage_radio)
         display_box.setLayout(display_layout)
         display_box.setMaximumWidth(250)
+        display_box.setMaximumHeight(60)
 
         layout = QVBoxLayout()
         layout.addWidget(display_box)

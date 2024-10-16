@@ -57,6 +57,7 @@ class NavigationWidget(QWidget):
         navigation_layout.addWidget(down_button)
         navigation_box.setLayout(navigation_layout)
         navigation_box.setMaximumWidth(250)
+        navigation_box.setMaximumHeight(60)
 
         layout = QHBoxLayout()
         layout.addWidget(navigation_box)

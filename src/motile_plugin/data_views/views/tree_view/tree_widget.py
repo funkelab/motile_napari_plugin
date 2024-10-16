@@ -15,6 +15,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superqt import QCollapsible
 
 from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
@@ -443,14 +444,24 @@ class TreeWidget(QWidget):
         panel_layout.addWidget(self.mode_widget)
         panel_layout.addWidget(self.feature_widget)
         panel_layout.addWidget(self.navigation_widget)
+        panel_layout.setSpacing(0)
+        panel_layout.setContentsMargins(0, 0, 0, 0)
 
         panel = QWidget()
         panel.setLayout(panel_layout)
         panel.setMaximumWidth(820)
+        panel.setMaximumHeight(78)
 
-        layout.addWidget(panel)
+        # Make a collapsible for TreeView widgets
+        collapsable_widget = QCollapsible("Show/Hide Tree View Controls")
+        collapsable_widget.layout().setContentsMargins(0, 0, 0, 0)
+        collapsable_widget.layout().setSpacing(0)
+        collapsable_widget.addWidget(panel)
+        collapsable_widget.collapse(animate=False)
+
+        layout.addWidget(collapsable_widget)
         layout.addWidget(self.tree_widget)
-
+        layout.setSpacing(0)
         self.setLayout(layout)
         self._update_track_data()
 
