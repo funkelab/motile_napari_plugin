@@ -559,13 +559,21 @@ class TreeWidget(QWidget):
         """Called when the TracksViewer emits the tracks_updated signal, indicating
         that a new set of tracks should be viewed.
         """
+
         if self.tracks_viewer.tracks is None:
             self.track_df = pd.DataFrame()
             self.graph = None
         else:
-            self.track_df = extract_sorted_tracks(
-                self.tracks_viewer.tracks, self.tracks_viewer.colormap
-            )
+            if reset_view:
+                self.track_df = extract_sorted_tracks(
+                    self.tracks_viewer.tracks, self.tracks_viewer.colormap
+                )
+            else:
+                self.track_df = extract_sorted_tracks(
+                    self.tracks_viewer.tracks,
+                    self.tracks_viewer.colormap,
+                    self.track_df,
+                )
             self.graph = self.tracks_viewer.tracks.graph
 
         # check whether we have area measurements and therefore should activate the area button

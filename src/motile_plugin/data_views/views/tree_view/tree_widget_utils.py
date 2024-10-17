@@ -12,6 +12,7 @@ from motile_plugin.data_model import NodeType, Tracks
 def extract_sorted_tracks(
     tracks: Tracks,
     colormap: napari.utils.CyclicLabelColormap,
+    prev_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame | None:
     """
     Extract the information of individual tracks required for constructing the pyqtgraph plot. Follows the same logic as the relabel_segmentation
@@ -22,6 +23,7 @@ def extract_sorted_tracks(
             to be converted into a dataframe.
         colormap (napari.utils.CyclicLabelColormap): The colormap to use to
             extract the color of each node from the track ID
+        prev_df (pd.DataFrame, Optional). Dataframe that holds the previous track_df, including the order of the tracks.
 
     Returns:
         pd.DataFrame | None: data frame with all the information needed to
@@ -110,10 +112,10 @@ def extract_sorted_tracks(
             track_list.append(track_dict)
 
         parent_mapping.append(
-            {"track_id": track_id, "parent_track_id": parent_track_id}
+            {"track_id": track_id, "parent_track_id": parent_track_id, "node_id": node}
         )
 
-    x_axis_order = sort_track_ids(parent_mapping)
+    x_axis_order = sort_track_ids(parent_mapping, prev_df)
 
     for node in track_list:
         node["x_axis_pos"] = x_axis_order.index(node["track_id"])
@@ -125,19 +127,84 @@ def extract_sorted_tracks(
     return df
 
 
-def sort_track_ids(track_list: list[dict]) -> list[dict]:
+def find_root(track_id: int, parent_map: dict) -> int:
+    """Function to find the root associated with a track by tracing its lineage"""
+
+    # Keep traversing a track is found where parent_track_id == 0 (i.e., it's a root)
+    current_track = track_id
+    while parent_map.get(current_track) != 0:
+        current_track = parent_map.get(current_track)
+    return current_track
+
+
+def sort_track_ids(
+    track_list: list[dict], prev_df: pd.DataFrame | None = None
+) -> list[dict]:
     """
     Sort track IDs such to maintain left-first order in the tree formed by parent-child relationships.
     Used to determine the x-axis order of the tree plot.
 
     Args:
         track_list (list): List of dictionaries with 'track_id' and 'parent_track_id'.
+        prev_df (pd.DataFrame, Optional). Dataframe that holds the previous track_df, including the order of the tracks.
 
     Returns:
         list: Ordered list of track IDs for the x-axis.
     """
 
     roots = [node["track_id"] for node in track_list if node["parent_track_id"] == 0]
+
+    if prev_df is not None:
+        prev_roots = (
+            prev_df.loc[prev_df["parent_track_id"] == 0, "track_id"].unique().tolist()
+        )
+        new_roots = set(roots) - set(
+            prev_roots
+        )  # Detect new roots (those in the current list but not in the previous list)
+
+        # Create mappings for fast lookup
+        track_id_map = {
+            n["track_id"]: n["node_id"] for n in track_list
+        }  # track_id -> node_id
+        parent_map = {
+            n["track_id"]: n["parent_track_id"] for n in track_list
+        }  # track_id -> parent_track_id
+        position_map = prev_df.set_index("node_id")[
+            "x_axis_pos"
+        ].to_dict()  # node_id -> x_axis_pos
+
+        # Iterate over each new root and place it based on previous positions (to the right of its previous left neighbor)
+        for new_root in new_roots:
+            new_node_id = track_id_map.get(new_root)
+            # if node_id of new root does not exist in track_id_map, it is a completely new node and we can skip the rest of the code below and add the new track at the end.
+            if new_node_id and new_node_id in position_map:
+                prev_pos = position_map[
+                    new_node_id
+                ]  # Get the previous position of the new root
+                # Find which track was on the left of this new root based on previous x_axis_pos
+                left_track = prev_df.loc[
+                    prev_df["x_axis_pos"] == prev_pos - 1, "track_id"
+                ].unique()
+                if len(left_track) > 0:
+                    left_track_id = left_track[0]  # Get the track ID of the left track
+                    # Check if the left_track is a root or further downstream
+                    if left_track_id not in roots:
+                        # If the left_track is not a root, find the root associated with it
+                        left_root = find_root(left_track_id, parent_map)
+                    else:
+                        # If left_track is already a root, use it as-is
+                        left_root = left_track_id
+                    # Find the index of the root where we need to insert the new root
+                    left_ind = roots.index(left_root) if left_root in roots else -1
+                else:
+                    # If no left track is found, insert the new root at the beginning
+                    left_ind = -1
+
+                # Remove the new root from its current position and reinsert it after the left root
+                roots.remove(new_root)
+                roots.insert(left_ind + 1, new_root)
+
+    # Final sorted order of roots
     x_axis_order = list(roots)
 
     # Find the children of each of the starting points, and work down the tree.
