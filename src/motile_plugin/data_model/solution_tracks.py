@@ -8,6 +8,8 @@ from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 from .tracks import Tracks
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import numpy as np
 
     from .tracks import Node
@@ -73,7 +75,7 @@ class SolutionTracks(Tracks):
         if self.graph.number_of_nodes() != 0:
             if len(self.node_id_to_track_id) < self.graph.number_of_nodes():
                 # not all nodes have a track id: reassign
-                self._assign_tracklet_ids(self.graph)
+                self._assign_tracklet_ids()
             else:
                 self.max_track_id = max(self.node_id_to_track_id.values())
                 for node, track_id in self.node_id_to_track_id.items():
@@ -106,3 +108,30 @@ class SolutionTracks(Tracks):
             )
             track_id += 1
         self.max_track_id = track_id - 1
+
+    def export_tracks(self, outfile: Path | str):
+        """Export the tracks from this run to a csv with the following columns:
+        t,[z],y,x,id,parent_id,track_id
+        Cells without a parent_id will have an empty string for the parent_id.
+        Whether or not to include z is inferred from self.ndim
+        """
+        header = ["t", "z", "y", "x", "id", "parent_id", "track_id"]
+        if self.ndim == 3:
+            header = [header[0]] + header[2:]  # remove z
+        with open(outfile, "w") as f:
+            f.write(",".join(header))
+            for node_id in self.graph.nodes():
+                parents = list(self.graph.predecessors(node_id))
+                parent_id = "" if len(parents) == 0 else parents[0]
+                track_id = self.get_track_id(node_id)
+                time = self.get_time(node_id)
+                position = self.get_position(node_id)
+                row = [
+                    time,
+                    *position,
+                    node_id,
+                    parent_id,
+                    track_id,
+                ]
+                f.write("\n")
+                f.write(",".join(map(str, row)))

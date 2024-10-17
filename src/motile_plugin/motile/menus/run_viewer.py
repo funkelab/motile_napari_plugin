@@ -7,7 +7,6 @@ from warnings import warn
 import pyqtgraph as pg
 from fonticon_fa6 import FA6S
 from motile_plugin.motile.backend import MotileRun
-from motile_toolbox.candidate_graph import NodeAttr
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QFileDialog,
@@ -195,25 +194,7 @@ class RunViewer(QGroupBox):
         self.export_tracks_dialog.selectFile(str(base_path / default_name))
         if self.export_tracks_dialog.exec_():
             outfile = self.export_tracks_dialog.selectedFiles()[0]
-            header = ["t", "z", "y", "x", "id", "parent_id"]
-            tracks = self.run.tracks
-            _, sample_data = next(iter(tracks.nodes(data=True)))
-            ndim = len(sample_data[NodeAttr.POS.value])
-            if ndim == 2:
-                header = [header[0]] + header[2:]  # remove z
-            with open(outfile, "w") as f:
-                f.write(",".join(header))
-                for node_id, data in tracks.nodes(data=True):
-                    parents = list(tracks.predecessors(node_id))
-                    parent_id = "" if len(parents) == 0 else parents[0]
-                    row = [
-                        data[NodeAttr.TIME.value],
-                        *data[NodeAttr.POS.value],
-                        node_id,
-                        parent_id,
-                    ]
-                    f.write("\n")
-                    f.write(",".join(map(str, row)))
+            self.run.export_tracks(outfile)
         else:
             warn("Exporting aborted", stacklevel=2)
 
