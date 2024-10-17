@@ -74,12 +74,6 @@ Key bindings for editing the tracks
      - Action
    * - D
      - Delete selected nodes
-   * - S
-     - Mark selected nodes as split/forks (not yet implemented)
-   * - E
-     - Mark selected nodes as endpoint (not yet implemented)
-   * - C
-     - Mark selected nodes linear nodes (not yet implemented)
    * - B
      - Break edge between two selected nodes, if existing
    * - A
@@ -92,10 +86,10 @@ Key bindings for editing the tracks
 
 Key bindings tutorial video
 ***************************
-This `video`_ shows how to use the different key bindings in the napari layers and the tree view.
+This `video`_ shows how to use the different mouse and key functions, as well as their corresponding buttons, in the napari layers and the Tree View.
 
 .. raw:: html
 
-  <iframe src="https://drive.google.com/file/d/1mSK3CFHfIVD4ioHHsNMVQaxiLbPYMhwU/preview" width="640" height="480" allow="autoplay"></iframe>
+  <iframe src="https://drive.google.com/file/d/1cv5FbYqc5RbkNbh0YyWAL64A3tm-ugTs/preview" width="640" height="480" allow="autoplay"></iframe>
 
-.. _video: https://drive.google.com/file/d/1mSK3CFHfIVD4ioHHsNMVQaxiLbPYMhwU/preview
+.. _video: https://drive.google.com/file/d/1cv5FbYqc5RbkNbh0YyWAL64A3tm-ugTs/preview

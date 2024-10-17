@@ -41,9 +41,16 @@ for bounding box tracking) - please react to
 `Issue #48`_ if this is important to your use case, and give feedback on what type
 of shape linking you want.
 
+Plugin widgets
+**************
+You can open the Main Motile Widget via ``Plugins`` -> ``Motile`` -> ``Motile Main Widget``.
+This will open a tab widget containing a ``Motile``, ``Edit Tracks``, and ``Track List`` widget, as well
+as an empty ``Lineage View`` widget at the bottom of the screen. Alternatively, you can open the Tree View
+and the Menus widgets individually under ``Plugins`` -> ``Motile`` and dock them manually.
+
 Running tracking
 ****************
-The motile plugin by default opens to the ``Run Editor`` view. In this view,
+The ``Motile`` tab by default opens to the ``Run Editor`` view. In this view,
 you can pick a name for your run, select an input layer, set
 hyperparameters, and start a motile run. Hovering over the title of each
 element in the widget will make a tooltip appear describing the purpose
@@ -55,7 +62,7 @@ Hyperparameters
 The hyperparameters set up constraints on the optimization problem.
 These constraints will never be violated by the solution.
 
-- ``Max Move Distance`` - The maximum distance an object center can move between time frames, in pixels. This should be an upper bound, as nothing further will be connected.
+- ``Max Move Distance`` - The maximum distance an object center can move between time frames, in scaled units. This should be an upper bound, as nothing further will be connected.
 - ``Max Children`` - The maximum number of objects in the next time frames that an object can be linked to. Set this to 1 for tracking problems without divisions.
 
 Constant Costs
@@ -116,17 +123,15 @@ Once the solver completes, you will also see a tracks layer
 in the napari viewer. If your input was a segmentation, there will also be
 a new segmentation layer where the IDs have been relabeled to match across time.
 
-A list of ``Tracking Runs`` will also appear at the bottom of the widget.
+Each ``Tracking Run`` will be stored in the ``Tracks List`` widget.
 These are the runs that are stored in memory - if you run tracking multiple
 times with different inputs or parameters, you can click back and forth
-between the results here. Deleting runs you do not want to keep viewing
-is a good idea, since these are stored in memory. Runs that were saved in
-previous sessions do not appear here until you load them from disk with the
-``Load Run`` button.
+between the results here. Here you can also save any runs that you want to store for later.
+Deleting runs you do not want to keep viewing is a good idea, since these are stored in memory.
+Runs that were saved in previous sessions do not appear here until you load them from disk with the
+``Load Tracks`` button.
 
-The tracking results can also be visualized as a lineage tree.
-You can open the lineage tree widget via ``Plugins`` > ``Motile`` > ``Lineage View``.
-For more details, go to the :doc:`Tree View <tree_view>` documentation.
+For details on viewing the tracking results in the lineage tree, go to the :doc:`Tree View <tree_view>` documentation.
 
 .. _Issue #48: https://github.com/funkelab/motile_napari_plugin/issues/48
 .. _Cell Tracking Challenge: https://celltrackingchallenge.net/
