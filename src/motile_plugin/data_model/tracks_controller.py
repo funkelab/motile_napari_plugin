@@ -516,14 +516,14 @@ class TracksController:
     def undo(self) -> None:
         """Obtain the action to undo from the history, and invert"""
         if self.action_history.undo():
-            self.tracks.refresh()
+            self.tracks.refresh.emit()
         else:
             show_warning("No more actions to undo")
 
     def redo(self) -> None:
         """Obtain the action to redo from the history"""
         if self.action_history.redo():
-            self.tracks.refresh()
+            self.tracks.refresh.emit()
         else:
             show_warning("No more actions to redo")
 
