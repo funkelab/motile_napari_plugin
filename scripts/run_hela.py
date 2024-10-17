@@ -4,7 +4,7 @@ from pathlib import Path
 import napari
 import zarr
 from appdirs import AppDirs
-from motile_plugin.data_views.menus.multi_widget import MultiWidget
+from motile_plugin.application_menus.main_app import MainApp
 from motile_plugin.data_views.views import TreeWidget
 from napari.utils.theme import _themes
 
@@ -33,7 +33,7 @@ viewer.add_image(zarr_group["01"][:], name="01 Raw")
 viewer.add_labels(zarr_group["01_ST"][:], name="01 ST")
 
 # Add your custom widget
-widget = MultiWidget(viewer)
+widget = MainApp(viewer)
 viewer.window.add_dock_widget(widget, name="Motile")
 
 # Start the Napari GUI event loop
