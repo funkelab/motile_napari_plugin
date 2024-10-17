@@ -114,7 +114,6 @@ class TracksViewer:
             self.tracks.refresh.disconnect(self._refresh)
 
         self.tracks = tracks
-        tracks.seg_time_to_node = tracks._create_seg_time_to_node()
         self.tracks_controller = TracksController(self.tracks)
 
         # listen to refresh signals from the tracks

@@ -154,7 +154,7 @@ def sort_track_ids(
 
     roots = [node["track_id"] for node in track_list if node["parent_track_id"] == 0]
 
-    if prev_df is not None:
+    if prev_df is not None and not prev_df.empty:
         prev_roots = (
             prev_df.loc[prev_df["parent_track_id"] == 0, "track_id"].unique().tolist()
         )
