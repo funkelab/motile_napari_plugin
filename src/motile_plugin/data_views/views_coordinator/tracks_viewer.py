@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import suppress
 from typing import Optional
 
 import napari
@@ -110,17 +109,16 @@ class TracksViewer:
             name (str): The name of the tracks to display in the layer names
         """
         self.selected_nodes._list = []
+
+        if self.tracks is not None:
+            self.tracks.refresh.disconnect(self._refresh)
+
         self.tracks = tracks
         tracks.seg_time_to_node = tracks._create_seg_time_to_node()
         self.tracks_controller = TracksController(self.tracks)
 
         # listen to refresh signals from the tracks
-        if self.tracks is not None:
-            with suppress(TypeError):
-                self.tracks.refresh.disconnect(
-                    self._refresh
-                )  # Try disconnecting if connected
-            self.tracks.refresh.connect(self._refresh)
+        self.tracks.refresh.connect(self._refresh)
 
         # deactivate the input labels layer
         for layer in self.viewer.layers:
