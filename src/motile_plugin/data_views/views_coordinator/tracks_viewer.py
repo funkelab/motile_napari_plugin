@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import Optional
 
 import napari
@@ -115,9 +116,11 @@ class TracksViewer:
 
         # listen to refresh signals from the tracks
         if self.tracks is not None:
-            self.tracks.refresh.connect(
-                self._refresh
-            )  # TODO what if the connection exists already?
+            with suppress(TypeError):
+                self.tracks.refresh.disconnect(
+                    self._refresh
+                )  # Try disconnecting if connected
+            self.tracks.refresh.connect(self._refresh)
 
         # deactivate the input labels layer
         for layer in self.viewer.layers:
