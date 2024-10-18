@@ -121,7 +121,7 @@ class TracksViewer:
 
         # deactivate the input labels layer
         for layer in self.viewer.layers:
-            if isinstance(layer, napari.layers.Labels):
+            if isinstance(layer, (napari.layers.Labels | napari.layers.Points)):
                 layer.visible = False
 
         self.set_display_mode("all")
