@@ -2,10 +2,12 @@ from csv import DictReader
 
 import networkx as nx
 import numpy as np
-from motile_plugin.core import Tracks
+from motile_plugin.data_model import SolutionTracks
 
 
-def tracks_from_csv(csvfile: str, segmentation: np.ndarray | None = None) -> Tracks:
+def tracks_from_csv(
+    csvfile: str, segmentation: np.ndarray | None = None
+) -> SolutionTracks:
     """Assumes a csv similar to that created from "export tracks to csv" with columns:
         t,[z],y,x,id,parent_id,[seg_id]
     Cells without a parent_id will have an empty string or a -1 for the parent_id.
@@ -40,7 +42,7 @@ def tracks_from_csv(csvfile: str, segmentation: np.ndarray | None = None) -> Tra
                 if parent_id != -1:
                     assert parent_id in graph.nodes, f"{_id} {parent_id}"
                     graph.add_edge(parent_id, _id)
-    tracks = Tracks(
-        graph=graph, segmentation=segmentation, pos_attr=("pos"), time_attr="time"
+    tracks = SolutionTracks(
+        graph=graph, segmentation=segmentation, pos_attr="pos", time_attr="time"
     )
     return tracks

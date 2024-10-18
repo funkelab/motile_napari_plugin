@@ -6,26 +6,41 @@ visibility: public
 categories: ["Utilities"]
 contributions:
   commands:
-    - id: motile-plugin.motile_widget
-      python_name: motile_plugin.widgets.motile.motile_widget:MotileWidget
-      title: "Start the motile widget"
-      short_title: "motile widget"
+    - id: motile-plugin.main_app
+      python_name: motile_plugin.application_menus.main_app:MainApp
+      title: "Open the motile main application"
     - id: motile-plugin.tree_widget
-      python_name: motile_plugin.widgets.tracks_view.tree_widget:TreeWidget
+      python_name: motile_plugin.data_views.views.tree_view.tree_widget:TreeWidget
       title: "Open the lineage view widget"
-      short_title: "lineage view"
+    - id: motile-plugin.menus_widget
+      python_name: motile_plugin.application_menus.menu_widget:MenuWidget
+      title: "Open the motile menus widget"
     - id: motile-plugin.solve
-      python_name: motile_plugin.backend.solve:solve
+      python_name: motile_plugin.motile.backend.solve:solve
       title: "Run motile tracking (backend only)"
     - id: motile-plugin.Fluo_N2DL_HeLa
       python_name: motile_plugin.example_data:Fluo_N2DL_HeLa
       title: "Load Fluo-N2DL-HeLa tracking dataset"
+    - id: motile-plugin.Fluo_N2DL_HeLa_crop
+      python_name: motile_plugin.example_data:Fluo_N2DL_HeLa_crop
+      title: "Load Fluo-N2DL-HeLa tracking dataset (crop)"
+    - id: motile-plugin.Mouse_Embryo_Membrane
+      python_name: motile_plugin.example_data:Mouse_Embryo_Membrane
+      title: "Load Mouse Embryo_Membrane tracking dataset"
   widgets:
-    - command: motile-plugin.motile_widget
-      display_name: Motile Tracking
+    - command: motile-plugin.main_app
+      display_name: Motile Main Widget
+    - command: motile-plugin.menus_widget
+      display_name: Motile Menus Widget
     - command: motile-plugin.tree_widget
-      display_name: Lineage View
+      display_name: Motile Lineage View
   sample_data:
     - command: motile-plugin.Fluo_N2DL_HeLa
       key: "Fluo-N2DL-HeLa"
-      display_name: "Fluo-N2DL-HeLa"
+      display_name: "Fluo-N2DL-HeLa (2D)"
+    - command: motile-plugin.Fluo_N2DL_HeLa_crop
+      key: "Fluo-N2DL-HeLa-crop"
+      display_name: "Fluo-N2DL-HeLa crop (2D)"
+    - command: motile-plugin.Mouse_Embryo_Membrane
+      key: "Mouse_Embryo_Membrane"
+      display_name: "Mouse Embryo Membranes (3D)"

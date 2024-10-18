@@ -4,7 +4,8 @@ from pathlib import Path
 import napari
 import zarr
 from appdirs import AppDirs
-from motile_plugin.widgets import MotileWidget, TreeWidget
+from motile_plugin.application_menus.main_app import MainApp
+from motile_plugin.data_views.views import TreeWidget
 from napari.utils.theme import _themes
 
 logging.basicConfig(
@@ -32,10 +33,8 @@ viewer.add_image(zarr_group["01"][:], name="01 Raw")
 viewer.add_labels(zarr_group["01_ST"][:], name="01 ST")
 
 # Add your custom widget
-widget = MotileWidget(viewer)
+widget = MainApp(viewer)
 viewer.window.add_dock_widget(widget, name="Motile")
-widget = TreeWidget(viewer)
-viewer.window.add_dock_widget(widget, name="Lineage View", area="bottom")
 
 # Start the Napari GUI event loop
 napari.run()

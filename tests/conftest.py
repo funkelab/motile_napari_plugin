@@ -8,7 +8,7 @@ from skimage.draw import disk
 @pytest.fixture
 def segmentation_2d():
     frame_shape = (100, 100)
-    total_shape = (2, *frame_shape)
+    total_shape = (5, *frame_shape)
     segmentation = np.zeros(total_shape, dtype="int32")
     # make frame with one cell in center with label 1
     rr, cc = disk(center=(50, 50), radius=20, shape=(100, 100))
@@ -18,9 +18,17 @@ def segmentation_2d():
     # first cell centered at (20, 80) with label 1
     # second cell centered at (60, 45) with label 2
     rr, cc = disk(center=(20, 80), radius=10, shape=frame_shape)
-    segmentation[1][rr, cc] = 1
-    rr, cc = disk(center=(60, 45), radius=15, shape=frame_shape)
     segmentation[1][rr, cc] = 2
+    rr, cc = disk(center=(60, 45), radius=15, shape=frame_shape)
+    segmentation[1][rr, cc] = 3
+
+    # continue track 3 with squares from 0 to 4 in x and y with label 3
+    segmentation[2, 0:4, 0:4] = 3
+    segmentation[4, 0:4, 0:4] = 3
+
+    # unconnected node
+    segmentation[4, 96:100, 96:100] = 5
+    print(np.sum(segmentation == 5))
 
     return np.expand_dims(segmentation, 1)
 
@@ -75,40 +83,86 @@ def graph_2d():
                 NodeAttr.TIME.value: 0,
                 NodeAttr.SEG_ID.value: 1,
                 NodeAttr.AREA.value: 1245,
-            },
-        ),
-        (
-            "1_1",
-            {
-                NodeAttr.POS.value: [20, 80],
-                NodeAttr.TIME.value: 1,
-                NodeAttr.SEG_ID.value: 1,
+                NodeAttr.TRACK_ID.value: 1,
             },
         ),
         (
             "1_2",
             {
-                NodeAttr.POS.value: [60, 45],
+                NodeAttr.POS.value: [20, 80],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_ID.value: 2,
+                NodeAttr.TRACK_ID.value: 2,
+                # NodeAttr.AREA.value: 305,
+            },
+        ),
+        (
+            "1_3",
+            {
+                NodeAttr.POS.value: [60, 45],
+                NodeAttr.TIME.value: 1,
+                NodeAttr.SEG_ID.value: 3,
                 NodeAttr.AREA.value: 697,
+                NodeAttr.TRACK_ID.value: 3,
+            },
+        ),
+        (
+            2,
+            {
+                NodeAttr.POS.value: [1.5, 1.5],
+                NodeAttr.TIME.value: 2,
+                NodeAttr.SEG_ID.value: 3,
+                NodeAttr.AREA.value: 16,
+                NodeAttr.TRACK_ID.value: 3,
+            },
+        ),
+        (
+            4,
+            {
+                NodeAttr.POS.value: [1.5, 1.5],
+                NodeAttr.TIME.value: 4,
+                NodeAttr.SEG_ID.value: 3,
+                NodeAttr.AREA.value: 16,
+                NodeAttr.TRACK_ID.value: 3,
+            },
+        ),
+        # unconnected node
+        (
+            5,
+            {
+                NodeAttr.POS.value: [97.5, 97.5],
+                NodeAttr.TIME.value: 4,
+                NodeAttr.SEG_ID.value: 5,
+                NodeAttr.AREA.value: 16,
+                NodeAttr.TRACK_ID.value: 5,
             },
         ),
     ]
     edges = [
         (
             "0_1",
-            "1_1",
+            "1_2",
             {EdgeAttr.IOU.value: 0.0},
         ),
         (
             "0_1",
-            "1_2",
+            "1_3",
             {EdgeAttr.IOU.value: 0.395},
+        ),
+        (
+            "1_3",
+            2,
+            {EdgeAttr.IOU.value: 0.0},
+        ),
+        (
+            2,
+            4,
+            {EdgeAttr.IOU.value: 1.0},
         ),
     ]
     graph.add_nodes_from(nodes)
     graph.add_edges_from(edges)
+
     return graph
 
 
@@ -228,9 +282,7 @@ def multi_hypothesis_graph_2d():
 def sphere(center, radius, shape):
     assert len(center) == len(shape)
     indices = np.moveaxis(np.indices(shape), 0, -1)  # last dim is the index
-    distance = np.linalg.norm(
-        np.subtract(indices, np.asarray(center)), axis=-1
-    )
+    distance = np.linalg.norm(np.subtract(indices, np.asarray(center)), axis=-1)
     mask = distance <= radius
     return mask
 
