@@ -44,7 +44,7 @@ of shape linking you want.
 Plugin widgets
 **************
 You can open the Main Motile Widget via ``Plugins`` -> ``Motile`` -> ``Motile Main Widget``.
-This will open a tab widget containing a ``Motile``, ``Edit Tracks``, and ``Track List`` widget, as well
+This will open a tab widget containing a ``Motile``, ``Edit Tracks``, and ``Results List`` widget, as well
 as an empty ``Lineage View`` widget at the bottom of the screen. Alternatively, you can open the Tree View
 and the Menus widgets individually under ``Plugins`` -> ``Motile`` and dock them manually.
 
@@ -123,7 +123,7 @@ Once the solver completes, you will also see a tracks layer
 in the napari viewer. If your input was a segmentation, there will also be
 a new segmentation layer where the IDs have been relabeled to match across time.
 
-Each ``Tracking Run`` will be stored in the ``Tracks List`` widget.
+Each ``Tracking Run`` will be stored in the ``Results List`` widget.
 These are the runs that are stored in memory - if you run tracking multiple
 times with different inputs or parameters, you can click back and forth
 between the results here. Here you can also save any runs that you want to store for later.

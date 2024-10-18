@@ -78,7 +78,7 @@ class TracksList(QGroupBox):
     view_tracks = Signal(Tracks, str)
 
     def __init__(self):
-        super().__init__(title="Tracks List")
+        super().__init__(title="Results List")
         self.file_dialog = QFileDialog()
         self.file_dialog.setFileMode(QFileDialog.Directory)
         self.file_dialog.setOption(QFileDialog.ShowDirsOnly, True)
