@@ -13,7 +13,6 @@ from napari.utils.notifications import show_warning
 from psygnal import Signal
 from qtpy.QtWidgets import (
     QLabel,
-    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -25,7 +24,7 @@ from .run_viewer import RunViewer
 logger = logging.getLogger(__name__)
 
 
-class MotileWidget(QScrollArea):
+class MotileWidget(QWidget):
     """A widget that controls the backend components of the motile napari plugin.
     Recieves user input about solver parameters, runs motile, and passes
     results to the TrackingViewController.
@@ -57,10 +56,7 @@ class MotileWidget(QScrollArea):
         main_layout.addWidget(self._title_widget())
         main_layout.addWidget(self.view_run_widget)
         main_layout.addWidget(self.edit_run_widget)
-        main_widget = QWidget()
-        main_widget.setLayout(main_layout)
-        self.setWidget(main_widget)
-        self.setWidgetResizable(True)
+        self.setLayout(main_layout)
 
     def view_run(self, tracks: SolutionTracks) -> None:
         """Populates the run viewer with the output

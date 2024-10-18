@@ -1,16 +1,12 @@
 import napari
-from qtpy.QtWidgets import (
-    QTabWidget,
-    QVBoxLayout,
-    QWidget,
-)
+from qtpy.QtWidgets import QScrollArea, QTabWidget, QVBoxLayout
 
 from motile_plugin.application_menus.editing_menu import EditingMenu
 from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 from motile_plugin.motile.menus.motile_widget import MotileWidget
 
 
-class MenuWidget(QWidget):
+class MenuWidget(QScrollArea):
     """Combines the different plugin menus into tabs for cleaner UI"""
 
     def __init__(self, viewer: napari.Viewer):
@@ -29,5 +25,8 @@ class MenuWidget(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(tabwidget)
+
+        self.setWidget(tabwidget)
+        self.setWidgetResizable(True)
 
         self.setLayout(layout)
