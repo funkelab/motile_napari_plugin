@@ -24,6 +24,12 @@ contributions:
     - id: motile-plugin.Fluo_N2DL_HeLa_crop
       python_name: motile_plugin.example_data:Fluo_N2DL_HeLa_crop
       title: "Load Fluo-N2DL-HeLa tracking dataset (crop)"
+    - id: motile-plugin.Fluo_N2DL_HeLa_points
+      python_name: motile_plugin.example_data:Fluo_N2DL_HeLa_points
+      title: "Load Fluo-N2DL-HeLa tracking dataset (points)"
+    - id: motile-plugin.Fluo_N2DL_HeLa_points_crop
+      python_name: motile_plugin.example_data:Fluo_N2DL_HeLa_points_crop
+      title: "Load Fluo-N2DL-HeLa tracking dataset (points, crop)"
     - id: motile-plugin.Mouse_Embryo_Membrane
       python_name: motile_plugin.example_data:Mouse_Embryo_Membrane
       title: "Load Mouse Embryo_Membrane tracking dataset"
@@ -41,6 +47,12 @@ contributions:
     - command: motile-plugin.Fluo_N2DL_HeLa_crop
       key: "Fluo-N2DL-HeLa-crop"
       display_name: "Fluo-N2DL-HeLa crop (2D)"
+    - command: motile-plugin.Fluo_N2DL_HeLa_points
+      key: "Fluo-N2DL-HeLa-points"
+      display_name: "Fluo-N2DL-HeLa points (2D)"
+    - command: motile-plugin.Fluo_N2DL_HeLa_points_crop
+      key: "Fluo-N2DL-HeLa-points_crop"
+      display_name: "Fluo-N2DL-HeLa points, crop (2D)"
     - command: motile-plugin.Mouse_Embryo_Membrane
       key: "Mouse_Embryo_Membrane"
       display_name: "Mouse Embryo Membranes (3D)"
