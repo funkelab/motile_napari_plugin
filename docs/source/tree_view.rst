@@ -24,7 +24,7 @@ the synchronized Tree View and napari layers. This is not accessible from the UI
 you will need to make a python script to create a Tracks object and load it into the
 viewer.
 
-A `Tracks object`_ contains a networkx graph representing the tracking result, and optionally
+A `SolutionTracks object`_ contains a networkx graph representing the tracking result, and optionally
 a segmentation. The networkx graph is directed, with nodes representing detections and
 edges going from a detection in time t to the same object in t+1 (edges go forward in time).
 Nodes must have an attribute representing time, by default named "time" but a different name
@@ -51,4 +51,4 @@ the following lines will view it in the Tree View and create synchronized napari
 We plan to incorporate loaders from standard formats in the future to make this process easier,
 and incorporate the loading into the user interface.
 
-.. _Tracks object: https://funkelab.github.io/motile_napari_plugin/autoapi/motile_plugin/core/tracks/index.html
+.. _SolutionTracks object: https://funkelab.github.io/motile_napari_plugin/autoapi/motile_plugin/data_model/solution_tracks/index.html
