@@ -61,36 +61,6 @@ def Fluo_N2DL_HeLa_crop() -> list[LayerData]:
     return read_ctc_dataset(ds_name, data_dir, crop_region=True)
 
 
-def Fluo_N2DL_HeLa_points() -> list[LayerData]:
-    """Loads the Fluo-N2DL-HeLa 01 training raw data and silver truth from
-    the appdir "user data dir". Will download it from the CTC and convert it to
-    zarr if it is not present already.
-    Returns:
-        list[LayerData]: An image layer of 01 training raw data and a labels
-            layer of 01 training silver truth labels
-    """
-    ds_name = "Fluo-N2DL-HeLa"
-    appdir = AppDirs("motile-plugin")
-    data_dir = Path(appdir.user_data_dir)
-    data_dir.mkdir(parents=True, exist_ok=True)
-    return read_ctc_dataset(ds_name, data_dir, points=True)
-
-
-def Fluo_N2DL_HeLa_points_crop() -> list[LayerData]:
-    """Loads the Fluo-N2DL-HeLa 01 training raw data and silver truth from
-    the appdir "user data dir". Will download it from the CTC and convert it to
-    zarr if it is not present already.
-    Returns:
-        list[LayerData]: An image layer of 01 training raw data and a labels
-            layer of 01 training silver truth labels
-    """
-    ds_name = "Fluo-N2DL-HeLa"
-    appdir = AppDirs("motile-plugin")
-    data_dir = Path(appdir.user_data_dir)
-    data_dir.mkdir(parents=True, exist_ok=True)
-    return read_ctc_dataset(ds_name, data_dir, points=True, crop_region=True)
-
-
 def read_zenodo_dataset(
     ds_name: str, raw_name: str, label_name: str, data_dir: Path
 ) -> list[LayerData]:
@@ -120,7 +90,7 @@ def read_zenodo_dataset(
 
 
 def read_ctc_dataset(
-    ds_name: str, data_dir: Path, crop_region=False, points=False
+    ds_name: str, data_dir: Path, crop_region=False
 ) -> list[LayerData]:
     """Read a CTC dataset from a zarr (assumes pre-downloaded and converted)
     and returns a list of layer data for making napari layers
@@ -153,36 +123,33 @@ def read_ctc_dataset(
     raw_layer_data = (raw_data, {"name": "01_raw"}, "image")
     seg_layer_data = (seg_data, {"name": "01_ST"}, "labels")
 
-    if points:
-        # Check if 'points' dataset exists in the zarr file
-        points_name = "points_crop" if crop_region else "points"
-        if "points_file" not in zarr_store:
-            logger.info("extracting centroids...")
-            centroids_list = []
-            for t in range(seg_data.shape[0]):  # Iterate over time frames
-                frame_seg = seg_data[t]
-                props = regionprops(frame_seg)
-                centroids = np.array([prop.centroid for prop in props])
-                time_stamped_centroids = np.column_stack(
-                    [np.full(centroids.shape[0], t), centroids]
-                )
-                centroids_list.append(time_stamped_centroids)
-            all_centroids = np.vstack(centroids_list)
+    # Check if 'points' dataset exists in the zarr file
+    points_name = "points_crop" if crop_region else "points"
+    if "points_file" not in zarr_store:
+        logger.info("extracting centroids...")
+        centroids_list = []
+        for t in range(seg_data.shape[0]):  # Iterate over time frames
+            frame_seg = seg_data[t]
+            props = regionprops(frame_seg)
+            centroids = np.array([prop.centroid for prop in props])
+            time_stamped_centroids = np.column_stack(
+                [np.full(centroids.shape[0], t), centroids]
+            )
+            centroids_list.append(time_stamped_centroids)
+        all_centroids = np.vstack(centroids_list)
 
-            # Save the centroids inside the zarr file under the 'points' key
-            zarr_store.create_dataset(points_name, data=all_centroids, overwrite=True)
-            logger.info("Centroids extracted and saved")
-        else:
-            # If 'points' dataset exists, load it
-            logger.info("points dataset found, loading...")
-            all_centroids = zarr_store[points_name][:]
-
-        # Prepare points layer data for napari
-        points_layer_data = (all_centroids, {"name": "centroids"}, "points")
-        return [raw_layer_data, points_layer_data]
-
+        # Save the centroids inside the zarr file under the 'points' key
+        zarr_store.create_dataset(points_name, data=all_centroids, overwrite=True)
+        logger.info("Centroids extracted and saved")
     else:
-        return [raw_layer_data, seg_layer_data]
+        # If 'points' dataset exists, load it
+        logger.info("points dataset found, loading...")
+        all_centroids = zarr_store[points_name][:]
+
+    # Prepare points layer data for napari
+    points_layer_data = (all_centroids, {"name": "centroids"}, "points")
+
+    return [raw_layer_data, seg_layer_data, points_layer_data]
 
 
 def download_zenodo_dataset(
