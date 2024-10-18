@@ -61,6 +61,7 @@ class RunEditor(QGroupBox):
         main_layout.addWidget(self.solver_params_widget)
         main_layout.addWidget(generate_tracks_btn)
         self.setLayout(main_layout)
+        self.update_layer_selection()
 
     def update_labels_layers(self) -> None:
         """Update the layer selection box with the input layers in the viewer"""
