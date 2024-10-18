@@ -5,10 +5,9 @@ from typing import Optional
 import napari
 import numpy as np
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
-from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
 from psygnal import Signal
 
-from motile_plugin.data_model import NodeType, Tracks
+from motile_plugin.data_model import NodeType, SolutionTracks, Tracks
 from motile_plugin.data_model.tracks_controller import TracksController
 from motile_plugin.data_views.views.layers.tracks_layer_group import TracksLayerGroup
 from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
@@ -191,7 +190,7 @@ class TracksViewer:
         visible = self.filter_visible_nodes()
         self.tracking_layers.update_visible(visible)
 
-    def view_external_tracks(self, tracks: Tracks, name: str) -> None:
+    def view_external_tracks(self, tracks: SolutionTracks, name: str) -> None:
         """View tracks created externally. Assigns tracklet ids, adds a hypothesis
         dimension to the segmentation, and relabels the segmentation based on the
         assigned track ids. Then calls update_tracks.
@@ -200,7 +199,6 @@ class TracksViewer:
             tracks (Tracks): A tracks object to view, created externally from the plugin
             name (str): The name to display in napari layers
         """
-        tracks.graph, _ = assign_tracklet_ids(tracks.graph)
         tracks.segmentation = np.expand_dims(tracks.segmentation, axis=1)
         tracks.segmentation = relabel_segmentation(tracks.graph, tracks.segmentation)
         self.update_tracks(tracks, name)

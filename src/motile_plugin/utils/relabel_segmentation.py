@@ -29,8 +29,9 @@ def relabel_segmentation(
         time_frame = solution_nx_graph.nodes[node][NodeAttr.TIME.value]
         previous_seg_id = solution_nx_graph.nodes[node][NodeAttr.SEG_ID.value]
         assert previous_seg_id != 0
-        tracklet_id = solution_nx_graph.nodes[node]["tracklet_id"]
+        tracklet_id = solution_nx_graph.nodes[node][NodeAttr.TRACK_ID.value]
         hypothesis_id = solution_nx_graph.nodes[node].get(NodeAttr.SEG_HYPO.value, 0)
         previous_seg_mask = segmentation[time_frame, hypothesis_id] == previous_seg_id
         tracked_masks[time_frame, 0][previous_seg_mask] = tracklet_id
+        solution_nx_graph.nodes[node][NodeAttr.SEG_ID.value] = tracklet_id
     return tracked_masks
