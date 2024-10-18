@@ -77,6 +77,9 @@ times with different inputs or parameters, you can click back and forth
 between the results here. Here you can also save any runs that you want to store for later.
 Deleting runs you do not want to keep viewing is a good idea, since these are stored in memory.
 Runs that were saved in previous sessions do not appear here until you load them from disk with the ``Load Tracks`` button.
+The tracking results can also be visualized as a lineage tree.
+You can open the lineage tree widget via ``Plugins`` > ``Motile`` > ``Lineage View``.
+For more details, go to the :doc:`Tree View <tree_view>` documentation.
 
 .. _Issue #48: https://github.com/funkelab/motile_napari_plugin/issues/48
 .. _Cell Tracking Challenge: https://celltrackingchallenge.net/

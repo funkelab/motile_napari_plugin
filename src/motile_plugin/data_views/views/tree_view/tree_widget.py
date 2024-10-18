@@ -149,7 +149,7 @@ class TreePlot(pg.PlotWidget):
 
         Args:
             view_direction (str): "horizontal" or "vertical"
-            feature (str): the feature being displayed, it can be either 'tree' or 'area'
+            feature (str): the feature being displayed, it can be 'tree' or 'area'
         """
 
         if view_direction == self.view_direction and feature == self.feature:
@@ -576,8 +576,11 @@ class TreeWidget(QWidget):
                 )
             self.graph = self.tracks_viewer.tracks.graph
 
-        # check whether we have area measurements and therefore should activate the area button
+        # check whether we have area measurements and therefore should activate the area
+        # button
         if "area" not in self.track_df.columns:
+            if self.feature_widget.feature == "area":
+                self.feature_widget._toggle_feature_mode()
             self.feature_widget.show_area_radio.setEnabled(False)
         else:
             self.feature_widget.show_area_radio.setEnabled(True)
@@ -642,7 +645,8 @@ class TreeWidget(QWidget):
         )
 
     def _set_feature(self, feature: str) -> None:
-        """Set the feature mode to 'tree' or 'area'. For this the view is always horizontal.
+        """Set the feature mode to 'tree' or 'area'. For this the view is always
+        horizontal.
 
         Args:
             feature (str): The feature to plot. Options are "tree" or "area"

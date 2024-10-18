@@ -86,8 +86,8 @@ class MotileWidget(QWidget):
             self.edit_run_widget.new_run(run)
 
     def _generate_tracks(self, run: MotileRun) -> None:
-        """Called when we start solving a new run. Switches from run editor to run viewer
-        and starts solving of the new run in a separate thread to avoid blocking
+        """Called when we start solving a new run. Switches from run editor to run
+        viewer and starts solving of the new run in a separate thread to avoid blocking
 
         Args:
             run (MotileRun): Start solving this motile run.
@@ -220,7 +220,7 @@ class MotileWidget(QWidget):
         <a href="https://funkelab.github.io/motile/"><font color=yellow>motile</font></a> library to
         track objects with global optimization. See the
         <a href="https://funkelab.github.io/motile_napari_plugin/"><font color=yellow>user guide</font></a>
-        for a tutorial to the plugin functionality."""
+        for a tutorial to the plugin functionality."""  # noqa
         label = QLabel(richtext)
         label.setWordWrap(True)
         label.setOpenExternalLinks(True)

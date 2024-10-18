@@ -183,10 +183,11 @@ class RunViewer(QGroupBox):
 
     def export_tracks(self):
         """Export the tracks from this run to a csv with the following columns:
-        t,[z],y,x,id,parent_id
+        t,[z],y,x,id,parent_id,[seg_id]
         Cells without a parent_id will have an empty string for the parent_id.
         Whether or not to include z is inferred from the length of an
-        arbitrary node's position attribute.
+        arbitrary node's position attribute. If the nodes have a "seg_id" attribute,
+        the "seg_id" column is included.
         """
         default_name = self.run._make_id()
         default_name = f"{default_name}_tracks.csv"
