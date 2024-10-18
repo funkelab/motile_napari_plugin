@@ -463,7 +463,7 @@ class TreeWidget(QWidget):
         layout.addWidget(self.tree_widget)
         layout.setSpacing(0)
         self.setLayout(layout)
-        self._update_track_data()
+        self._update_track_data(reset_view=True)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events."""
