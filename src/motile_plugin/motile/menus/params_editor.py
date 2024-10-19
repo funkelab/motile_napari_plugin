@@ -45,6 +45,7 @@ class EditableParam(QWidget):
         self.param_label = self._param_label_widget()
         self.param_label.setToolTip(field.description)
         self.param_value = EditableParamValue(float, self.negative)
+        self.param_label.setMinimumHeight(32)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)

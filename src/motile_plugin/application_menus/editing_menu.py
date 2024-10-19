@@ -18,6 +18,7 @@ class EditingMenu(QWidget):
         layout = QVBoxLayout()
 
         node_box = QGroupBox("Edit Node(s)")
+        node_box.setMaximumHeight(60)
         node_box_layout = QVBoxLayout()
 
         self.delete_node_btn = QPushButton("Delete [D]")
@@ -41,6 +42,7 @@ class EditingMenu(QWidget):
         node_box.setLayout(node_box_layout)
 
         edge_box = QGroupBox("Edit Edge(s)")
+        edge_box.setMaximumHeight(100)
         edge_box_layout = QVBoxLayout()
 
         self.delete_edge_btn = QPushButton("Break [B]")
@@ -67,6 +69,7 @@ class EditingMenu(QWidget):
         layout.addWidget(self.redo_btn)
 
         self.setLayout(layout)
+        self.setMaximumHeight(300)
 
     def update_buttons(self):
         """Set the buttons to enabled/disabled depending on the currently selected nodes"""
