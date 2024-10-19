@@ -56,6 +56,7 @@ class MotileWidget(QWidget):
         main_layout.addWidget(self._title_widget())
         main_layout.addWidget(self.view_run_widget)
         main_layout.addWidget(self.edit_run_widget)
+        main_layout.addStretch()
         self.setLayout(main_layout)
 
     def view_run(self, tracks: SolutionTracks) -> None:
