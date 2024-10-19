@@ -38,6 +38,7 @@ class ParamView(QWidget):
         layout.addWidget(self.param_label)
         layout.addWidget(self.param_value)
         self.setLayout(layout)
+        self.setMinimumHeight(32)
 
         self.update_from_params(solver_params)
 
@@ -113,6 +114,7 @@ class SolverParamsViewer(QWidget):
         """
         group = QGroupBox(title)
         layout = QVBoxLayout()
+        layout.setSpacing(0)
         for param_name in self.param_categories[param_category]:
             param_view = ParamView(param_name, self.solver_params)
             self.new_params.connect(param_view.update_from_params)

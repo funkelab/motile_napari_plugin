@@ -45,13 +45,13 @@ class EditableParam(QWidget):
         self.param_label = self._param_label_widget()
         self.param_label.setToolTip(field.description)
         self.param_value = EditableParamValue(float, self.negative)
-        self.param_label.setMinimumHeight(32)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.param_label)
         layout.addWidget(self.param_value)
         self.setLayout(layout)
+        self.setMinimumHeight(32)
 
         self.update_from_params(solver_params)
 
@@ -85,7 +85,9 @@ class OptionalEditableParam(EditableParam):
         self.param_label.toggled.connect(self.toggle_enable)
 
     def _param_label_widget(self) -> QCheckBox:
-        return QCheckBox(self.title)
+        qlabel = QCheckBox(self.title)
+        qlabel.setMinimumHeight(32)
+        return qlabel
 
     def update_from_params(self, params: SolverParams):
         param_val = params.__getattribute__(self.param_name)
@@ -159,7 +161,7 @@ class SolverParamsEditor(QWidget):
     def _params_group(self, title: str, param_category: str, negative: bool) -> QWidget:
         widget = QGroupBox(title)
         layout = QVBoxLayout()
-        # layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         # layout.addWidget(QLabel(title))
         for param_name in self.param_categories[param_category]:
             field = self.solver_params.model_fields[param_name]
