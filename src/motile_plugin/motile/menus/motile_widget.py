@@ -173,6 +173,11 @@ class MotileWidget(QWidget):
                 run.graph, run.input_segmentation
             )
         run._create_seg_time_to_node()
+
+        if run.graph.number_of_nodes() == 0:
+            show_warning(
+                "No tracks found - try making your edge selection value more negative"
+            )
         return run
 
     def _on_solver_event(self, run: MotileRun, event_data: dict) -> None:
