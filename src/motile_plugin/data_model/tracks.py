@@ -638,11 +638,11 @@ class Tracks:
 
         for node in self.graph.nodes():
             seg_id = self.get_seg_id(node)
-            if seg_id is None:
+            time = self.get_time(node)
+            if seg_id is None or time is None:
                 continue
             if seg_id not in self.seg_time_to_node:
                 self.seg_time_to_node[seg_id] = {}
-            time = self.get_time(node)
             self.seg_time_to_node[seg_id][time] = node
 
     def _set_node_attr(self, node: Node, attr: NodeAttr, value: Any):
@@ -733,12 +733,13 @@ class Tracks:
                 pos = None
             else:
                 seg = self.segmentation[time][0] == seg_id
+                pos_scale = self.scale[1:] if self.scale is not None else None
                 area = np.sum(seg)
-                if self.scale is not None:
-                    area *= np.prod(self.scale)
+                if pos_scale is not None:
+                    area *= np.prod(pos_scale)
                 # only include the position if the segmentation was actually there
                 pos = (
-                    measure.centroid(seg, spacing=self.scale[1:])
+                    measure.centroid(seg, spacing=pos_scale)
                     if area > 0
                     else np.array(
                         [
