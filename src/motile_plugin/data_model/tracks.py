@@ -73,7 +73,7 @@ class Tracks:
         self.pos_attr = pos_attr
         self.scale = scale
         self.ndim = self._compute_ndim(segmentation, scale, ndim)
-        self.seg_time_to_node = self._create_seg_time_to_node()
+        self._create_seg_time_to_node()
 
     def get_positions(
         self, nodes: Iterable[Node], incl_time: bool = False
