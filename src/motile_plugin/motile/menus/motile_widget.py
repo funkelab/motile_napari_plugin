@@ -166,13 +166,18 @@ class MotileWidget(QWidget):
             lambda event_data: self._on_solver_event(run, event_data),
             scale=run.scale,
         )
+
+        run._initialize_track_ids()
         if run.input_segmentation is not None:
             run.segmentation = self.relabel_segmentation(
                 run.graph, run.input_segmentation
             )
-
         run._create_seg_time_to_node()
-        run._initialize_track_ids()
+
+        if run.graph.number_of_nodes() == 0:
+            show_warning(
+                "No tracks found - try making your edge selection value more negative"
+            )
         return run
 
     def _on_solver_event(self, run: MotileRun, event_data: dict) -> None:
