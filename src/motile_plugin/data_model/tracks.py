@@ -632,19 +632,18 @@ class Tracks:
 
     def _create_seg_time_to_node(self) -> dict[int, dict[int, Node]]:
         """Create a dictionary mapping seg_id -> dict(time_point -> node_id)"""
-        seg_time_to_node: dict[int, dict[int, Node]] = {}
+        self.seg_time_to_node: dict[int, dict[int, Node]] = {}
         if self.segmentation is None:
-            return seg_time_to_node
+            return
 
         for node in self.graph.nodes():
             seg_id = self.get_seg_id(node)
             if seg_id is None:
                 continue
-            if seg_id not in seg_time_to_node:
-                seg_time_to_node[seg_id] = {}
+            if seg_id not in self.seg_time_to_node:
+                self.seg_time_to_node[seg_id] = {}
             time = self.get_time(node)
-            seg_time_to_node[seg_id][time] = node
-        return seg_time_to_node
+            self.seg_time_to_node[seg_id][time] = node
 
     def _set_node_attr(self, node: Node, attr: NodeAttr, value: Any):
         if isinstance(value, np.ndarray):
