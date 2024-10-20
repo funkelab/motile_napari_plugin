@@ -28,6 +28,7 @@ def segmentation_2d():
 
     # unconnected node
     segmentation[4, 96:100, 96:100] = 5
+    print(np.sum(segmentation == 5))
 
     return np.expand_dims(segmentation, 1)
 
