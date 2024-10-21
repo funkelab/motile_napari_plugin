@@ -537,16 +537,7 @@ class Tracks:
         """
         out_path = directory / self.ATTRS_FILE
         attrs_dict = {
-            "time_attr": (
-                self.time_attr.astype(
-                    np.uint16
-                ).tolist()  # Convert to uint16 and convert to list
-                if isinstance(self.time_attr, np.ndarray)
-                and self.time_attr.dtype == np.int64
-                else self.time_attr.tolist()  # Convert to list if it's a numpy array
-                if isinstance(self.time_attr, np.ndarray)
-                else self.time_attr  # Otherwise, keep as is
-            ),
+            "time_attr": self.time_attr,
             "pos_attr": self.pos_attr
             if not isinstance(self.pos_attr, np.ndarray)
             else self.pos_attr.tolist(),
