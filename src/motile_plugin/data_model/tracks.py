@@ -224,8 +224,6 @@ class Tracks:
     ):
         if attrs is None:
             attrs = {}
-        for node in nodes:
-            print("add node", node)
         self.graph.add_nodes_from(nodes)
         self.set_times(nodes, times)
         final_pos: np.ndarray
