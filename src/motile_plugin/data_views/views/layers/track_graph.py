@@ -4,22 +4,21 @@ import copy
 from typing import TYPE_CHECKING
 
 import napari
-import networkx as nx
 import numpy as np
-from motile_toolbox.candidate_graph import NodeAttr
 
 if TYPE_CHECKING:
+    from motile_plugin.data_model.solution_tracks import SolutionTracks
     from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 
 def update_napari_tracks(
-    graph: nx.DiGraph,
+    tracks: SolutionTracks,
 ):
     """Function to take a networkx graph with assigned track_ids and return the data needed to add to
     a napari tracks layer.
 
     Args:
-        graph (nx.DiGraph): graph that already has track_ids, position, and time assigned to the nodes.
+        tracks (SolutionTracks): tracks that have track_ids and have a tree structure
 
     Returns:
         data: array (N, D+1)
@@ -34,7 +33,8 @@ def update_napari_tracks(
             parents, but only one child) in the case of track merging.
     """
 
-    ndim = len(graph.nodes[next(iter(graph.nodes))][NodeAttr.POS.value])
+    ndim = tracks.ndim - 1
+    graph = tracks.graph
     napari_data = np.zeros((graph.number_of_nodes(), ndim + 2))
     napari_edges = {}
 
@@ -51,16 +51,16 @@ def update_napari_tracks(
 
     for index, node in enumerate(graph.nodes(data=True)):
         node_id, data = node
-        location = graph.nodes[node_id][NodeAttr.POS.value]
+        location = tracks.get_position(node_id)
         napari_data[index] = [
-            data[NodeAttr.TRACK_ID.value],
-            data[NodeAttr.TIME.value],
+            tracks.get_track_id(node_id),
+            tracks.get_time(node_id),
             *location,
         ]
 
     for parent, child in intertrack_edges:
-        parent_track_id = graph.nodes[parent][NodeAttr.TRACK_ID.value]
-        child_track_id = graph.nodes[child][NodeAttr.TRACK_ID.value]
+        parent_track_id = tracks.get_track_id(parent)
+        child_track_id = tracks.get_track_id(child)
         if child_track_id in napari_edges:
             napari_edges[child_track_id].append(parent_track_id)
         else:
@@ -80,7 +80,7 @@ class TrackGraph(napari.layers.Tracks):
     ):
         self.tracks_viewer = tracks_viewer
         track_data, track_edges = update_napari_tracks(
-            self.tracks_viewer.tracks.graph,
+            self.tracks_viewer.tracks,
         )
 
         super().__init__(
@@ -99,7 +99,7 @@ class TrackGraph(napari.layers.Tracks):
         """Refreshes the displayed tracks based on the graph in the current tracks_viewer.tracks"""
 
         track_data, track_edges = update_napari_tracks(
-            self.tracks_viewer.tracks.graph,
+            self.tracks_viewer.tracks,
         )
 
         self.data = track_data

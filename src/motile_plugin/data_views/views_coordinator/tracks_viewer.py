@@ -210,7 +210,7 @@ class TracksViewer:
             tracks (Tracks): A tracks object to view, created externally from the plugin
             name (str): The name to display in napari layers
         """
-        tracks.segmentation = np.expand_dims(tracks.segmentation, axis=1)
+        # tracks.segmentation = np.expand_dims(tracks.segmentation, axis=1)
         tracks.segmentation = relabel_segmentation(tracks.graph, tracks.segmentation)
         self.update_tracks(tracks, name)
 
