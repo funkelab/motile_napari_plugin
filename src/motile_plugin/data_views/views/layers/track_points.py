@@ -28,13 +28,7 @@ class TrackPoints(napari.layers.Points):
     ):
         self.tracks_viewer = tracks_viewer
         self.nodes = list(tracks_viewer.tracks.graph.nodes)
-        self.node_index_dict = dict(
-            zip(
-                self.nodes,
-                [self.nodes.index(node) for node in self.nodes],
-                strict=False,
-            )
-        )
+        self.node_index_dict = {node: idx for idx, node in enumerate(self.nodes)}
 
         points = self.tracks_viewer.tracks.get_positions(self.nodes, incl_time=True)
         track_ids = [
@@ -104,13 +98,7 @@ class TrackPoints(napari.layers.Points):
         )  # do not listen to new events until updates are complete
         self.nodes = list(self.tracks_viewer.tracks.graph.nodes)
 
-        self.node_index_dict = dict(
-            zip(
-                self.nodes,
-                [self.nodes.index(node) for node in self.nodes],
-                strict=False,
-            )
-        )
+        self.node_index_dict = {node: idx for idx, node in enumerate(self.nodes)}
 
         track_ids = [
             self.tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
