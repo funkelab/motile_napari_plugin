@@ -15,6 +15,7 @@ from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
 )
 from motile_plugin.utils.relabel_segmentation import relabel_segmentation
 
+from .collection_widget import CollectionWidget
 from .node_selection_list import NodeSelectionList
 from .tracks_list import TracksList
 
@@ -66,6 +67,8 @@ class TracksViewer:
         self.tracks_list = TracksList()
         self.tracks_list.view_tracks.connect(self.update_tracks)
 
+        self.collection_widget = CollectionWidget(self)
+
         self.set_keybinds()
 
     def set_keybinds(self):
@@ -89,7 +92,7 @@ class TracksViewer:
         if len(self.selected_nodes) > 0 and any(
             not self.tracks.graph.has_node(node) for node in self.selected_nodes
         ):
-            self.selected_nodes.reset()
+            self.selected_nodes._list = []
 
         self.tracking_layers._refresh()
 
@@ -125,6 +128,9 @@ class TracksViewer:
         for layer in self.viewer.layers:
             if isinstance(layer, (napari.layers.Labels | napari.layers.Points)):
                 layer.visible = False
+
+        # retrieve existing groups
+        self.collection_widget.retrieve_existing_groups()
 
         self.set_display_mode("all")
         self.tracking_layers.set_tracks(tracks, name)
