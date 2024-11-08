@@ -58,7 +58,11 @@ def extract_sorted_tracks(
         )
         positions = tracks.get_positions(sorted_nodes).tolist()
 
+        # track_id and color are the same for all nodes in a node_set
         parent_track_id = None
+        track_id = tracks.get_track_id(sorted_nodes[0])
+        color = np.concatenate((colormap.map(track_id)[:3] * 255, [255]))
+
         for node, pos in zip(sorted_nodes, positions, strict=False):
             if node in parent_nodes:
                 state = NodeType.SPLIT
@@ -70,12 +74,11 @@ def extract_sorted_tracks(
                 state = NodeType.CONTINUE
                 symbol = "o"
 
-            track_id = tracks.get_track_id(node)
             track_dict = {
                 "t": tracks.get_time(node),
                 "node_id": node,
                 "track_id": track_id,
-                "color": np.concatenate((colormap.map(track_id)[:3] * 255, [255])),
+                "color": color,
                 "x": pos[-1],
                 "y": pos[-2],
                 "parent_id": 0,
