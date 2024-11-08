@@ -6,9 +6,10 @@ import napari
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
+from napari.utils.events.event import Event
 from psygnal import Signal
 from pyqtgraph.Qt import QtCore
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QTimer
 from qtpy.QtGui import QColor, QKeyEvent, QMouseEvent
 from qtpy.QtWidgets import (
     QHBoxLayout,
@@ -22,6 +23,7 @@ from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewe
 from .navigation_widget import NavigationWidget
 from .tree_view_feature_widget import TreeViewFeatureWidget
 from .tree_view_mode_widget import TreeViewModeWidget
+from .tree_view_sync_widget import SyncWidget
 from .tree_widget_utils import (
     extract_lineage_tree,
     extract_sorted_tracks,
@@ -407,14 +409,28 @@ class TreeWidget(QWidget):
 
     def __init__(self, viewer: napari.Viewer):
         super().__init__()
+        self.viewer = viewer
         self.track_df = pd.DataFrame()  # all tracks
         self.lineage_df = pd.DataFrame()  # the currently viewed subset of lineages
         self.group_df = pd.DataFrame()  # the currently viewed group
+        self.sync_df = (
+            None  # the objects synced with the field of view in napari viewer
+        )
         self.graph = None
         self.mode = "all"  # options: "all", "lineage"
         self.feature = "tree"  # options: "tree", "area"
         self.view_direction = "vertical"  # options: "horizontal", "vertical"
 
+        # Set debounce timer for syncing views
+        self.debounce_timer = QTimer()
+        self.debounce_timer.setSingleShot(
+            True
+        )  # Ensure the timer only fires once per activation
+        self.debounce_timer.timeout.connect(
+            self.sync_views
+        )  # Connect the timer to the sync function
+
+        # Connect to tracks_viewer
         self.tracks_viewer = TracksViewer.get_instance(viewer)
         self.selected_nodes = self.tracks_viewer.selected_nodes
         self.selected_nodes.list_updated.connect(self._update_selected)
@@ -447,31 +463,159 @@ class TreeWidget(QWidget):
             self.feature,
         )
 
+        # Add widget for syncing views
+        self.sync = False
+        self.sync_widget = SyncWidget()
+        self.sync_widget.sync_button.setEnabled(False)
+        self.sync_widget.sync_button.clicked.connect(self.set_sync)
+
         # Construct a toolbar and set main layout
         panel_layout = QHBoxLayout()
         panel_layout.addWidget(self.mode_widget)
         panel_layout.addWidget(self.feature_widget)
         panel_layout.addWidget(self.navigation_widget)
+        panel_layout.addWidget(self.sync_widget)
         panel_layout.setSpacing(0)
         panel_layout.setContentsMargins(0, 0, 0, 0)
 
         panel = QWidget()
         panel.setLayout(panel_layout)
-        panel.setMaximumWidth(820)
+        panel.setMaximumWidth(1000)
         panel.setMaximumHeight(78)
 
         # Make a collapsible for TreeView widgets
-        collapsable_widget = QCollapsible("Show/Hide Tree View Controls")
-        collapsable_widget.layout().setContentsMargins(0, 0, 0, 0)
-        collapsable_widget.layout().setSpacing(0)
-        collapsable_widget.addWidget(panel)
-        collapsable_widget.collapse(animate=False)
+        collapsible_widget = QCollapsible("Show/Hide Tree View Controls")
+        collapsible_widget.layout().setContentsMargins(0, 0, 0, 0)
+        collapsible_widget.layout().setSpacing(0)
+        collapsible_widget.addWidget(panel)
+        collapsible_widget.collapse(animate=False)
 
-        layout.addWidget(collapsable_widget)
+        layout.addWidget(collapsible_widget)
         layout.addWidget(self.tree_widget)
         layout.setSpacing(0)
         self.setLayout(layout)
         self._update_track_data(reset_view=True)
+
+    def set_sync(self) -> None:
+        """Lock/unlock syncing between napari views and tree view"""
+
+        self.sync = not self.sync
+
+        if self.sync:
+            self.viewer.camera.events.center.connect(
+                self.on_camera_center_change
+            )  # connect debounce timer start to the camera event
+            self._set_mode("all")
+            self.tracks_viewer.display_mode_updated.connect(self._set_mode)
+        else:
+            self.viewer.camera.events.center.disconnect(self.on_camera_center_change)
+            self.tracks_viewer.display_mode_updated.disconnect(self._set_mode)
+            if self.mode == "all":
+                self.tree_widget.update(
+                    self.track_df,
+                    self.view_direction,
+                    self.feature,
+                    self.selected_nodes,
+                    reset_view=False,
+                )
+            elif self.mode == "lineage":
+                self.tree_widget.update(
+                    self.lineage_df,
+                    self.view_direction,
+                    self.feature,
+                    self.selected_nodes,
+                    reset_view=False,
+                )
+            elif self.mode == "group":
+                self.tree_widget.update(
+                    self.group_df,
+                    self.view_direction,
+                    self.feature,
+                    self.selected_nodes,
+                    reset_view=False,
+                )
+
+    def on_camera_center_change(self, event: Event | None = None):
+        """Start or restart the debounce timer with a delay (200 ms)"""
+
+        self.debounce_timer.start(200)
+
+    def sync_views(self, force_update: bool | None = None) -> None:
+        """Sync the data in the tree plot with the data in the field of view of the napari viewer"""
+
+        if self.sync_df is None:
+            prev_visible = self.track_df["node_id"].tolist()
+        else:
+            prev_visible = self.sync_df["node_id"].tolist()
+
+        corner_coordinates = (
+            self.tracks_viewer.tracking_layers.points_layer.corner_pixels
+        )
+        dims_displayed = self.viewer.dims.displayed
+
+        # self.viewer.dims.displayed_order
+        x_dim = dims_displayed[-1]
+        y_dim = dims_displayed[-2]
+
+        # find corner pixels for the displayed axes
+        _min_x = corner_coordinates[0][x_dim]
+        _max_x = corner_coordinates[1][x_dim]
+        _min_y = corner_coordinates[0][y_dim]
+        _max_y = corner_coordinates[1][y_dim]
+
+        if self.mode == "all":
+            visible_nodes = self.track_df[
+                (self.track_df["x"] >= _min_x)
+                & (self.track_df["x"] <= _max_x)
+                & (self.track_df["y"] >= _min_y)
+                & (self.track_df["y"] <= _max_y)
+            ]["node_id"].tolist()
+        elif self.mode == "lineage":
+            visible_nodes = self.lineage_df[
+                (self.lineage_df["x"] >= _min_x)
+                & (self.lineage_df["x"] <= _max_x)
+                & (self.lineage_df["y"] >= _min_y)
+                & (self.lineage_df["y"] <= _max_y)
+            ]["node_id"].tolist()
+        elif self.mode == "group":
+            visible_nodes = self.group_df[
+                (self.group_df["x"] >= _min_x)
+                & (self.group_df["x"] <= _max_x)
+                & (self.group_df["y"] >= _min_y)
+                & (self.group_df["y"] <= _max_y)
+            ]["node_id"].tolist()
+
+        visible = []
+        for node_id in visible_nodes:
+            visible += extract_lineage_tree(self.graph, node_id)
+
+        if (
+            set(visible) != set(prev_visible) or force_update
+        ):  # only call update function if the list of visible nodes has changed
+            if self.mode == "all":
+                self.sync_df = self.track_df[
+                    self.track_df["node_id"].isin(visible)
+                ].reset_index()
+            elif self.mode == "lineage":
+                self.sync_df = self.lineage_df[
+                    self.lineage_df["node_id"].isin(visible)
+                ].reset_index()
+            elif self.mode == "group":
+                self.sync_df = self.group_df[
+                    self.group_df["node_id"].isin(visible)
+                ].reset_index()
+
+            self.sync_df["x_axis_pos"] = (
+                self.sync_df["x_axis_pos"].rank(method="dense").astype(int) - 1
+            )
+
+            self.tree_widget.update(
+                self.sync_df,
+                self.view_direction,
+                self.feature,
+                self.selected_nodes,
+                reset_view=True,
+            )
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events."""
@@ -579,6 +723,7 @@ class TreeWidget(QWidget):
         if self.tracks_viewer.tracks is None:
             self.track_df = pd.DataFrame()
             self.graph = None
+            self.sync_widget.sync_button.setEnabled(False)
         else:
             if reset_view:
                 self.track_df = extract_sorted_tracks(
@@ -591,6 +736,7 @@ class TreeWidget(QWidget):
                     self.track_df,
                 )
             self.graph = self.tracks_viewer.tracks.graph
+            self.sync_widget.sync_button.setEnabled(True)
 
         # check whether we have area measurements and therefore should activate the area
         # button
@@ -614,28 +760,21 @@ class TreeWidget(QWidget):
         self.navigation_widget.track_df = self.track_df
         self.navigation_widget.lineage_df = self.lineage_df
 
-        # check which view to set
+        # get the dataframe of currently displayed data, then update plot with or without filtering by the field of view (if sync is on)
         if self.mode == "lineage":
             self._update_lineage_df()
-            self.tree_widget.update(
-                self.lineage_df,
-                self.view_direction,
-                self.feature,
-                self.selected_nodes,
-                reset_view=reset_view,
-            )
+            df = self.lineage_df
         elif self.mode == "group":
             self._update_group_df()
-            self.tree_widget.update(
-                self.group_df,
-                self.view_direction,
-                self.feature,
-                self.selected_nodes,
-                reset_view=reset_view,
-            )
+            df = self.group_df
+        else:
+            df = self.track_df
+
+        if self.sync:
+            self.sync_views(force_update=True)
         else:
             self.tree_widget.update(
-                self.track_df,
+                df,
                 self.view_direction,
                 self.feature,
                 self.selected_nodes,
@@ -671,9 +810,19 @@ class TreeWidget(QWidget):
             self._update_lineage_df()
             df = self.lineage_df
         self.navigation_widget.view_direction = self.view_direction
-        self.tree_widget.update(
-            df, self.view_direction, self.feature, self.selected_nodes
-        )
+
+        if self.sync:
+            self.tracks_viewer.display_mode_updated.disconnect(
+                self._set_mode
+            )  # disconnect first to prevent infinite loop
+            self.tracks_viewer.set_display_mode(mode)
+            self.tracks_viewer.display_mode_updated.connect(self._set_mode)
+            self.sync_views()  # update the tree plot with the nodes in the dataframe that are also in the napari view
+
+        else:  # update the tree plot with all nodes in the dataframe
+            self.tree_widget.update(
+                df, self.view_direction, self.feature, self.selected_nodes
+            )
 
     def _set_feature(self, feature: str) -> None:
         """Set the feature mode to 'tree' or 'area'. For this the view is always
@@ -735,15 +884,16 @@ class TreeWidget(QWidget):
         """Subset dataframe to include only nodes belonging to the current group/collection"""
 
         visible = []
-        for (
-            node_id
-        ) in self.tracks_viewer.collection_widget.selected_collection.collection:
-            if node_id in self.track_df["node_id"].tolist():
-                visible += extract_lineage_tree(self.graph, node_id)
-            else:
-                self.tracks_viewer.collection_widget.selected_collection.collection._list.remove(
-                    node_id
-                )
+        if self.tracks_viewer.collection_widget.selected_collection is not None:
+            for (
+                node_id
+            ) in self.tracks_viewer.collection_widget.selected_collection.collection:
+                if node_id in self.track_df["node_id"].tolist():
+                    visible += extract_lineage_tree(self.graph, node_id)
+                else:
+                    self.tracks_viewer.collection_widget.selected_collection.collection._list.remove(
+                        node_id
+                    )
         self.group_df = self.track_df[
             self.track_df["node_id"].isin(visible)
         ].reset_index()
