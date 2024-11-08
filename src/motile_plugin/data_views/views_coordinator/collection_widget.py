@@ -29,6 +29,8 @@ if TYPE_CHECKING:
 
 
 class CollectionButton(QWidget):
+    """Widget holding a name and delete icon for listing in the QListWidget. Also contains an initially empty instance of a Collection to which nodes can be assigned"""
+
     def __init__(self, name: str):
         super().__init__()
         self.name = QLabel(name)
@@ -113,6 +115,8 @@ class CollectionWidget(QGroupBox):
         self.setLayout(layout)
 
     def retrieve_existing_groups(self):
+        """Create collections based on the node attributes. Nodes assigned to a group should have that group in their 'group' attribute"""
+
         # first clear the entire list
         self.collection_list.clear()
 
@@ -135,12 +139,16 @@ class CollectionWidget(QGroupBox):
             )
 
     def _selection_changed(self):
+        """Update the currently selected collection and send update signal"""
+
         selected = self.collection_list.selectedItems()
         if selected:
             self.selected_collection = self.collection_list.itemWidget(selected[0])
             self.group_changed.emit()
 
     def add_node(self):
+        """Add individual nodes to the selected collection and send update signal"""
+
         if self.selected_collection is not None:
             self.selected_collection.collection.add(self.tracks_viewer.selected_nodes)
             for node_id in self.tracks_viewer.selected_nodes:
@@ -156,6 +164,8 @@ class CollectionWidget(QGroupBox):
             self.group_changed.emit()
 
     def add_track(self):
+        """Add tracks by track_ids to the selected collection and send update signal"""
+
         if self.selected_collection is not None:
             for node_id in self.tracks_viewer.selected_nodes:
                 track_id = self.tracks_viewer.tracks._get_node_attr(
@@ -184,6 +194,8 @@ class CollectionWidget(QGroupBox):
             self.group_changed.emit()
 
     def add_lineage(self):
+        """Add lineages to the selected collection and send update signal"""
+
         if self.selected_collection is not None:
             for node_id in self.tracks_viewer.selected_nodes:
                 lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
@@ -201,6 +213,8 @@ class CollectionWidget(QGroupBox):
             self.group_changed.emit()
 
     def remove_node(self):
+        """Remove individual nodes from the selected collection and send update signal"""
+
         if self.selected_collection is not None:
             self.selected_collection.collection.remove(
                 self.tracks_viewer.selected_nodes
@@ -212,6 +226,8 @@ class CollectionWidget(QGroupBox):
             self.group_changed.emit()
 
     def remove_track(self):
+        """Remove tracks by track id from the selected collection and send update signal"""
+
         if self.selected_collection is not None:
             for node_id in self.tracks_viewer.selected_nodes:
                 track_id = self.tracks_viewer.tracks._get_node_attr(
@@ -234,6 +250,8 @@ class CollectionWidget(QGroupBox):
         self.group_changed.emit()
 
     def remove_lineage(self):
+        """Remove lineages from the selected collection and send update signal"""
+
         if self.selected_collection is not None:
             for node_id in self.tracks_viewer.selected_nodes:
                 lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
@@ -268,7 +286,7 @@ class CollectionWidget(QGroupBox):
 
         Args:
             item (QListWidgetItem): The list item to remove. This list item
-                contains the CollectionButton that represents a set of tracks.
+                contains the CollectionButton that represents a set of node_ids.
         """
         row = self.collection_list.indexFromItem(item).row()
         group_name = self.collection_list.itemWidget(item).name.text()

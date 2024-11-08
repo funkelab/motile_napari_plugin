@@ -1,21 +1,17 @@
 from __future__ import annotations
 
-from psygnal import Signal
 from PyQt5.QtCore import QObject
 
 
 class Collection(QObject):
-    """A collection of nodes that sends a signal on every update.
-    Stores a list of node ids only."""
-
-    list_updated = Signal()
+    """A collection of node ids belonging to a group"""
 
     def __init__(self):
         super().__init__()
         self._list = []
 
     def add(self, items: list, append: bool | None = True):
-        """Add nodes from a list and emit a single signal"""
+        """Add nodes from a list"""
 
         if append:
             for item in items:
@@ -27,19 +23,14 @@ class Collection(QObject):
         else:
             self._list = items
 
-        self.list_updated.emit()
-
     def remove(self, items: list):
-        """Remove nodes from a list and emit a single signal"""
+        """Remove nodes from a list"""
 
         self._list = [item for item in self._list if item not in items]
 
-        self.list_updated.emit()
-
     def reset(self):
-        """Empty list and emit update signal"""
+        """Empty list"""
         self._list = []
-        self.list_updated.emit()
 
     def __getitem__(self, index):
         return self._list[index]
