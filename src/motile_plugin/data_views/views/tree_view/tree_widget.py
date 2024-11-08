@@ -505,11 +505,15 @@ class TreeWidget(QWidget):
             self.viewer.camera.events.center.connect(
                 self.on_camera_center_change
             )  # connect debounce timer start to the camera event
-            self._set_mode("all")
             self.tracks_viewer.display_mode_updated.connect(self._set_mode)
+            self._set_mode("all")
+            self.mode_widget.show_all_radio.setChecked(True)
+
         else:
             self.viewer.camera.events.center.disconnect(self.on_camera_center_change)
             self.tracks_viewer.display_mode_updated.disconnect(self._set_mode)
+            self.sync_df = None
+
             if self.mode == "all":
                 self.tree_widget.update(
                     self.track_df,
