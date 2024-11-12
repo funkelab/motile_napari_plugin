@@ -37,11 +37,13 @@ class CollectionButton(QWidget):
         self.name.setFixedHeight(20)
         self.collection = Collection()
         delete_icon = QColoredSVGIcon.from_resources("delete").colored("white")
+        self.node_count = QLabel(f"{len(self.collection)} nodes")
         self.delete = QPushButton(icon=delete_icon)
         self.delete.setFixedSize(20, 20)
         layout = QHBoxLayout()
         layout.setSpacing(1)
         layout.addWidget(self.name)
+        layout.addWidget(self.node_count)
         layout.addWidget(self.delete)
         self.setLayout(layout)
 
@@ -49,6 +51,9 @@ class CollectionButton(QWidget):
         hint = super().sizeHint()
         hint.setHeight(30)
         return hint
+
+    def update_node_count(self):
+        self.node_count.setText(f"{len(self.collection)} nodes")
 
 
 class CollectionWidget(QGroupBox):
@@ -62,9 +67,11 @@ class CollectionWidget(QGroupBox):
         super().__init__(title="Collections")
 
         self.tracks_viewer = tracks_viewer
-        self.tracks_viewer.selected_nodes.list_updated.connect(self._update_buttons)
+        self.tracks_viewer.selected_nodes.list_updated.connect(
+            self._update_buttons_and_node_count
+        )
 
-        self.group_changed.connect(self._update_buttons)
+        self.group_changed.connect(self._update_buttons_and_node_count)
 
         self.collection_list = QListWidget()
         self.collection_list.setSelectionMode(1)  # single selection
@@ -130,9 +137,9 @@ class CollectionWidget(QGroupBox):
         layout.addWidget(new_group_box)
         self.setLayout(layout)
 
-        self._update_buttons()
+        self._update_buttons_and_node_count()
 
-    def _update_buttons(self) -> None:
+    def _update_buttons_and_node_count(self) -> None:
         """Enable or disable selection and edit buttons depending on whether a group is selected, nodes are selected, and whether the group contains any nodes"""
 
         selected = self.collection_list.selectedItems()
@@ -153,6 +160,10 @@ class CollectionWidget(QGroupBox):
             self.select_btn.setEnabled(False)
 
         if selected:
+            self.collection_list.itemWidget(
+                selected[0]
+            ).update_node_count()  # update the node count
+
             if len(self.selected_collection.collection) > 0:
                 self.select_btn.setEnabled(True)
             else:
@@ -202,7 +213,7 @@ class CollectionWidget(QGroupBox):
                 group_dict[self.selected_collection.name.text()]
             )
 
-        self._update_buttons()
+        self._update_buttons_and_node_count()
 
     def _selection_changed(self) -> None:
         """Update the currently selected collection and send update signal"""
@@ -212,7 +223,7 @@ class CollectionWidget(QGroupBox):
             self.selected_collection = self.collection_list.itemWidget(selected[0])
             self.group_changed.emit()
 
-        self._update_buttons()
+        self._update_buttons_and_node_count()
 
     def add_nodes(self, nodes: list[Any] | None = None) -> None:
         """Add individual nodes to the selected collection and send update signal
@@ -293,13 +304,22 @@ class CollectionWidget(QGroupBox):
         """Remove individual nodes from the selected collection and send update signal"""
 
         if self.selected_collection is not None:
+            # remove from the collection
             self.selected_collection.collection.remove(
                 self.tracks_viewer.selected_nodes
             )
+
+            # remove from the node attribute
             for node_id in self.tracks_viewer.selected_nodes:
-                self.tracks_viewer.tracks.graph.nodes[node_id]["group"].remove(
-                    self.selected_collection.name.text()
-                )
+                node_attrs = self.tracks_viewer.tracks.graph.nodes[node_id]
+                group_list = node_attrs.get("group")
+                if (
+                    isinstance(group_list, list)
+                    and self.selected_collection.name.text() in group_list
+                ):
+                    # Remove the value if it exists in the list
+                    group_list.remove(self.selected_collection.name.text())
+
             self.group_changed.emit()
 
     def _remove_track(self) -> None:
