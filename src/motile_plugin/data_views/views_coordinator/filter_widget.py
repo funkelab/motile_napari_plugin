@@ -31,30 +31,33 @@ if TYPE_CHECKING:
 
 
 class Rule(QWidget):
-    """Widget holding the rule"""
+    """Widget for constructing a condition to filter by"""
 
     def __init__(self, graph: nx.diGraph):
         super().__init__()
 
         self.graph = graph
 
+        # assign node attributes as items to filter by
         self.items = set()
         for _, attrs in self.graph.nodes(data=True):
             self.items.update(attrs.keys())
-        if "pos" in self.items:
+        if (
+            "pos" in self.items
+        ):  # not using position information right now, consider splitting in x, y, (z) coordinates for filtering?
             self.items.remove("pos")
-
-        self.signs = ["<", "<=", ">", ">=", "=", "\u2260"]
-
-        self.logic = ["AND", "OR", "NOT", "XOR"]
 
         self.item_dropdown = QComboBox()
         self.item_dropdown.addItems(self.items)
         self.item_dropdown.currentIndexChanged.connect(self._set_sign_value_widget)
 
+        # create a dropdown with signs for comparisons
+        self.signs = ["<", "<=", ">", ">=", "=", "\u2260"]
         self.sign_dropdown = QComboBox()
         self.sign_dropdown.addItems(self.signs)
 
+        # create a dropdown with different logical operators for combining multiple conditions
+        self.logic = ["AND", "OR", "NOT", "XOR"]
         self.logic_dropdown = QComboBox()
         self.logic_dropdown.addItems(self.logic)
 
@@ -62,24 +65,27 @@ class Rule(QWidget):
         self.value_widget = QWidget()
         self.value_layout = QVBoxLayout()
         self.value_widget.setLayout(self.value_layout)
+        self._set_sign_value_widget()  # Initialize value widget
 
+        # Create a delete button for removing the rule
         delete_icon = QColoredSVGIcon.from_resources("delete").colored("white")
         self.delete = QPushButton(icon=delete_icon)
         self.delete.setFixedSize(20, 20)
 
+        # Combine widgets and assign layout
         layout = QHBoxLayout()
         layout.addWidget(self.delete)
         layout.addWidget(self.item_dropdown)
         layout.addWidget(self.sign_dropdown)
         layout.addWidget(self.logic_dropdown)
         layout.addWidget(self.value_widget)
-
         self.setLayout(layout)
 
-        # Initialize value widget
-        self._set_sign_value_widget()
+    def _set_sign_value_widget(self) -> None:
+        """Replaces self.value_widget with a new widget of the appropriate type: combobox for string types, spinboxes for numerical values, QLineEdit for values in tuples or lists.
+        Also assigns the correct signs to self.sign_dropdown, as >, >=, <=, and < cannot be used for string comparisons.
+        """
 
-    def _set_sign_value_widget(self):
         # Remove the existing value widget from the layout
         self.layout().removeWidget(self.value_widget)
         self.value_widget.deleteLater()
@@ -105,7 +111,7 @@ class Rule(QWidget):
             self.value_widget = QComboBox()
             self.value_widget.addItems(unique_values)
 
-            # update the signs, cannot use >. >=, <=, < for string comparison
+            # update the signs, cannot use >, >=, <=, < for string comparison
             self.sign_dropdown.clear()
             signs = ["=", "\u2260"]
             self.sign_dropdown.addItems(signs)
@@ -134,17 +140,9 @@ class Rule(QWidget):
         # Add the new value widget to the layout
         self.layout().addWidget(self.value_widget)
 
-    def _update_items(self, graph):
-        # To update the items list when the graph changes
-        self.items = set()
-        for _, attrs in graph.nodes(data=True):
-            self.items.update(attrs.keys())
-        self.item_dropdown.clear()
-        self.item_dropdown.addItems(self.items)
-
 
 class Filter(QWidget):
-    """Widget holding a name and delete icon for listing in the QListWidget. Also contains an initially empty instance of a Collection to which nodes can be assigned"""
+    """Filter widget containing a single filter, composed of multiple Rule widgets formulating conditions to filter by"""
 
     filter_updated = Signal()
 
@@ -157,21 +155,25 @@ class Filter(QWidget):
         # rule list widget
         self.rule_list = QListWidget()
         self.rule_list.setSelectionMode(QAbstractItemView.NoSelection)  # no selection
+        self.item.setBackground(QColor("#262931"))
         self.setStyleSheet("""
                 QListWidget::item:selected {
                     background-color: #262931;
                 }
         """)
+        self.rule_list.setFixedHeight(200)
+        self.setFixedHeight(220)
 
+        # available colors
         self.color = QComboBox()
         self.color.addItems(["red", "green", "blue", "magenta", "yellow", "orange"])
-        self.color.currentIndexChanged.connect(self.update_filter)
+        self.color.currentIndexChanged.connect(self._update_filter)
 
-        self.item.setBackground(QColor("#262931"))
+        # adding, removing, updating rules
         add_button = QPushButton("Add rule")
-        add_button.clicked.connect(self.add_rule)
+        add_button.clicked.connect(self._add_rule)
         update_button = QPushButton("Apply")
-        update_button.clicked.connect(self.update_filter)
+        update_button.clicked.connect(self._update_filter)
         delete_icon = QColoredSVGIcon.from_resources("delete").colored("white")
         self.delete = QPushButton(icon=delete_icon)
         self.delete.setFixedSize(40, 40)
@@ -179,9 +181,7 @@ class Filter(QWidget):
         layout = QHBoxLayout()
         layout.setSpacing(1)
 
-        self.rule_list.setFixedHeight(200)
-        self.setFixedHeight(220)
-
+        # combine settings widgets
         settings_layout = QVBoxLayout()
         settings_layout.addWidget(self.color)
         settings_layout.addWidget(add_button)
@@ -192,17 +192,17 @@ class Filter(QWidget):
         layout.addLayout(settings_layout)
         self.setLayout(layout)
 
-    def sizeHint(self):
+    def sizeHint(self) -> None:
         hint = super().sizeHint()
         hint.setHeight(30)
         return hint
 
-    def update_filter(self):
+    def _update_filter(self) -> None:
         if not self.item.isSelected():
             self.item.setSelected(True)
         self.filter_updated.emit()
 
-    def add_rule(self):
+    def _add_rule(self) -> None:
         """Create a new custom group"""
 
         item = QListWidgetItem(self.rule_list)
@@ -211,15 +211,15 @@ class Filter(QWidget):
         item.setSizeHint(group_row.minimumSizeHint())
         item.setBackground(QColor("#262931"))
         self.rule_list.addItem(item)
-        group_row.delete.clicked.connect(partial(self.remove_rule, item))
+        group_row.delete.clicked.connect(partial(self._remove_rule, item))
 
-    def remove_rule(self, item: QListWidgetItem):
-        """Remove a collection object from the list. You must pass the list item that
-        represents the collection, not the collection object itself.
+    def _remove_rule(self, item: QListWidgetItem) -> None:
+        """Remove a rule from the list. You must pass the list item that
+        represents the rule, not the rule object itself.
 
         Args:
             item (QListWidgetItem): The list item to remove. This list item
-                contains the CollectionButton that represents a set of node_ids.
+                contains the Rule that represents a set of node_ids.
         """
         row = self.rule_list.indexFromItem(item).row()
         self.rule_list.takeItem(row)
