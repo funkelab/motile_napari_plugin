@@ -65,7 +65,6 @@ class Rule(QWidget):
         self.value_widget = QWidget()
         self.value_layout = QVBoxLayout()
         self.value_widget.setLayout(self.value_layout)
-        self._set_sign_value_widget()  # Initialize value widget
 
         # Create a delete button for removing the rule
         delete_icon = QColoredSVGIcon.from_resources("delete").colored("white")
@@ -80,6 +79,9 @@ class Rule(QWidget):
         layout.addWidget(self.logic_dropdown)
         layout.addWidget(self.value_widget)
         self.setLayout(layout)
+
+        # Initialize value widget
+        self._set_sign_value_widget()
 
     def _set_sign_value_widget(self) -> None:
         """Replaces self.value_widget with a new widget of the appropriate type: combobox for string types, spinboxes for numerical values, QLineEdit for values in tuples or lists.
