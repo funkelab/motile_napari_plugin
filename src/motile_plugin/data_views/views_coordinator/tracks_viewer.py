@@ -16,6 +16,7 @@ from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
 from motile_plugin.utils.relabel_segmentation import relabel_segmentation
 
 from .collection_widget import CollectionWidget
+from .filter_widget import FilterWidget
 from .node_selection_list import NodeSelectionList
 from .tracks_list import TracksList
 
@@ -65,12 +66,21 @@ class TracksViewer:
         self.selected_nodes = NodeSelectionList()
         self.selected_nodes.list_updated.connect(self.update_selection)
 
+        self.filtered_nodes = {}
+        self.filter_color = (1, 1, 1, 0)
+
         self.tracks_list = TracksList()
         self.tracks_list.view_tracks.connect(self.update_tracks)
 
         self.collection_widget = CollectionWidget(self)
 
+        self.filter_widget = FilterWidget(self)
+        self.filter_widget.apply_filter.connect(self.apply_filter)
+
         self.set_keybinds()
+
+    def apply_filter(self):
+        self.tracking_layers.points_layer.update_point_outline()
 
     def set_keybinds(self):
         # TODO: separate and document keybinds (and maybe allow user to choose)
@@ -132,6 +142,10 @@ class TracksViewer:
 
         # retrieve existing groups
         self.collection_widget.retrieve_existing_groups()
+
+        # clear filters and update buttons
+        self.filter_widget.filter_list.clearSelection()
+        self.filter_widget.update_buttons()
 
         self.set_display_mode("all")
         self.tracking_layers.set_tracks(tracks, name)

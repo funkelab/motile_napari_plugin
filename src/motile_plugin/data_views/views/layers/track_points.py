@@ -187,11 +187,11 @@ class TrackPoints(napari.layers.Points):
         symbols = [symbolmap[statemap[degree]] for _, degree in tracks.graph.out_degree]
         return symbols
 
-    def update_point_outline(self, visible: list[int] | str) -> None:
+    def update_point_visibility(self, visible: list[int] | str) -> None:
         """Update the outline color of the selected points and visibility according to display mode
 
         Args:
-            visible (list[int] | str): A list of track ids, or "all"
+            visible (list[int] | str | None): A list of track ids, "all"
         """
         # filter out the non-selected tracks if in lineage mode
         if visible == "all":
@@ -203,9 +203,23 @@ class TrackPoints(napari.layers.Points):
             self.shown[:] = False
             self.shown[indices] = True
 
+        self.update_point_outline()
+
+    def update_point_outline(self) -> None:
         # set border color for selected item
         self.border_color = [1, 1, 1, 1]
         self.size = 5
+
+        for node in self.tracks_viewer.filtered_nodes:
+            index = self.node_index_dict[node]
+            self.border_color[index] = (
+                self.tracks_viewer.filter_color[0],
+                self.tracks_viewer.filter_color[1],
+                self.tracks_viewer.filter_color[2],
+                1,
+            )
+            self.size[index] = 5
+
         for node in self.tracks_viewer.selected_nodes:
             index = self.node_index_dict[node]
             self.border_color[index] = (
@@ -215,4 +229,5 @@ class TrackPoints(napari.layers.Points):
                 1,
             )
             self.size[index] = 7
+
         self.refresh()

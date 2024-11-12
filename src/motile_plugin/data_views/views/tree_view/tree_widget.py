@@ -125,6 +125,8 @@ class TreePlot(pg.PlotWidget):
         view_direction: str,
         feature: str,
         selected_nodes: list[Any],
+        filtered_nodes: set[Any],
+        color: tuple[float],
         reset_view: bool | None = False,
     ):
         """Update the entire view, including the data, view direction, and
@@ -139,7 +141,7 @@ class TreePlot(pg.PlotWidget):
         self.set_data(track_df, feature)
         self._update_viewed_data(view_direction)  # this can be expensive
         self.set_view(view_direction, feature, reset_view)
-        self.set_selection(selected_nodes, feature)
+        self.set_selection(selected_nodes, filtered_nodes, color, feature)
 
     def set_view(
         self, view_direction: str, feature: str, reset_view: bool | None = False
@@ -285,7 +287,13 @@ class TreePlot(pg.PlotWidget):
             [pg.mkPen(QColor(150, 150, 150)) for i in range(len(self._pos))]
         )
 
-    def set_selection(self, selected_nodes: list[Any], feature: str) -> None:
+    def set_selection(
+        self,
+        selected_nodes: list[Any],
+        filtered_nodes: set[Any],
+        color: tuple,
+        feature: str,
+    ) -> None:
         """Set the provided list of nodes to be selected. Increases the size
         and highlights the outline with blue. Also centers the view
         if the first selected node is not visible in the current canvas.
@@ -307,6 +315,14 @@ class TreePlot(pg.PlotWidget):
         axis_label = (
             "area" if feature == "area" else "x_axis_pos"
         )  # check what is currently being shown, to know how to scale  the view
+
+        if len(filtered_nodes) > 0:
+            color = [c * 255 for c in color]
+            for node_id in filtered_nodes:
+                node_df = self.track_df.loc[self.track_df["node_id"] == node_id]
+                if not node_df.empty:
+                    index = self.node_ids.index(node_id)
+                    outlines[index] = pg.mkPen(color=color, width=2)
 
         if len(selected_nodes) > 0:
             x_values = []
@@ -438,6 +454,7 @@ class TreeWidget(QWidget):
             self._update_selected
         )
         self.tracks_viewer.tracks_updated.connect(self._update_track_data)
+        self.tracks_viewer.filter_widget.apply_filter.connect(self._update_selected)
 
         # Construct the tree view pyqtgraph widget
         layout = QVBoxLayout()
@@ -520,6 +537,8 @@ class TreeWidget(QWidget):
                     self.view_direction,
                     self.feature,
                     self.selected_nodes,
+                    self.tracks_viewer.filtered_nodes,
+                    self.tracks_viewer.filter_color,
                     reset_view=False,
                 )
             elif self.mode == "lineage":
@@ -528,6 +547,8 @@ class TreeWidget(QWidget):
                     self.view_direction,
                     self.feature,
                     self.selected_nodes,
+                    self.tracks_viewer.filtered_nodes,
+                    self.tracks_viewer.filter_color,
                     reset_view=False,
                 )
             elif self.mode == "group":
@@ -536,6 +557,8 @@ class TreeWidget(QWidget):
                     self.view_direction,
                     self.feature,
                     self.selected_nodes,
+                    self.tracks_viewer.filtered_nodes,
+                    self.tracks_viewer.filter_color,
                     reset_view=False,
                 )
 
@@ -618,6 +641,8 @@ class TreeWidget(QWidget):
                 self.view_direction,
                 self.feature,
                 self.selected_nodes,
+                self.tracks_viewer.filtered_nodes,
+                self.tracks_viewer.filter_color,
                 reset_view=True,
             )
 
@@ -707,6 +732,8 @@ class TreeWidget(QWidget):
                 self.view_direction,
                 self.feature,
                 self.selected_nodes,
+                self.tracks_viewer.filtered_nodes,
+                self.tracks_viewer.filter_color,
             )
         elif self.mode == "group":
             self._update_group_df()
@@ -715,9 +742,16 @@ class TreeWidget(QWidget):
                 self.view_direction,
                 self.feature,
                 self.selected_nodes,
+                self.tracks_viewer.filtered_nodes,
+                self.tracks_viewer.filter_color,
             )
         else:
-            self.tree_widget.set_selection(self.selected_nodes, self.feature)
+            self.tree_widget.set_selection(
+                self.selected_nodes,
+                self.tracks_viewer.filtered_nodes,
+                self.tracks_viewer.filter_color,
+                self.feature,
+            )
 
     def _update_track_data(self, reset_view: bool | None = None) -> None:
         """Called when the TracksViewer emits the tracks_updated signal, indicating
@@ -782,6 +816,8 @@ class TreeWidget(QWidget):
                 self.view_direction,
                 self.feature,
                 self.selected_nodes,
+                self.tracks_viewer.filtered_nodes,
+                self.tracks_viewer.filter_color,
                 reset_view=reset_view,
             )
 
@@ -825,7 +861,12 @@ class TreeWidget(QWidget):
 
         else:  # update the tree plot with all nodes in the dataframe
             self.tree_widget.update(
-                df, self.view_direction, self.feature, self.selected_nodes
+                df,
+                self.view_direction,
+                self.feature,
+                self.selected_nodes,
+                self.tracks_viewer.filtered_nodes,
+                self.tracks_viewer.filter_color,
             )
 
     def _set_feature(self, feature: str) -> None:
@@ -854,7 +895,12 @@ class TreeWidget(QWidget):
 
         self.navigation_widget.feature = self.feature
         self.tree_widget.update(
-            df, self.view_direction, self.feature, self.selected_nodes
+            df,
+            self.view_direction,
+            self.feature,
+            self.selected_nodes,
+            self.tracks_viewer.filtered_nodes,
+            self.tracks_viewer.filter_color,
         )
 
     def _update_lineage_df(self) -> None:
