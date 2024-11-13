@@ -212,6 +212,7 @@ class CollectionWidget(QGroupBox):
             self.selected_collection.collection.add(
                 group_dict[self.selected_collection.name.text()]
             )
+            self.selected_collection.update_node_count()  # enforce updating the node count for all elements
 
         self._update_buttons_and_node_count()
 
