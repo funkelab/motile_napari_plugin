@@ -163,8 +163,6 @@ class Filter(QWidget):
                     background-color: #262931;
                 }
         """)
-        self.rule_list.setFixedHeight(200)
-        self.setFixedHeight(220)
 
         # available colors
         self.color = QComboBox()
@@ -193,6 +191,10 @@ class Filter(QWidget):
         layout.addWidget(self.rule_list)
         layout.addLayout(settings_layout)
         self.setLayout(layout)
+
+        # Set fixed size (keep this at the end of the init!)
+        self.rule_list.setFixedHeight(200)
+        self.setFixedHeight(220)
 
     def sizeHint(self) -> None:
         hint = super().sizeHint()
