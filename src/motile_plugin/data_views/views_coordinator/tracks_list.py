@@ -7,6 +7,7 @@ from fonticon_fa6 import FA6S
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
+    QDialog,
     QFileDialog,
     QGroupBox,
     QHBoxLayout,
@@ -21,6 +22,8 @@ from superqt.fonticon import icon as qticon
 
 from motile_plugin.data_model import Tracks
 from motile_plugin.motile.backend.motile_run import MotileRun
+
+from .import_external_tracks_dialog import ImportTracksDialog
 
 
 class TrackListWidget(QWidget):
@@ -94,10 +97,25 @@ class TracksList(QGroupBox):
         load_button = QPushButton("Load tracks")
         load_button.clicked.connect(self.load_tracks)
 
+        load_external_button = QPushButton("Import external tracks")
+        load_external_button.clicked.connect(self._load_external_tracks)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(load_button)
+        button_layout.addWidget(load_external_button)
+
         layout = QVBoxLayout()
         layout.addWidget(self.tracks_list)
-        layout.addWidget(load_button)
+        layout.addLayout(button_layout)
         self.setLayout(layout)
+
+    def _load_external_tracks(self):
+        dialog = ImportTracksDialog()
+        if dialog.exec_() == QDialog.Accepted:
+            tracks = dialog.tracks
+            name = dialog.name
+            if tracks is not None:
+                self.add_tracks(tracks, name, select=True)
 
     def _selection_changed(self):
         selected = self.tracks_list.selectedItems()
