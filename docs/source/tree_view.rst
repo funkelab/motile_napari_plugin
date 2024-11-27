@@ -3,7 +3,7 @@ Tree View
 
 Usage Overview
 **************
-In addition to performing tracking with motile, this plugin also provides the ability to
+In addition to performing tracking with motile, the tracker also provides the ability to
 visualize tracks (and segmentations) in napari, through a lineage tree view and
 synchronized points, segmentation, and tracks layers. To visualize results generated
 through the motile widget in the tree view, you can open the tree widget from the UI

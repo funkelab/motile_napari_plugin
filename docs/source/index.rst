@@ -1,13 +1,13 @@
-Motile Napari Plugin
+Motile Tracker
 ====================
 
 |source code| |tests|
 
 .. |source code| image:: https://img.shields.io/badge/GitHub-100000?logo=github&logoColor=white
-   :target: https://github.com/funkelab/motile_napari_plugin
+   :target: https://github.com/funkelab/motile_tracker
 
-.. |tests| image:: https://github.com/funkelab/motile-napari-plugin/workflows/tests/badge.svg
-   :target: https://github.com/funkelab/motile-napari-plugin/actions
+.. |tests| image:: https://github.com/funkelab/motile_tracker/workflows/tests/badge.svg
+   :target: https://github.com/funkelab/motile_tracker/actions
 
 .. video:: images/results_demo_720p.mp4
    :width: 720
@@ -27,5 +27,5 @@ See the `motile documentation`_ for more details on the concepts and method.
    key_bindings
 
 .. _motile: https://github.com/funkelab/motile
-.. _github link: https://github.com/funkelab/motile_napari_plugin
+.. _github link: https://github.com/funkelab/motile_tracker
 .. _motile documentation: https://funkelab.github.io/motile

@@ -1,14 +1,14 @@
-Getting started with the motile plugin
+Getting started with the Motile Tracker
 ======================================
 
 Installation
 ************
 This plugin depends on ``ilpy``, which must be installed via conda.::
 
-    conda create -n motile-plugin python=3.10
-    conda activate motile-plugin
+    conda create -n motile-tracker python=3.10
+    conda activate motile-tracker
     conda install -c conda-forge -c funkelab -c gurobi ilpy
-    pip install motile-plugin
+    pip install motile-tracker
 
 If this is successful, you can then run ``napari`` from your command line, and
 the motile plugin should be visible in the ``Plugins`` drop down menu.
@@ -27,7 +27,7 @@ covering most of the same information as the rest of this getting started guide.
 
 Input data
 **********
-The motile plugin does not perform detection: you must provide a Labels layer or a Points layer
+The motile tracker does not perform detection: you must provide a Labels layer or a Points layer
 containing the objects you want to track.
 The Labels layer must have time as the
 first dimension followed by the spatial dimensions (no channels).
@@ -45,7 +45,7 @@ for bounding box tracking) - please react to
 `Issue #48`_ if this is important to your use case, and give feedback on what type
 of shape linking you want.
 
-Plugin widgets
+Tracker widgets
 **************
 You can open the Main Motile Widget via ``Plugins`` -> ``Motile`` -> ``Motile Main Widget``.
 This will open a tab widget containing a ``Motile``, ``Edit Tracks``, and ``Results List`` widget, as well
@@ -81,7 +81,7 @@ The tracking results can also be visualized as a lineage tree.
 You can open the lineage tree widget via ``Plugins`` > ``Motile`` > ``Lineage View``.
 For more details, go to the :doc:`Tree View <tree_view>` documentation.
 
-.. _Issue #48: https://github.com/funkelab/motile_napari_plugin/issues/48
+.. _Issue #48: https://github.com/funkelab/motile_tracker/issues/48
 .. _Cell Tracking Challenge: https://celltrackingchallenge.net/
 .. _Fabrèges et al (2024): https://www.science.org/doi/10.1126/science.adh1145
 .. _zenodo: https://zenodo.org/records/13903500
