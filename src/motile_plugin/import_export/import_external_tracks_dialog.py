@@ -19,7 +19,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
 )
 
-from motile_plugin.utils.load_tracks import tracks_from_csv
+from .load_tracks import tracks_from_csv
 
 
 class ImportTracksDialog(QDialog):

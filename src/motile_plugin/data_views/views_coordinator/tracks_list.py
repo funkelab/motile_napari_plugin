@@ -21,9 +21,8 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon as qticon
 
 from motile_plugin.data_model import Tracks
+from motile_plugin.import_export.import_external_tracks_dialog import ImportTracksDialog
 from motile_plugin.motile.backend.motile_run import MotileRun
-
-from .import_external_tracks_dialog import ImportTracksDialog
 
 
 class TrackListWidget(QWidget):

@@ -2,8 +2,9 @@ from csv import DictReader
 
 import networkx as nx
 import numpy as np
-from motile_plugin.data_model import SolutionTracks
 from motile_toolbox.candidate_graph import NodeAttr
+
+from motile_plugin.data_model import SolutionTracks
 
 
 def tracks_from_csv(
