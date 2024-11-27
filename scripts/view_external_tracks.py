@@ -1,6 +1,6 @@
 import napari
 from motile_plugin.application_menus import MainApp
-from motile_plugin.data_views.views_coordinator import TracksViewer
+from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 from motile_plugin.example_data import Fluo_N2DL_HeLa
 from motile_plugin.utils.load_tracks import tracks_from_csv
 
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     viewer.add_labels(labels_data, **labels_kwargs)
     widget = MainApp(viewer)
     viewer.window.add_dock_widget(widget)
-    TracksViewer.get_instance(viewer).view_external_tracks(tracks, "example")
+    TracksViewer.get_instance(viewer).tracks_list.add_tracks(tracks, "example")
 
     # Start the Napari GUI event loop
     napari.run()
