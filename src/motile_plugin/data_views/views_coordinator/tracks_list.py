@@ -7,6 +7,7 @@ from fonticon_fa6 import FA6S
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
+    QComboBox,
     QDialog,
     QFileDialog,
     QGroupBox,
@@ -93,19 +94,19 @@ class TracksList(QGroupBox):
         self.tracks_list.setSelectionMode(1)  # single selection
         self.tracks_list.itemSelectionChanged.connect(self._selection_changed)
 
-        load_button = QPushButton("Load tracks")
+        load_menu = QHBoxLayout()
+        self.dropdown_menu = QComboBox()
+        self.dropdown_menu.addItems(["Motile Run", "External tracks from CSV"])
+
+        load_button = QPushButton("Load")
         load_button.clicked.connect(self.load_tracks)
 
-        load_external_button = QPushButton("Import external tracks")
-        load_external_button.clicked.connect(self._load_external_tracks)
-
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(load_button)
-        button_layout.addWidget(load_external_button)
+        load_menu.addWidget(self.dropdown_menu)
+        load_menu.addWidget(load_button)
 
         layout = QVBoxLayout()
         layout.addWidget(self.tracks_list)
-        layout.addLayout(button_layout)
+        layout.addLayout(load_menu)
         self.setLayout(layout)
 
     def _load_external_tracks(self):
@@ -168,9 +169,19 @@ class TracksList(QGroupBox):
         self.tracks_list.takeItem(row)
 
     def load_tracks(self):
+        """Call the function to load tracks from disk for a Motile Run or for externally generated tracks (CSV file),
+        depending on the choice in the dropdown menu."""
+
+        if self.dropdown_menu.currentText() == "Motile Run":
+            self.load_motile_run()
+        elif self.dropdown_menu.currentText() == "External tracks from CSV":
+            self._load_external_tracks()
+
+    def load_motile_run(self):
         """Load a set of tracks from disk. The user selects the directory created
         by calling save_tracks.
         """
+
         if self.file_dialog.exec_():
             directory = Path(self.file_dialog.selectedFiles()[0])
             name = directory.stem
