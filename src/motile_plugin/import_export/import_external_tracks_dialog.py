@@ -293,6 +293,39 @@ class ImportTracksDialog(QDialog):
         if image_file:
             self.image_path_line.setText(image_file)
 
+    def tracks_valid(self, scale: list[float]) -> bool:
+        """Test if the segmentation pixel value for the coordinates of first node corresponds with the provided seg_id as a basic sanity check that the csv file matches with the segmentation file"""
+
+        node = list(self.tracks.graph.nodes)[0]
+        coordinates = self.tracks.get_position(node, incl_time=True)
+        seg_id = self.tracks.get_seg_id(node)
+        coordinates = [
+            int(coord / scale_value)
+            for coord, scale_value in zip(coordinates, scale, strict=False)
+        ]
+        value = self.tracks.segmentation[(coordinates[0], 0, *coordinates[1:])]
+        if value != seg_id:
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Warning)
+            msg_box.setWindowTitle("Warning")
+            msg_box.setText(
+                f"Pixel value at coordinates {coordinates} ({value}) does NOT match with the seg_id "
+                f"from the csv file ({seg_id}). Is it possible that you selected the wrong combination "
+                "of segmentation and csv file? The displayed result may not be correct."
+            )
+
+            # Add custom buttons
+            go_back_button = msg_box.addButton("Go back", QMessageBox.ActionRole)
+            msg_box.addButton("Continue anyway", QMessageBox.AcceptRole)
+
+            # Display the message box and wait for user response
+            msg_box.exec_()
+
+            # Handle responses
+            return msg_box.clickedButton() != go_back_button
+        else:
+            return True
+
     def _ok_clicked(self):
         """Tries to read the CSV file and optional segmentation image, and apply the attribute to column mapping to construct a Tracks object"""
 
@@ -367,6 +400,9 @@ class ImportTracksDialog(QDialog):
             self.tracks = tracks_from_csv(
                 csv_file, selected_columns, extra_columns, segmentation, scale
             )
+            if self.tracks.segmentation is not None and not self.tracks_valid(scale):
+                return
+
         except ValueError as e:
             QMessageBox.critical(self, "Error", f"Failed to load tracks: {e}")
             return
