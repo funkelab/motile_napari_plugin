@@ -1,10 +1,34 @@
 from csv import DictReader
+from typing import Any
 
 import networkx as nx
 import numpy as np
 from motile_toolbox.candidate_graph import NodeAttr
 
 from motile_plugin.data_model import SolutionTracks
+
+
+def convert_value(value: Any):
+    """Converts the given value to float or int if possible, otherwise returns it as is"""
+
+    try:
+        # Try to convert to integer
+        int_value = int(value)
+        if str(int_value) == value:
+            return int_value
+    except ValueError:
+        pass
+
+    try:
+        # Try to convert to float
+        float_value = float(value)
+        if str(float_value) == value:
+            return float_value
+    except ValueError:
+        pass
+
+    # If conversion to int or float fails, return the original value
+    return value
 
 
 def tracks_from_csv(
@@ -21,7 +45,7 @@ def tracks_from_csv(
     Args:
         csvfile (str):
             path to the csv to load
-        selected_columns (dict): a dictionary mapping the attributes "t", "z (optional)", "y", "x", "node_id", "seg_id (if seg provided)", "parent_id" to columns of the csv file
+        selected_columns (dict): a dictionary mapping the attributes "t", "z", "y", "x", "id", "seg_id", "parent_id" to columns of the csv file
         extra_columns (dict): a dictionary mapping optional additonal attributes to columns of the csv file
         segmentation (np.ndarray | None, optional):
             An optional accompanying segmentation.
@@ -36,11 +60,11 @@ def tracks_from_csv(
     with open(csvfile) as f:
         reader = DictReader(f)
         for row in reader:
-            _id = row[selected_columns["node_id"]]
-            if selected_columns["z (optional)"] != "Select Column":
+            _id = row[selected_columns["id"]]
+            if selected_columns["z"] != "Select Column":
                 attrs = {
                     "pos": [
-                        float(row[selected_columns["z (optional)"]]),
+                        float(row[selected_columns["z"]]),
                         float(row[selected_columns["y"]]),
                         float(selected_columns["x"]),
                     ],
@@ -58,11 +82,13 @@ def tracks_from_csv(
                 }
                 ndims = 3
                 scale = [1, scale[1], scale[2]]
-            if selected_columns["seg_id (if seg provided)"] != "Select Column":
-                attrs["seg_id"] = int(row[selected_columns["seg_id (if seg provided)"]])
+            if selected_columns["seg_id"] != "Select Column":
+                attrs["seg_id"] = int(row[selected_columns["seg_id"]])
             for key in extra_columns:
                 if extra_columns[key] != "Select Column":
-                    attrs[key] = row[extra_columns[key]]
+                    attrs[key] = convert_value(
+                        row[extra_columns[key]]
+                    )  # try to convert strings to numerical values if possible
 
             graph.add_node(_id, **attrs)
             parent_id = row[selected_columns["parent_id"]].strip()
