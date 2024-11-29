@@ -53,15 +53,17 @@ def tracks_from_csv(
             corresponds to the label ids in the segmentation array
 
     Returns:
-        Tracks: a tracks object ready to be visualized with
-            TracksViewer.view_external_tracks
+        Tracks: a tracks object
     """
     graph = nx.DiGraph()
     with open(csvfile) as f:
         reader = DictReader(f)
         for row in reader:
             _id = row[selected_columns["id"]]
-            if selected_columns["z"] != "Select Column":
+            if (
+                selected_columns.get("z") is not None
+                and selected_columns.get("z") != "Select Column"
+            ):
                 attrs = {
                     "pos": [
                         float(row[selected_columns["z"]]),
