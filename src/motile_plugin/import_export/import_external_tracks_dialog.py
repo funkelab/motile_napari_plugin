@@ -17,9 +17,56 @@ from qtpy.QtWidgets import (
     QMessageBox,
     QPushButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from .load_tracks import tracks_from_csv
+
+
+class ScaleWidget(QWidget):
+    """QWidget for specifying pixel calibration"""
+
+    def __init__(self):
+        super().__init__()
+
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Specify scaling"))
+        scale_form_layout = QFormLayout()
+        self.z_spin_box = QDoubleSpinBox()
+        self.z_spin_box.setValue(1.0)
+        self.z_spin_box.setSingleStep(0.1)
+        self.z_spin_box.setMinimum(0)
+        self.z_spin_box.setDecimals(3)
+        self.y_spin_box = QDoubleSpinBox()
+        self.y_spin_box.setValue(1.0)
+        self.y_spin_box.setSingleStep(0.1)
+        self.y_spin_box.setMinimum(0)
+        self.y_spin_box.setDecimals(3)
+        self.x_spin_box = QDoubleSpinBox()
+        self.x_spin_box.setMinimum(0)
+        self.x_spin_box.setValue(1.0)
+        self.x_spin_box.setSingleStep(0.1)
+        self.x_spin_box.setDecimals(3)
+
+        scale_form_layout.addRow(QLabel("z"), self.z_spin_box)
+        scale_form_layout.addRow(QLabel("y"), self.y_spin_box)
+        scale_form_layout.addRow(QLabel("x"), self.x_spin_box)
+
+        layout.addLayout(scale_form_layout)
+        layout.setAlignment(Qt.AlignTop)
+
+        self.setLayout(layout)
+
+    def get_scale(self) -> list[float]:
+        """Return the scaling values in the spinboxes as a list of floats"""
+
+        scale = [
+            self.z_spin_box.value(),
+            self.y_spin_box.value(),
+            self.x_spin_box.value(),
+        ]
+
+        return scale
 
 
 class ImportTracksDialog(QDialog):
@@ -60,33 +107,6 @@ class ImportTracksDialog(QDialog):
         self.name_widget = QLineEdit(self.name)
         name_layout.addWidget(self.name_widget)
 
-        # Scale layout
-        scale_layout = QVBoxLayout()
-        scale_layout.addWidget(QLabel("Specify scaling"))
-        scale_form_layout = QFormLayout()
-        self.z_spin_box = QDoubleSpinBox()
-        self.z_spin_box.setValue(1.0)
-        self.z_spin_box.setSingleStep(0.1)
-        self.z_spin_box.setMinimum(0)
-        self.z_spin_box.setDecimals(3)
-        self.y_spin_box = QDoubleSpinBox()
-        self.y_spin_box.setValue(1.0)
-        self.y_spin_box.setSingleStep(0.1)
-        self.y_spin_box.setMinimum(0)
-        self.y_spin_box.setDecimals(3)
-        self.x_spin_box = QDoubleSpinBox()
-        self.x_spin_box.setMinimum(0)
-        self.x_spin_box.setValue(1.0)
-        self.x_spin_box.setSingleStep(0.1)
-        self.x_spin_box.setDecimals(3)
-
-        scale_form_layout.addRow(QLabel("z"), self.z_spin_box)
-        scale_form_layout.addRow(QLabel("y"), self.y_spin_box)
-        scale_form_layout.addRow(QLabel("x"), self.x_spin_box)
-
-        scale_layout.addLayout(scale_form_layout)
-        scale_layout.setAlignment(Qt.AlignTop)
-
         # Field Mapping Layout
         csv_column_layout = QVBoxLayout()
         csv_column_layout.addWidget(QLabel("Choose columns from CSV"))
@@ -113,10 +133,13 @@ class ImportTracksDialog(QDialog):
 
         csv_column_layout.addLayout(self.mapping_layout)
 
+        # Construct widget for the pixel scaling information
+        self.scale_widget = ScaleWidget()
+
         # Place scaling and field map side by side
         scaling_field_layout = QHBoxLayout()
         scaling_field_layout.addLayout(csv_column_layout)
-        scaling_field_layout.addLayout(scale_layout)
+        scaling_field_layout.addWidget(self.scale_widget)
         scaling_field_layout.setAlignment(Qt.AlignTop)
 
         # Button to add custom attribute mappings
@@ -294,11 +317,7 @@ class ImportTracksDialog(QDialog):
             return
 
         # Read scaling information from the spinboxes, and name from the name_widget
-        scale = [
-            self.z_spin_box.value(),
-            self.y_spin_box.value(),
-            self.x_spin_box.value(),
-        ]
+        scale = self.scale_widget.get_scale()
         self.name = self.name_widget.text()
 
         # Try to create a Tracks object with the provided CSV file, the attr:column dictionaries, and the scaling information
