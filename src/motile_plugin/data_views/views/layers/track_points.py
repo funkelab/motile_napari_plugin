@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import napari
@@ -40,12 +41,14 @@ class TrackPoints(napari.layers.Points):
             self.tracks_viewer.tracks, self.tracks_viewer.symbolmap
         )
 
+        self.default_size = 5
+
         super().__init__(
             data=points,
             name=name,
             symbol=symbols,
             face_color=colors,
-            size=5,
+            size=self.default_size,
             properties={
                 "node_id": self.nodes,
                 "track_id": track_ids,
@@ -86,9 +89,20 @@ class TrackPoints(napari.layers.Points):
         # listen to updates of the data
         self.events.data.connect(self._update_data)
 
+        # connect to changing the point size in the UI
+        self.events.current_size.connect(
+            lambda: self.set_point_size(size=self.current_size)
+        )
+
         # listen to updates in the selected data (from the point selection tool)
         # to update the nodes in self.tracks_viewer.selected_nodes
         self.selected_data.events.items_changed.connect(self._update_selection)
+
+    def set_point_size(self, size: int) -> None:
+        """Sets a new default point size"""
+
+        self.default_size = size
+        self._refresh()
 
     def _refresh(self):
         """Refresh the data in the points layer"""
@@ -112,7 +126,7 @@ class TrackPoints(napari.layers.Points):
             self.tracks_viewer.colormap.map(track_id) for track_id in track_ids
         ]
         self.properties = {"node_id": self.nodes, "track_id": track_ids}
-        self.size = 5
+        self.size = self.default_size
         self.border_color = [1, 1, 1, 1]
 
         self.events.data.connect(
@@ -205,7 +219,7 @@ class TrackPoints(napari.layers.Points):
 
         # set border color for selected item
         self.border_color = [1, 1, 1, 1]
-        self.size = 5
+        self.size = self.default_size
         for node in self.tracks_viewer.selected_nodes:
             index = self.node_index_dict[node]
             self.border_color[index] = (
@@ -214,5 +228,5 @@ class TrackPoints(napari.layers.Points):
                 1,
                 1,
             )
-            self.size[index] = 7
+            self.size[index] = math.ceil(self.default_size + 0.3 * self.default_size)
         self.refresh()
