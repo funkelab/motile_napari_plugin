@@ -33,7 +33,7 @@ dependencies =[
     "qtpy",
     "scikit-image",
     "motile >= 0.3",
-    "motile_toolbox >=0.3.5",
+    "motile_toolbox == 0.3.5",
     "pydantic",
     "tifffile[all]",
     "fonticon-fontawesome6",

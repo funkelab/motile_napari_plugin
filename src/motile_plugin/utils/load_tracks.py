@@ -43,6 +43,9 @@ def tracks_from_csv(
                     assert parent_id in graph.nodes, f"{_id} {parent_id}"
                     graph.add_edge(parent_id, _id)
     tracks = SolutionTracks(
-        graph=graph, segmentation=segmentation, pos_attr="pos", time_attr="time"
+        graph=graph,
+        segmentation=np.expand_dims(segmentation, axis=1),
+        pos_attr="pos",
+        time_attr="time",
     )
     return tracks
