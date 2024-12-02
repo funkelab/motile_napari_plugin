@@ -1,26 +1,26 @@
 from __future__ import annotations
 
-import operator
 from functools import partial
 from typing import TYPE_CHECKING
 
-import networkx as nx
 import numpy as np
+import pandas as pd
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtCore import Signal
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QGroupBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
-    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -29,42 +29,224 @@ from qtpy.QtWidgets import (
 if TYPE_CHECKING:
     from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
+import pyqtgraph as pg
+from qtpy.QtCore import Qt
+
+
+class HistogramRangeSliderWidget(QWidget):
+    update_rule = Signal()
+
+    def __init__(self, df: pd.DataFrame, fill_color: QColor):
+        super().__init__()
+
+        self.data = df.dropna()
+        self.fill_color = fill_color
+        self.data_min = self.data.min()
+        self.data_max = self.data.max()
+        self.dtype = self.data.dtypes
+
+        # Create a PlotWidget for the histogram
+        self.plot_widget = pg.PlotWidget()
+        self.plot_item = self.plot_widget.plotItem
+
+        # Customize the axes
+        self.plot_item.getAxis("bottom").setTicks([])
+        self.plot_item.getAxis("left").setTicks([])
+
+        # Set ViewBox limits to restrict panning and zooming
+        self.plot_item.getViewBox().setMouseEnabled(x=False, y=False)
+        self.plot_item.getViewBox().setLimits(
+            xMin=self.data_min,
+            xMax=self.data_max,  # Restrict horizontal panning
+            yMin=0,  # Prevent panning below 0 (optional, for clarity)
+        )
+
+        # Create the histogram data
+        hist, edges = np.histogram(self.data, bins="rice")
+        bar_graph = pg.BarGraphItem(
+            x=edges[:-1], height=hist, width=np.diff(edges), brush="white"
+        )
+        self.plot_item.addItem(bar_graph)
+
+        # Add a movable region (range slider)
+        slider_range = self.data_max - self.data_min
+        if self.dtype == int:
+            slider_range = int(slider_range)
+        self.region = pg.LinearRegionItem(
+            values=[
+                self.data_min + 0.25 * slider_range,
+                self.data_max - 0.25 * slider_range,
+            ]
+        )
+        self.region.setZValue(10)  # Ensure it is on top of the bars
+        self.region.sigRegionChangeFinished.connect(self.update_range_label)
+
+        # Customize the region's appearance
+        self.fill_color.setAlpha(100)
+        self.region.setBrush(pg.mkBrush(self.fill_color))
+        self.fill_color.setAlpha(120)
+        self.region.setHoverBrush(pg.mkBrush(self.fill_color))
+        self.plot_item.addItem(self.region)
+
+        # Add QSpinBoxes to view and adjust the region range
+        if self.dtype == int:
+            self.min_spinbox = QSpinBox()
+            self.max_spinbox = QSpinBox()
+            self.min_spinbox.setValue(self.data_min + int(0.25 * slider_range))
+            self.max_spinbox.setValue(self.data_max - int(0.25 * slider_range))
+
+        else:
+            self.min_spinbox = QDoubleSpinBox()
+            self.max_spinbox = QDoubleSpinBox()
+            self.min_spinbox.setValue(self.data_min + 0.25 * slider_range)
+            self.max_spinbox.setValue(self.data_max - 0.25 * slider_range)
+
+        self.min_spinbox.setMinimum(self.data_min)
+        self.min_spinbox.setMaximum(self.data_max)
+        self.max_spinbox.setMinimum(self.data_min)
+        self.max_spinbox.setMaximum(self.data_max)
+
+        self.min_spinbox.valueChanged.connect(self.update_min_value)
+        self.max_spinbox.valueChanged.connect(self.update_max_value)
+
+        min_spin_box_layout = QHBoxLayout()
+        min_spin_box_layout.addWidget(QLabel("Min value"))
+        min_spin_box_layout.addWidget(self.min_spinbox)
+        max_spin_box_layout = QHBoxLayout()
+        max_spin_box_layout.addWidget(QLabel("Max value"))
+        max_spin_box_layout.addWidget(self.max_spinbox)
+        spinbox_layout = QVBoxLayout()
+        spinbox_layout.addLayout(min_spin_box_layout)
+        spinbox_layout.addLayout(max_spin_box_layout)
+
+        # combine layouts
+        layout = QVBoxLayout()
+        layout.addLayout(spinbox_layout)
+        layout.addWidget(self.plot_widget)
+        layout.setContentsMargins(1, 1, 1, 2)
+        layout.setSpacing(0)
+        self.setLayout(layout)
+
+    def update_range_label(self):
+        """Update the displayed range based on the region slider."""
+        region = self.region.getRegion()
+
+        if self.dtype == int:
+            self.min_spinbox.setValue(int(region[0]))
+            self.max_spinbox.setValue(int(region[1]))
+        else:
+            self.min_spinbox.setValue(region[0])
+            self.max_spinbox.setValue(region[1])
+
+    def update_min_value(self):
+        """Update the region by the value in the min_spinbox"""
+
+        min_value = self.min_spinbox.value()
+        max_value = self.region.getRegion()[1]
+        if self.dtype == int:
+            min_value = int(min_value)
+            max_value = int(max_value)
+
+        self.region.setRegion([min_value, max_value])
+        self.update_rule.emit()
+
+    def update_max_value(self):
+        """Update the region by the value in the max_spinbox"""
+
+        min_value = self.region.getRegion()[0]
+        max_value = self.max_spinbox.value()
+
+        if self.dtype == int:
+            min_value = int(min_value)
+            max_value = int(max_value)
+
+        self.region.setRegion([min_value, max_value])
+        self.update_rule.emit()
+
+    def update_color(self, color: QColor):
+        """Update the color of the region"""
+
+        self.fill_color = color
+        self.fill_color.setAlpha(100)
+        self.region.setBrush(pg.mkBrush(self.fill_color))
+        self.fill_color.setAlpha(120)
+        self.region.setHoverBrush(pg.mkBrush(self.fill_color))
+
+
+class MultipleChoiceWidget(QWidget):
+    update_rule = Signal()
+
+    def __init__(self, dataframe, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Get the unique values from the dataframe column
+        self.unique_values = dataframe.dropna().unique()
+
+        # Create a scroll area for the checkboxes
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_widget = QWidget()
+        scroll_area.setWidget(scroll_widget)
+        scroll_layout = QVBoxLayout(scroll_widget)
+        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_layout.setSpacing(0)
+
+        # Create a checkbox for each unique value
+        self.checkboxes = []
+        for value in self.unique_values:
+            checkbox = QCheckBox(str(value))
+            checkbox.stateChanged.connect(self._update)
+            self.checkboxes.append(checkbox)
+            scroll_layout.addWidget(checkbox)
+
+        # Add the scroll area to the layout
+        layout = QVBoxLayout()
+        layout.addWidget(scroll_area)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.setLayout(layout)
+
+    def _update(self):
+        """Emit update signal"""
+
+        self.update_rule.emit()
+
+    def get_selected_choices(self):
+        """Return the list of selected choices."""
+
+        selected = [
+            checkbox.text() for checkbox in self.checkboxes if checkbox.isChecked()
+        ]
+        return selected
+
 
 class Rule(QWidget):
     """Widget for constructing a condition to filter by"""
 
-    def __init__(self, graph: nx.diGraph):
+    update = Signal()
+
+    def __init__(self, df: pd.DataFrame, fill_color: tuple[int, int, int, int]):
         super().__init__()
 
-        self.graph = graph
+        self.data = df
+        self.fill_color = fill_color
 
         # assign node attributes as items to filter by
-        self.items = set()
-        for _, attrs in self.graph.nodes(data=True):
-            self.items.update(attrs.keys())
-        if (
-            "pos" in self.items
-        ):  # not using position information right now, consider splitting in x, y, (z) coordinates for filtering?
-            self.items.remove("pos")
-
+        self.items = self.data.columns
         self.item_dropdown = QComboBox()
         self.item_dropdown.addItems(self.items)
-        self.item_dropdown.currentIndexChanged.connect(self._set_sign_value_widget)
-
-        # create a dropdown with signs for comparisons
-        self.signs = ["<", "<=", ">", ">=", "=", "\u2260"]
-        self.sign_dropdown = QComboBox()
-        self.sign_dropdown.addItems(self.signs)
+        self.item_dropdown.currentIndexChanged.connect(self._set_value_widget)
 
         # create a dropdown with different logical operators for combining multiple conditions
         self.logic = ["AND", "OR", "NOT", "XOR"]
         self.logic_dropdown = QComboBox()
         self.logic_dropdown.addItems(self.logic)
+        self.logic_dropdown.currentIndexChanged.connect(self._update)
 
         # Placeholder for the dynamic value widget
         self.value_widget = QWidget()
         self.value_layout = QVBoxLayout()
-        self.value_widget.setLayout(self.value_layout)
+        self.value_layout.addWidget(self.value_widget)
 
         # Create a delete button for removing the rule
         delete_icon = QColoredSVGIcon.from_resources("delete").colored("white")
@@ -73,73 +255,46 @@ class Rule(QWidget):
 
         # Combine widgets and assign layout
         layout = QHBoxLayout()
-        layout.addWidget(self.delete)
-        layout.addWidget(self.item_dropdown)
-        layout.addWidget(self.sign_dropdown)
-        layout.addWidget(self.logic_dropdown)
-        layout.addWidget(self.value_widget)
+        menu_widget_layout = QVBoxLayout()
+        menu_widget_layout.addWidget(self.item_dropdown)
+        menu_widget_layout.addWidget(self.logic_dropdown)
+        menu_widget_layout.addWidget(self.delete)
+        layout.addLayout(menu_widget_layout)
+        layout.addLayout(self.value_layout)
+        layout.setContentsMargins(0, 1, 0, 0)
+        layout.setSpacing(1)
+
         self.setLayout(layout)
 
-        # Initialize value widget
-        self._set_sign_value_widget()
+    def update_color(self, color: QColor):
+        """Update the color on the value_widget"""
 
-    def _set_sign_value_widget(self) -> None:
-        """Replaces self.value_widget with a new widget of the appropriate type: combobox for string types, spinboxes for numerical values, QLineEdit for values in tuples or lists.
-        Also assigns the correct signs to self.sign_dropdown, as >, >=, <=, and < cannot be used for string comparisons.
-        """
+        self.fill_color = color
+        if isinstance(self.value_widget, HistogramRangeSliderWidget):
+            self.value_widget.update_color(color)
 
-        # Remove the existing value widget from the layout
+    def _update(self):
+        self.update.emit()
+
+    def _set_value_widget(self):
+        """Replaces self.value_widget with a new widget of the appropriate type: multiplechoice widget for categorical values, and a histogram for numerical values."""
+
         self.layout().removeWidget(self.value_widget)
         self.value_widget.deleteLater()
 
-        # Get the selected item (attribute name)
-        selected_item = self.item_dropdown.currentText()
-
-        # Determine the attribute type by checking the nodes
-        attr_type = None
-        for _, attrs in self.graph.nodes(data=True):
-            if selected_item in attrs:
-                attr_type = type(attrs[selected_item])
-                break
-
-        # Set up the value widget based on the attribute type
-        if attr_type == str:
-            # Use a dropdown for string attributes
-            unique_values = {
-                attrs[selected_item]
-                for _, attrs in self.graph.nodes(data=True)
-                if selected_item in attrs and isinstance(attrs[selected_item], str)
-            }
-            self.value_widget = QComboBox()
-            self.value_widget.addItems(unique_values)
-
-            # update the signs, cannot use >, >=, <=, < for string comparison
-            self.sign_dropdown.clear()
-            signs = ["=", "\u2260"]
-            self.sign_dropdown.addItems(signs)
-
-        elif attr_type in (int, float, np.float64):
-            # Use a spin box for numeric attributes (int or float)
-            self.value_widget = QSpinBox() if attr_type == int else QDoubleSpinBox()
-            self.value_widget.setMinimum(0)
-            self.value_widget.setMaximum(100000000)
-
-            # all signs should be allowed
-            self.sign_dropdown.clear()
-            self.sign_dropdown.addItems(self.signs)
-
-        elif attr_type in (list, tuple):
-            self.value_widget = QLineEdit("Type your value here")
-            # update the signs, cannot use >. >=, <=, < for string comparison
-            self.sign_dropdown.clear()
-            signs = ["=", "\u2260"]
-            self.sign_dropdown.addItems(signs)
+        df = self.data[self.item_dropdown.currentText()]
+        if df.dtype == int or df.dtype == float:
+            self.value_widget = HistogramRangeSliderWidget(df, self.fill_color)
+            self.value_layout = QVBoxLayout()
+            self.value_widget.setLayout(self.value_layout)
 
         else:
-            # Fallback if attribute type is not  a string of number
-            self.value_widget = QLabel("No valid attribute type")
+            self.value_widget = MultipleChoiceWidget(df)
+            self.value_layout = QVBoxLayout()
+            self.value_widget.setLayout(self.value_layout)
 
         # Add the new value widget to the layout
+        self.value_widget.update_rule.connect(self._update)
         self.layout().addWidget(self.value_widget)
 
 
@@ -167,29 +322,33 @@ class Filter(QWidget):
         # available colors
         self.color = QComboBox()
         self.color.addItems(["red", "green", "blue", "magenta", "yellow", "orange"])
+        self.color.setFixedSize(100, 20)
         self.color.currentIndexChanged.connect(self._update_filter)
+        self.current_color = "red"
 
         # adding, removing, updating rules
-        add_button = QPushButton("Add rule")
+        add_button = QPushButton("+")
+        add_button.setFixedSize(20, 20)
         add_button.clicked.connect(self._add_rule)
-        update_button = QPushButton("Apply")
-        update_button.clicked.connect(self._update_filter)
         delete_icon = QColoredSVGIcon.from_resources("delete").colored("white")
         self.delete = QPushButton(icon=delete_icon)
-        self.delete.setFixedSize(40, 40)
+        self.delete.setFixedSize(20, 20)
         self.rule_list = QListWidget()
-        layout = QHBoxLayout()
+        layout = QVBoxLayout()
         layout.setSpacing(1)
 
         # combine settings widgets
-        settings_layout = QVBoxLayout()
-        settings_layout.addWidget(self.color)
+        settings_layout = QHBoxLayout()
         settings_layout.addWidget(add_button)
-        settings_layout.addWidget(update_button)
+        settings_layout.addWidget(self.color)
         settings_layout.addWidget(self.delete)
+        settings_layout.setAlignment(Qt.AlignLeft)
+        settings_layout.setSpacing(1)
+        settings_layout.setContentsMargins(1, 0, 1, 0)
 
-        layout.addWidget(self.rule_list)
         layout.addLayout(settings_layout)
+        layout.addWidget(self.rule_list)
+
         self.setLayout(layout)
 
         # Set fixed size (keep this at the end of the init!)
@@ -202,20 +361,33 @@ class Filter(QWidget):
         return hint
 
     def _update_filter(self) -> None:
+        """Send a signal to apply the filter"""
+
         if not self.item.isSelected():
             self.item.setSelected(True)
+
+        # update the colors if necessary
+        if self.color.currentText() != self.current_color:
+            for i in range(self.rule_list.count()):
+                item = self.rule_list.item(i)  # Get the QListWidgetItem
+                self.rule_list.itemWidget(item).update_color(
+                    QColor(self.color.currentText())
+                )  # Get the Rule widget
+            self.current_color = self.color.currentText()
+
         self.filter_updated.emit()
 
     def _add_rule(self) -> None:
         """Create a new custom group"""
 
         item = QListWidgetItem(self.rule_list)
-        group_row = Rule(self.tracks_viewer.tracks.graph)
+        group_row = Rule(self.tracks_viewer.track_df, QColor(self.color.currentText()))
         self.rule_list.setItemWidget(item, group_row)
         item.setSizeHint(group_row.minimumSizeHint())
         item.setBackground(QColor("#262931"))
         self.rule_list.addItem(item)
         group_row.delete.clicked.connect(partial(self._remove_rule, item))
+        group_row.update.connect(self._update_filter)
 
     def _remove_rule(self, item: QListWidgetItem) -> None:
         """Remove a rule from the list. You must pass the list item that
@@ -227,6 +399,7 @@ class Filter(QWidget):
         """
         row = self.rule_list.indexFromItem(item).row()
         self.rule_list.takeItem(row)
+        self._update_filter()
 
 
 class FilterWidget(QGroupBox):
@@ -316,19 +489,22 @@ class FilterWidget(QGroupBox):
         """Assign a filtered set of nodes to the tracks_viewer based on the criteria of the selected filter"""
 
         if self.selected_filter.rule_list.count() == 0:
-            result_set = set()
+            self.tracks_viewer.filtered_nodes = []
 
         else:
-            OP_MAP = {
-                "<": operator.lt,
-                "<=": operator.le,
-                ">": operator.gt,
-                ">=": operator.ge,
-                "=": operator.eq,
-                "\u2260": operator.ne,
-            }
+            mask = pd.Series(True, index=self.tracks_viewer.track_df.index)
 
-            result_set = set(self.tracks_viewer.tracks.graph.nodes)
+            def apply_logic(existing_mask, new_condition, logic):
+                if logic == "AND":
+                    return existing_mask & new_condition
+                elif logic == "OR":
+                    return existing_mask | new_condition
+                elif logic == "NOT":
+                    return existing_mask & ~new_condition
+                elif logic == "XOR":
+                    return existing_mask ^ new_condition
+                else:
+                    raise ValueError(f"Unknown logic operator: {logic}")
 
             for i in range(self.selected_filter.rule_list.count()):
                 item = self.selected_filter.rule_list.item(i)  # Get the QListWidgetItem
@@ -336,69 +512,25 @@ class FilterWidget(QGroupBox):
                     item
                 )  # Get the Rule widget
 
-                # Extract information from each rule
-                item_value = rule.item_dropdown.currentText()
-                sign_value = rule.sign_dropdown.currentText()
-                logic_value = rule.logic_dropdown.currentText()
+                column_name = rule.item_dropdown.currentText()
+                logic = rule.logic_dropdown.currentText()
+                column_data = self.tracks_viewer.track_df[column_name]
 
-                if isinstance(rule.value_widget, QSpinBox | QDoubleSpinBox):
-                    value = rule.value_widget.value()
-                elif isinstance(rule.value_widget, QLineEdit):
-                    value = rule.value_widget.text()
+                if column_data.dtype == int or column_data.dtype == float:
+                    # Filtering based on numerical values
+                    min_val, max_val = rule.value_widget.region.getRegion()
+                    new_condition = column_data.between(min_val, max_val)
                 else:
-                    value = rule.value_widget.currentText()
+                    # Categorical filtering based on selected choices
+                    selected_choices = rule.value_widget.get_selected_choices()
+                    new_condition = column_data.isin(selected_choices)
 
-                # Define a set for nodes that satisfy this rule
-                current_set = set()
+                # Apply the condition to the mask with the specified logic
+                mask = apply_logic(mask, new_condition, logic)
 
-                # Get the correct operator function
-                compare_op = OP_MAP.get(sign_value)
-
-                # Iterate over nodes and apply the rule condition
-                for node, attrs in self.tracks_viewer.tracks.graph.nodes(data=True):
-                    node_attr_value = attrs.get(item_value)
-
-                    try:
-                        if (
-                            type(node_attr_value) in (tuple, list)
-                            or node_attr_value is None
-                        ):  # not all nodes may have a value for given attribute, e.g. not all nodes may belong to a group, and therefore do not have a 'group' attribute
-                            if node_attr_value is None:
-                                node_attr_value = []
-                            node_attr_value = [str(v) for v in node_attr_value]
-                            if sign_value == "=":
-                                condition = (
-                                    value in node_attr_value
-                                )  # we consider the condition to be true if the requested value is present in the list (even if other values are also present in the list).
-                            else:
-                                condition = value not in node_attr_value
-                        elif isinstance(value, str):
-                            condition = compare_op(str(node_attr_value), value)
-                        else:
-                            node_attr_value = float(node_attr_value)
-                            value = float(value)
-                            condition = compare_op(node_attr_value, value)
-
-                        # If the condition is true, add the node to the current set
-                        if condition:
-                            current_set.add(node)
-                    except (
-                        ValueError,
-                        TypeError,
-                    ):  # If there's a type mismatch or conversion issue, skip this node
-                        continue
-
-                # Apply logic to chain the result sets
-                if logic_value == "AND":
-                    result_set &= current_set
-                elif logic_value == "OR":
-                    result_set |= current_set
-                elif logic_value == "NOT":
-                    result_set -= current_set
-                elif logic_value == "XOR":
-                    result_set ^= current_set
-
-        self.tracks_viewer.filtered_nodes = result_set
+            self.tracks_viewer.filtered_nodes = self.tracks_viewer.track_df[mask][
+                "node_id"
+            ].tolist()
         self.apply_filter.emit()
 
     def _create_group(self) -> None:

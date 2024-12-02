@@ -426,7 +426,6 @@ class TreeWidget(QWidget):
     def __init__(self, viewer: napari.Viewer):
         super().__init__()
         self.viewer = viewer
-        self.track_df = pd.DataFrame()  # all tracks
         self.lineage_df = pd.DataFrame()  # the currently viewed subset of lineages
         self.group_df = pd.DataFrame()  # the currently viewed group
         self.sync_df = (
@@ -448,6 +447,7 @@ class TreeWidget(QWidget):
 
         # Connect to tracks_viewer
         self.tracks_viewer = TracksViewer.get_instance(viewer)
+        self.tracks_viewer.track_df = pd.DataFrame()  # all tracks
         self.selected_nodes = self.tracks_viewer.selected_nodes
         self.selected_nodes.list_updated.connect(self._update_selected)
         self.tracks_viewer.collection_widget.group_changed.connect(
@@ -473,7 +473,7 @@ class TreeWidget(QWidget):
 
         # Add navigation widget
         self.navigation_widget = NavigationWidget(
-            self.track_df,
+            self.tracks_viewer.track_df,
             self.lineage_df,
             self.view_direction,
             self.selected_nodes,
@@ -533,7 +533,7 @@ class TreeWidget(QWidget):
 
             if self.mode == "all":
                 self.tree_widget.update(
-                    self.track_df,
+                    self.tracks_viewer.track_df,
                     self.view_direction,
                     self.feature,
                     self.selected_nodes,
@@ -571,7 +571,7 @@ class TreeWidget(QWidget):
         """Sync the data in the tree plot with the data in the field of view of the napari viewer"""
 
         if self.sync_df is None:
-            prev_visible = self.track_df["node_id"].tolist()
+            prev_visible = self.tracks_viewer.track_df["node_id"].tolist()
         else:
             prev_visible = self.sync_df["node_id"].tolist()
 
@@ -591,11 +591,11 @@ class TreeWidget(QWidget):
         _max_y = corner_coordinates[1][y_dim]
 
         if self.mode == "all":
-            visible_nodes = self.track_df[
-                (self.track_df["x"] >= _min_x)
-                & (self.track_df["x"] <= _max_x)
-                & (self.track_df["y"] >= _min_y)
-                & (self.track_df["y"] <= _max_y)
+            visible_nodes = self.tracks_viewer.track_df[
+                (self.tracks_viewer.track_df["x"] >= _min_x)
+                & (self.tracks_viewer.track_df["x"] <= _max_x)
+                & (self.tracks_viewer.track_df["y"] >= _min_y)
+                & (self.tracks_viewer.track_df["y"] <= _max_y)
             ]["node_id"].tolist()
         elif self.mode == "lineage":
             visible_nodes = self.lineage_df[
@@ -620,8 +620,8 @@ class TreeWidget(QWidget):
             set(visible) != set(prev_visible) or force_update
         ):  # only call update function if the list of visible nodes has changed
             if self.mode == "all":
-                self.sync_df = self.track_df[
-                    self.track_df["node_id"].isin(visible)
+                self.sync_df = self.tracks_viewer.track_df[
+                    self.tracks_viewer.track_df["node_id"].isin(visible)
                 ].reset_index()
             elif self.mode == "lineage":
                 self.sync_df = self.lineage_df[
@@ -759,26 +759,26 @@ class TreeWidget(QWidget):
         """
 
         if self.tracks_viewer.tracks is None:
-            self.track_df = pd.DataFrame()
+            self.tracks_viewer.track_df = pd.DataFrame()
             self.graph = None
             self.sync_widget.sync_button.setEnabled(False)
         else:
             if reset_view:
-                self.track_df = extract_sorted_tracks(
+                self.tracks_viewer.track_df = extract_sorted_tracks(
                     self.tracks_viewer.tracks, self.tracks_viewer.colormap
                 )
             else:
-                self.track_df = extract_sorted_tracks(
+                self.tracks_viewer.track_df = extract_sorted_tracks(
                     self.tracks_viewer.tracks,
                     self.tracks_viewer.colormap,
-                    self.track_df,
+                    self.tracks_viewer.track_df,
                 )
             self.graph = self.tracks_viewer.tracks.graph
             self.sync_widget.sync_button.setEnabled(True)
 
         # check whether we have area measurements and therefore should activate the area
         # button
-        if "area" not in self.track_df.columns:
+        if "area" not in self.tracks_viewer.track_df.columns:
             if self.feature_widget.feature == "area":
                 self.feature_widget._toggle_feature_mode()
             self.feature_widget.show_area_radio.setEnabled(False)
@@ -795,7 +795,7 @@ class TreeWidget(QWidget):
             self.feature_widget.show_tree_radio.setChecked(True)
 
         # also update the navigation widget
-        self.navigation_widget.track_df = self.track_df
+        self.navigation_widget.track_df = self.tracks_viewer.track_df
         self.navigation_widget.lineage_df = self.lineage_df
 
         # get the dataframe of currently displayed data, then update plot with or without filtering by the field of view (if sync is on)
@@ -806,7 +806,7 @@ class TreeWidget(QWidget):
             self._update_group_df()
             df = self.group_df
         else:
-            df = self.track_df
+            df = self.tracks_viewer.track_df
 
         if self.sync:
             self.sync_views(force_update=True)
@@ -837,7 +837,7 @@ class TreeWidget(QWidget):
                 self.view_direction = "vertical"
             else:
                 self.view_direction = "horizontal"
-            df = self.track_df
+            df = self.tracks_viewer.track_df
         elif mode == "group":
             if self.feature == "tree":
                 self.view_direction = "vertical"
@@ -887,7 +887,7 @@ class TreeWidget(QWidget):
         self.navigation_widget.view_direction = self.view_direction
 
         if self.mode == "all":
-            df = self.track_df
+            df = self.tracks_viewer.track_df
         if self.mode == "lineage":
             df = self.lineage_df
         if self.mode == "group":
@@ -922,8 +922,8 @@ class TreeWidget(QWidget):
             visible = []
             for node_id in self.selected_nodes:
                 visible += extract_lineage_tree(self.graph, node_id)
-        self.lineage_df = self.track_df[
-            self.track_df["node_id"].isin(visible)
+        self.lineage_df = self.tracks_viewer.track_df[
+            self.tracks_viewer.track_df["node_id"].isin(visible)
         ].reset_index()
         self.lineage_df["x_axis_pos"] = (
             self.lineage_df["x_axis_pos"].rank(method="dense").astype(int) - 1
@@ -938,14 +938,14 @@ class TreeWidget(QWidget):
             for (
                 node_id
             ) in self.tracks_viewer.collection_widget.selected_collection.collection:
-                if node_id in self.track_df["node_id"].tolist():
+                if node_id in self.tracks_viewer.track_df["node_id"].tolist():
                     visible += extract_lineage_tree(self.graph, node_id)
                 else:
                     self.tracks_viewer.collection_widget.selected_collection.collection._list.remove(
                         node_id
                     )
-        self.group_df = self.track_df[
-            self.track_df["node_id"].isin(visible)
+        self.group_df = self.tracks_viewer.track_df[
+            self.tracks_viewer.track_df["node_id"].isin(visible)
         ].reset_index()
         self.group_df["x_axis_pos"] = (
             self.group_df["x_axis_pos"].rank(method="dense").astype(int) - 1
