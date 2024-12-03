@@ -106,8 +106,8 @@ class HistogramRangeSliderWidget(QWidget):
         self.max_spinbox.setMinimum(self.data_min)
         self.max_spinbox.setMaximum(self.data_max)
 
-        self.min_spinbox.valueChanged.connect(self.update_min_value)
-        self.max_spinbox.valueChanged.connect(self.update_max_value)
+        self.min_spinbox.editingFinished.connect(self.update_min_value)
+        self.max_spinbox.editingFinished.connect(self.update_max_value)
 
         min_spin_box_layout = QHBoxLayout()
         min_spin_box_layout.addWidget(QLabel("Min value"))
@@ -137,6 +137,8 @@ class HistogramRangeSliderWidget(QWidget):
         else:
             self.min_spinbox.setValue(region[0])
             self.max_spinbox.setValue(region[1])
+
+        self.update_rule.emit()
 
     def update_min_value(self):
         """Update the region by the value in the min_spinbox"""
