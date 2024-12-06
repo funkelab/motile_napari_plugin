@@ -89,11 +89,14 @@ class TrackGraph(napari.layers.Tracks):
             name=name,
             tail_length=3,
             color_by="track_id",
+            blending="translucent_no_depth",
         )
 
         self.colormaps_dict["track_id"] = self.tracks_viewer.colormap
         self.tracks_layer_graph = copy.deepcopy(self.graph)  # for restoring graph later
         self.colormap = "turbo"  # just to 'refresh' the track_id colormap, we do not actually use turbo
+        self.visible_plane_tracks = "all"
+        self.visible_tracks = "all"
 
     def _refresh(self):
         """Refreshes the displayed tracks based on the graph in the current tracks_viewer.tracks"""
@@ -108,10 +111,46 @@ class TrackGraph(napari.layers.Tracks):
         self.colormaps_dict["track_id"] = self.tracks_viewer.colormap
         self.colormap = "turbo"  # just to 'refresh' the track_id colormap, we do not actually use turbo
 
-    def update_track_visibility(self, visible: list[int] | str) -> None:
+    def update_track_visibility(
+        self,
+        visible: list[int] | str | None = None,
+        plane_nodes: list[int] | str | None = None,
+    ) -> None:
         """Optionally show only the tracks of a current lineage"""
 
-        if visible == "all":
+        if (
+            self.tracks_viewer.viewer.dims.ndisplay == 2
+            and self.tracks_viewer.viewer.dims.ndim == 4
+        ):
+            # everything should be invisible for 3D data viewed in 2D, because tracks are not shown at the correct slices.
+            visible = []
+
+        else:
+            if visible is not None:
+                self.visible_tracks = visible
+            if plane_nodes is not None:
+                self.visible_plane_tracks = plane_nodes
+
+            if isinstance(self.visible_tracks, str) and isinstance(
+                self.visible_plane_tracks, str
+            ):
+                visible = "all"
+            elif not isinstance(self.visible_tracks, str) and isinstance(
+                self.visible_plane_tracks, str
+            ):
+                visible = self.visible_tracks
+            elif isinstance(self.visible_tracks, str) and not isinstance(
+                self.visible_plane_tracks, str
+            ):
+                visible = self.visible_plane_tracks
+            else:
+                visible = list(
+                    set(self.visible_tracks).intersection(
+                        set(self.visible_plane_tracks)
+                    )
+                )
+
+        if isinstance(visible, str):
             self.track_colors[:, 3] = 1
             self.graph = self.tracks_layer_graph
         else:
@@ -131,3 +170,5 @@ class TrackGraph(napari.layers.Tracks):
                 self.display_graph = False  # empty dicts to not trigger update (bug?) so disable the graph entirely as a workaround
             else:
                 self.display_graph = True
+
+        self.events.rebuild_tracks()  # fire the event to update the colors

@@ -95,19 +95,21 @@ class TracksLayerGroup:
         if self.points_layer is not None:
             self.points_layer._refresh()
 
-    def update_visible(self, visible: list[int]):
+    def update_visible(self, visible: list[int], plane_nodes: list[int] | None = None):
         if self.seg_layer is not None:
             self.seg_layer.update_label_colormap(visible)
         if self.points_layer is not None:
-            self.points_layer.update_point_outline(visible)
+            self.points_layer.update_point_outline(visible, plane_nodes)
         if self.tracks_layer is not None:
-            self.tracks_layer.update_track_visibility(visible)
+            self.tracks_layer.update_track_visibility(visible, plane_nodes)
 
     def center_view(self, node):
         """Adjust the current_step and camera center of the viewer to jump to the node
         location, if the node is not already in the field of view"""
 
-        if self.seg_layer is None or self.seg_layer.mode == "pan_zoom":
+        if (
+            self.seg_layer is None or self.seg_layer.mode == "pan_zoom"
+        ) and self.viewer.dims.ndisplay == 2:
             location = self.tracks.get_positions([node], incl_time=True)[0].tolist()
             assert (
                 len(location) == self.viewer.dims.ndim

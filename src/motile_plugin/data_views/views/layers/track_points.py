@@ -30,6 +30,9 @@ class TrackPoints(napari.layers.Points):
         self.nodes = list(tracks_viewer.tracks.graph.nodes)
         self.node_index_dict = {node: idx for idx, node in enumerate(self.nodes)}
 
+        self.visible_nodes = "all"
+        self.plane_nodes = "all"
+
         points = self.tracks_viewer.tracks.get_positions(self.nodes, incl_time=True)
         track_ids = [
             self.tracks_viewer.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
@@ -187,14 +190,36 @@ class TrackPoints(napari.layers.Points):
         symbols = [symbolmap[statemap[degree]] for _, degree in tracks.graph.out_degree]
         return symbols
 
-    def update_point_outline(self, visible: list[int] | str) -> None:
+    def update_point_outline(
+        self, visible: list[int] | str, plane_nodes: list[int] | str | None = None
+    ) -> None:
         """Update the outline color of the selected points and visibility according to display mode
 
         Args:
             visible (list[int] | str): A list of track ids, or "all"
+            plane_nodes (list[int] | str): A list of track ids, or "all"
         """
-        # filter out the non-selected tracks if in lineage mode
-        if visible == "all":
+
+        if visible is not None:
+            self.visible_nodes = visible
+
+        if plane_nodes is not None:
+            self.plane_nodes = plane_nodes
+
+        if isinstance(self.visible_nodes, str) and isinstance(self.plane_nodes, str):
+            visible = "all"
+        elif not isinstance(self.visible_nodes, str) and isinstance(
+            self.plane_nodes, str
+        ):
+            visible = self.visible_nodes
+        elif isinstance(self.visible_nodes, str) and not isinstance(
+            self.plane_nodes, str
+        ):
+            visible = self.plane_nodes
+        else:
+            visible = list(set(self.visible_nodes).intersection(set(self.plane_nodes)))
+
+        if isinstance(visible, str):
             self.shown[:] = True
         else:
             indices = np.where(np.isin(self.properties["track_id"], visible))[
