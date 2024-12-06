@@ -6,91 +6,110 @@ from motile_toolbox.candidate_graph import NodeAttr
 from motile_plugin.data_model import SolutionTracks
 
 
-def tracks_from_csv(
-    csvfile: str,
-    selected_columns: dict,
-    extra_columns: dict,
+def _test_valid(df: pd.DataFrame, segmentation: np.ndarray, scale: list[float]) -> bool:
+    """Test if the segmentation pixel value for the coordinates of first node corresponds
+    with the provided seg_id as a basic sanity check that the csv file matches with the
+    segmentation file
+    """
+    assert NodeAttr.SEG_ID.value in df.columns, f"Missing {NodeAttr.SEG_ID.value} attribute"
+    row = df.iloc[0]
+    pos = [row[NodeAttr.TIME.value], row["z"], row["y"], row["x"]] \
+        if "z" in df.columns \
+        else [row[NodeAttr.TIME.value], row["y"], row["x"]]
+    seg_id = row[NodeAttr.SEG_ID.value]
+    coordinates = [
+        int(coord/ scale_value)
+        for coord, scale_value in zip(pos, scale, strict=True)
+    ]
+    value = segmentation[coordinates]
+    return value == seg_id
+
+def tracks_from_df(
+    df: pd.DataFrame,
     segmentation: np.ndarray | None = None,
-    scale: list[float] | None = None,
+    scale: list[float] | None = None
 ) -> SolutionTracks:
-    """Assumes a csv similar to that created from "export tracks to csv" with columns:
-        t,[z],y,x,id,parent_id,[seg_id]
+    """Turns a pandas data frame with columns:
+        t,[z],y,x,id,parent_id,[seg_id], [optional custom attr 1], ...
+    into a SolutionTracks object.
+
     Cells without a parent_id will have an empty string or a -1 for the parent_id.
 
     Args:
-        csvfile (str):
-            path to the csv to load
-        selected_columns (dict): a dictionary mapping the attributes "t", "z", "y", "x", "id", "seg_id", "parent_id" to columns of the csv file
-        extra_columns (dict): a dictionary mapping optional additonal attributes to columns of the csv file
+        df (pd.DataFrame):
+            a pandas DataFrame containing columns 
+            t,[z],y,x,id,parent_id,[seg_id], [optional custom attr 1], ...
         segmentation (np.ndarray | None, optional):
             An optional accompanying segmentation.
-            If provided, assumes that the seg_id column in the csv file exists and
-            corresponds to the label ids in the segmentation array
+            If provided, assumes that the seg_id column in the dataframe exists and
+            corresponds to the label ids in the segmentation array. Defaults to None.
+        scale (list[float] | None, optional): 
+            The scale of the segmentation (including the time dimension). Defaults to None.
 
     Returns:
-        Tracks: a tracks object
+        SolutionTracks: a solution tracks object
+    Raises:
+        ValueError: if the segmentation IDs in the dataframe do not match the provided
+            segmentation
     """
+    required_columns = ["id", NodeAttr.TIME.value, "y", "x", "parent_id"]
+    for column in required_columns:
+        assert column in df.columns, \
+            f"Required column {column} not found in dataframe columns {df.columns}"
+        
+    if segmentation is not None:
+        if not _test_valid(df, segmentation, scale):
+            raise ValueError(f"Segmentation ids in dataframe do not match values in segmentation")
+
+    # sort the dataframe to ensure that parents get added to the graph before children
+    df = df.sort_values(NodeAttr.TIME.value)
     graph = nx.DiGraph()
-    df = pd.read_csv(csvfile)
-
     for _, row in df.iterrows():
+        row_dict = row.to_dict()
         _id = row["id"]
-
-        if (
-            selected_columns.get("z") is not None
-            and selected_columns.get("z") != "Select Column"
-        ):
-            attrs = {
-                "pos": [
-                    row[selected_columns["z"]],
-                    row[selected_columns["y"]],
-                    row[selected_columns["x"]],
-                ],
-                "time": row[selected_columns["t"]],
-            }
+        parent_id = row["parent_id"]
+        if "z" in df.columns:
+            pos = [row["z"], row["y"], row["x"]]
             ndims = 4
-            scale = [1, *scale]  # assumes 1 for time step
+            del row_dict["z"]
         else:
-            attrs = {
-                "pos": [
-                    row[selected_columns["y"]],
-                    row[selected_columns["x"]],
-                ],
-                "time": row[selected_columns["t"]],
-            }
+            pos = [row["y"], row["x"]]
             ndims = 3
-            scale = [1, scale[1], scale[2]]
+        
+        attrs = {
+            NodeAttr.TIME.value: row["t"],
+            NodeAttr.POS.value: pos,
+        }
 
-        if selected_columns["seg_id"] != "Select Column":
-            attrs["seg_id"] = row[selected_columns["seg_id"]]
+        # add all other columns into the attributes
+        for attr in required_columns:
+            del row_dict[attr]
+        attrs.update(row_dict)
 
-        for key in extra_columns:
-            if extra_columns[key] != "Select Column":
-                attrs[key] = row[extra_columns[key]]
-
+        # add the node to the graph
         graph.add_node(_id, **attrs)
-        parent_id = row[selected_columns["parent_id"]]
-        if not pd.isna(parent_id):
-            parent_id = parent_id
-            if parent_id != -1:
-                assert parent_id in graph.nodes, f"{_id} {parent_id}"
-                graph.add_edge(parent_id, _id)
+
+        # add the edge to the graph, if the node has a parent
+        # note: this loading format does not support edge attributes
+        if not pd.isna(parent_id) and parent_id != -1:
+            assert parent_id in graph.nodes, \
+                f"Parent id {parent_id} of node {_id} not in graph yet"
+            graph.add_edge(parent_id, _id)
 
     if segmentation is not None:
-        segmentation = np.expand_dims(
-            segmentation, axis=1
-        )  # do we need to keep the empty hypothesis dim?
+        # add dummy hypothesis dimension (for now)
+        segmentation = np.expand_dims(segmentation, axis=1) 
     tracks = SolutionTracks(
         graph=graph,
         segmentation=segmentation,
-        pos_attr="pos",
-        time_attr="time",
+        pos_attr=NodeAttr.POS.value,
+        time_attr=NodeAttr.TIME.value,
         ndim=ndims,
         scale=scale,
     )
 
     # compute the 'area' attribute if needed
-    if tracks.segmentation is not None and "area" not in attrs:
+    if tracks.segmentation is not None and NodeAttr.AREA.value not in df.columns:
         nodes = tracks.graph.nodes
         times = tracks.get_times(nodes)
         seg_ids = tracks.get_seg_ids(nodes, required=True)

@@ -20,14 +20,16 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from .load_tracks import tracks_from_csv
+from .load_tracks import tracks_from_df
+from motile_toolbox.candidate_graph import NodeAttr
 
 
 class ScaleWidget(QWidget):
     """QWidget for specifying pixel calibration"""
 
-    def __init__(self):
+    def __init__(self, incl_z=True):
         super().__init__()
+        self.incl_z = incl_z
 
         layout = QVBoxLayout()
         layout.addWidget(QLabel("Specify scaling"))
@@ -36,7 +38,8 @@ class ScaleWidget(QWidget):
         self.y_spin_box = self._scale_spin_box()
         self.x_spin_box = self._scale_spin_box()
 
-        scale_form_layout.addRow(QLabel("z"), self.z_spin_box)
+        if self.incl_z:
+            scale_form_layout.addRow(QLabel("z"), self.z_spin_box)
         scale_form_layout.addRow(QLabel("y"), self.y_spin_box)
         scale_form_layout.addRow(QLabel("x"), self.x_spin_box)
 
@@ -56,13 +59,19 @@ class ScaleWidget(QWidget):
     def get_scale(self) -> list[float]:
         """Return the scaling values in the spinboxes as a list of floats.
         Since we currently require a dummy 1 value for the time dimension, add it here."""
-
-        scale = [
-            1,
-            self.z_spin_box.value(),
-            self.y_spin_box.value(),
-            self.x_spin_box.value(),
-        ]
+        if self.incl_z:
+            scale = [
+                1,
+                self.z_spin_box.value(),
+                self.y_spin_box.value(),
+                self.x_spin_box.value(),
+            ]
+        else:
+            scale = [
+                1,
+                self.y_spin_box.value(),
+                self.x_spin_box.value(),
+            ]
 
         return scale
 
@@ -70,141 +79,75 @@ class ScaleWidget(QWidget):
 class CSVFieldMapWidget(QWidget):
     """QWidget accepting a CSV file and displaying the different column names in QComboBoxes"""
 
-    def __init__(self):
+    def __init__(self, csv_columns: list[str], seg=False):
         super().__init__()
 
-        self.csv_headers = []  # to be populated with column names from csv
-        self.extra_columns = []  # to be populated later with optional additional attributes
-
-        # Field Mapping Layout
+        self.standard_fields = [
+            "t",
+            "z",
+            "y",
+            "x",
+            "id",
+            "seg_id",
+            "parent_id",
+        ]
         csv_column_layout = QVBoxLayout()
         csv_column_layout.addWidget(QLabel("Choose columns from CSV"))
+        # Field Mapping Layout
         self.mapping_layout = QFormLayout()
-        self.mapping_widgets = {}  # To store QComboBox widgets for each field
+        self.mapping_widgets: dict[QLabel | QLineEdit, QComboBox] = {}
 
-        # Fields to map key:display name
-        self.fields_to_map = {
-            "t": "time",
-            "z": "z (optional)",
-            "y": "y",
-            "x": "x",
-            "id": "id",
-            "seg_id": "seg_id (if seg provided)",
-            "parent_id": "parent_id",
-        }
-
-        # populate the for with display name: QComboBox
-        for key, field in self.fields_to_map.items():
-            combo = QComboBox(self)
-            combo.addItem("Select Column")
-            self.mapping_widgets[key] = combo
-            self.mapping_layout.addRow(QLabel(f"{field}:"), combo)
-
-        # Button to add custom attribute mappings
-        self.add_attr_button = QPushButton("Add Attribute", self)
-        self.add_attr_button.clicked.connect(self._add_custom_attribute)
+        self._set_view(csv_columns, seg=seg)
 
         # Assemble layouts
         csv_column_layout.addLayout(self.mapping_layout)
-        csv_column_layout.addWidget(self.add_attr_button)
         layout = QVBoxLayout()
         layout.addLayout(csv_column_layout)
         self.setLayout(layout)
 
-    def load_csv_headers(self, csv_file: str) -> None:
-        """Tries to read the csv file and if successful, updates Comboboxes with the header names"""
+    def _set_view(self, csv_columns, seg=False):
+        self.mapping_widgets = {}
+        self.mapping_layout = QFormLayout()
 
-        if csv_file != "":
-            if not csv_file.endswith(".csv"):
-                QMessageBox.warning(self, "Input Required", "Please select a CSV file.")
-                return
+        self.csv_columns = csv_columns
+        self.seg = seg
 
-            # Load only the header of the CSV file
-            try:
-                df = pd.read_csv(csv_file, nrows=0)
-                self.csv_headers = list(df.columns)
+        # populate the for with display name: QComboBox# dictionary from feature name to csv column
+        initial_mapping = self._get_initial_mapping()
+        for attribute, csv_column in initial_mapping.items():
+            combo = QComboBox(self)
+            combo.addItems(self.csv_columns)
+            combo.setCurrentText(csv_column)
+            label : QLabel | QLineEdit = QLabel(attribute) if attribute in self.standard_fields else QLineEdit(text=attribute)
+            self.mapping_widgets[label] = combo
+            self.mapping_layout.addRow(label, combo)
 
-                # Populate dropdowns with CSV headers
-                for _, combo in self.mapping_widgets.items():
-                    combo.clear()
-                    combo.addItem("Select Column")
-                    combo.addItems(self.csv_headers)
+    def _get_initial_mapping(self):
+        """Make an initial guess for mapping of csv columns to fields"""
+        mapping = {}
+        columns_left: list = self.csv_columns.copy()
+        # find exact matches for standard fields
+        for attribute in self.standard_fields:
+            if attribute in columns_left:
+                mapping[attribute] = attribute
+                columns_left.remove(attribute)
+        # assign first remaining column as best guess for remaining standard fields
+        for attribute in self.standard_fields:
+            if attribute in mapping:
+                continue
+            mapping[attribute] = columns_left.pop(0)
+        # make new features for any remaining columns
+        for column in columns_left:
+            mapping[column] = column
+        return mapping
 
-                # Update custom attribute dropdowns, if any
-                self._update_custom_attributes()
+    def get_name_map(self) -> dict[str, str]:
+        """Return a mapping from feature name to csv field name"""
 
-                # If there are any 1:1 field mappings possible, suggest these to make it easier for the user
-                self._preset_columns()
-
-            except FileNotFoundError:
-                QMessageBox.critical(self, "Error", "The specified file was not found.")
-            except pd.errors.EmptyDataError:
-                QMessageBox.critical(self, "Error", "The file is empty or has no data.")
-            except pd.errors.ParserError:
-                QMessageBox.critical(
-                    self, "Error", "The file could not be parsed as a valid CSV."
-                )
-
-    def _preset_columns(self):
-        """Preset choices in QComboBoxes if there is 1:1 match between field key and csv column name"""
-
-        for key in self.fields_to_map:
-            if key in self.csv_headers:
-                self.mapping_widgets[key].setCurrentText(key)
-
-    def _add_custom_attribute(self):
-        """Add a custom attribute field mapping with a dropdown"""
-
-        custom_attr_label = QLineEdit(
-            f"Custom Attribute {len(self.mapping_layout.children()) // 2 + 1}:"
-        )
-        custom_attr_combo = QComboBox(self)
-        custom_attr_combo.addItem("Select Column")
-        custom_attr_combo.addItems(self.csv_headers)
-        current_index = len(self.fields_to_map.keys()) + len(self.extra_columns)
-        custom_attr_combo.currentIndexChanged.connect(
-            lambda: self._update_custom_field_name(
-                current_index, custom_attr_combo.currentText()
-            )
-        )
-
-        self.extra_columns.append(custom_attr_label)
-        self.mapping_widgets[custom_attr_label] = custom_attr_combo
-        self.mapping_layout.addRow(custom_attr_label, custom_attr_combo)
-
-    def _update_custom_field_name(self, index: int, column_name: str) -> None:
-        """Update the field name with the column name"""
-
-        self.mapping_layout.itemAt(index * 2).widget().setText(column_name)
-
-    def _update_custom_attributes(self):
-        """Update custom attribute dropdowns with new headers (if CSV headers are reloaded)"""
-
-        for i in range(
-            len(self.fields_to_map), self.mapping_layout.rowCount()
-        ):  # all the items beyond the default ones
-            widget_pair = self.mapping_layout.itemAt(i * 2 + 1)
-            if widget_pair:
-                combo = widget_pair.widget()
-                if isinstance(combo, QComboBox):
-                    combo.clear()
-                    combo.addItem("Select Column")
-                    combo.addItems(self.csv_headers)
-
-    def get_selected_columns(self) -> tuple[dict[str:str], dict[str:str]]:
-        """Return the node attribute:column mapping for the default and optional extra attributes"""
-
-        selected_columns = {
-            field: self.mapping_widgets[field].currentText()
-            for field in self.fields_to_map
+        return {
+            label.text: combo.currentText()
+            for label, combo in self.mapping_widgets.items()
         }
-        extra_columns = {
-            field.text(): self.mapping_widgets[field].currentText()
-            for field in self.extra_columns
-        }
-
-        return selected_columns, extra_columns
-
 
 class ImportTracksDialog(QDialog):
     def __init__(self):
@@ -212,13 +155,14 @@ class ImportTracksDialog(QDialog):
         self.setWindowTitle("Import external tracks from CSV")
 
         self.tracks = None
-        self.name = "External Tracks"
+        self.name = "External Tracks from CSV"
+        self.df: pd.DataFrame | None = None
 
         # Layouts
         self.layout = QVBoxLayout(self)
 
         # Construct widget for the column name to field mapping
-        self.csv_field_widget = CSVFieldMapWidget()
+        self.csv_field_widget: CSVFieldMapWidget | None = None
 
         # Construct widget for the pixel scaling information
         self.scale_widget = ScaleWidget()
@@ -226,7 +170,7 @@ class ImportTracksDialog(QDialog):
         # CSV File Selection
         self.csv_path_line = QLineEdit(self)
         self.csv_path_line.editingFinished.connect(
-            lambda: self.csv_field_widget.load_csv_headers(self.csv_path_line.text())
+            lambda: self._load_csv(self.csv_path_line.text())
         )
         self.csv_browse_button = QPushButton("Browse Tracks CSV file", self)
         self.csv_browse_button.clicked.connect(self._browse_csv)
@@ -242,7 +186,7 @@ class ImportTracksDialog(QDialog):
         self.image_browse_button.clicked.connect(self._browse_image)
 
         image_layout = QHBoxLayout()
-        image_layout.addWidget(QLabel("Image File Path:"))
+        image_layout.addWidget(QLabel("Segmentation File Path:"))
         image_layout.addWidget(self.image_path_line)
         image_layout.addWidget(self.image_browse_button)
 
@@ -254,7 +198,7 @@ class ImportTracksDialog(QDialog):
 
         # Place scaling and field map side by side
         scaling_field_layout = QHBoxLayout()
-        scaling_field_layout.addWidget(self.csv_field_widget)
+        # scaling_field_layout.addWidget(self.csv_field_widget)
         scaling_field_layout.addWidget(self.scale_widget)
         scaling_field_layout.setAlignment(Qt.AlignTop)
 
@@ -279,62 +223,17 @@ class ImportTracksDialog(QDialog):
             self, "Select CSV File", "", "CSV Files (*.csv)"
         )
         if csv_file:
-            self.csv_path_line.setText(csv_file)
-            self.csv_field_widget.load_csv_headers(csv_file)
-
-    def _browse_image(self):
-        """File dialog to select image file (TIFF or Zarr)"""
-
-        image_file, _ = QFileDialog.getOpenFileName(
-            self, "Select Image File", "", "Image Files (*.tiff *.zarr)"
-        )
-        if image_file:
-            self.image_path_line.setText(image_file)
-
-    def tracks_valid(self, scale: list[float]) -> bool:
-        """Test if the segmentation pixel value for the coordinates of first node corresponds with the provided seg_id as a basic sanity check that the csv file matches with the segmentation file"""
-
-        node = list(self.tracks.graph.nodes)[0]
-        coordinates = self.tracks.get_position(node, incl_time=True)
-        seg_id = self.tracks.get_seg_id(node)
-        coordinates = [
-            int(coord / scale_value)
-            for coord, scale_value in zip(coordinates, scale, strict=False)
-        ]
-        value = self.tracks.segmentation[(coordinates[0], 0, *coordinates[1:])]
-        if value != seg_id:
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Warning)
-            msg_box.setWindowTitle("Warning")
-            msg_box.setText(
-                f"Pixel value at coordinates {coordinates} ({value}) does NOT match with the seg_id "
-                f"from the csv file ({seg_id}). Is it possible that you selected the wrong combination "
-                "of segmentation and csv file? The displayed result may not be correct."
-            )
-
-            # Add custom buttons
-            go_back_button = msg_box.addButton("Go back", QMessageBox.ActionRole)
-            msg_box.addButton("Continue anyway", QMessageBox.AcceptRole)
-
-            # Display the message box and wait for user response
-            msg_box.exec_()
-
-            # Handle responses
-            return msg_box.clickedButton() != go_back_button
+            self._load_csv(csv_file)
         else:
-            return True
-
-    def _ok_clicked(self):
-        """Tries to read the CSV file and optional segmentation image, and apply the attribute to column mapping to construct a Tracks object"""
-
-        # Ensure CSV path is provided and valid
-        csv_file = self.csv_path_line.text()
-        if not csv_file:
             QMessageBox.warning(self, "Input Required", "Please select a CSV file.")
-            return
 
+    def _load_csv(self, csv_file):
+        self.csv_path_line.setText(csv_file)
+        # Ensure CSV path is provided and valid
         try:
-            pd.read_csv(csv_file, nrows=0)
+            self.df = pd.read_csv(csv_file, nrows=0)
+            self.csv_field_widget = CSVFieldMapWidget(list(self.df.columns), False)
+            self.layout.addWidget(self.csv_field_widget)
         except FileNotFoundError:
             QMessageBox.critical(self, "Error", "The specified file was not found.")
             return
@@ -345,8 +244,17 @@ class ImportTracksDialog(QDialog):
             QMessageBox.critical(
                 self, "Error", "The file could not be parsed as a valid CSV."
             )
-            return
 
+    def _browse_image(self):
+        """File dialog to select image file (TIFF or Zarr)"""
+
+        image_file, _ = QFileDialog.getOpenFileName(
+            self, "Select Segmentation File", "", "Segmentation Files (*.tiff *.zarr)"
+        )
+        if image_file:
+            self.image_path_line.setText(image_file)
+
+    def _load_segmentation(self, segmentation_file):
         # Check if a valid path to a segmentation image file is provided and if so load it
         if os.path.exists(self.image_path_line.text()):
             if self.image_path_line.text().endswith(".tif"):
@@ -364,30 +272,20 @@ class ImportTracksDialog(QDialog):
                 return
         else:
             segmentation = None
+        self.segmentation = segmentation
+
+    def _ok_clicked(self):
+        """Tries to read the CSV file and optional segmentation image, 
+        and apply the attribute to column mapping to construct a Tracks object"""
+
 
         # Retrieve selected columns for each required field, and optional columns for additional attributes
-        selected_columns, extra_columns = self.csv_field_widget.get_selected_columns()
-
-        # Ensure all required fields have been selected
-        for field, column in selected_columns.items():
-            if column == "Select Column" and field in (
-                "t",
-                "y",
-                "x",
-                "id",
-                "parent_id",
-            ):
-                QMessageBox.warning(
-                    self, "Input Required", f"Please select a column for {field}."
-                )
-                return
-        if segmentation is not None and selected_columns["seg_id"] == "Select Column":
-            QMessageBox.warning(
-                self,
-                "Input Required",
-                "Please select a column for 'seg_id' to map object ID to segmentation ID (label) if you want to provide a segmentation image with the tracks.",
-            )
-            return
+        name_map = self.csv_field_widget.get_name_map()
+        # note: this will fail if one column is used for two features
+        name_map_reversed = {
+            value: key for key, value in name_map.items()  
+        }
+        self.df.rename(columns=name_map_reversed, inplace=True)
 
         # Read scaling information from the spinboxes, and name from the name_widget
         scale = self.scale_widget.get_scale()
@@ -395,11 +293,9 @@ class ImportTracksDialog(QDialog):
 
         # Try to create a Tracks object with the provided CSV file, the attr:column dictionaries, and the scaling information
         try:
-            self.tracks = tracks_from_csv(
-                csv_file, selected_columns, extra_columns, segmentation, scale
+            self.tracks = tracks_from_df(
+                self.df, self.segmentation, scale
             )
-            if self.tracks.segmentation is not None and not self.tracks_valid(scale):
-                return
 
         except ValueError as e:
             QMessageBox.critical(self, "Error", f"Failed to load tracks: {e}")
