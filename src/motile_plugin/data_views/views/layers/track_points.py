@@ -228,9 +228,19 @@ class TrackPoints(napari.layers.Points):
             self.shown[:] = False
             self.shown[indices] = True
 
-        # set border color for selected item
         self.border_color = [1, 1, 1, 1]
         self.size = 5
+
+        for node in self.tracks_viewer.filtered_nodes:
+            index = self.node_index_dict[node]
+            self.border_color[index] = (
+                self.tracks_viewer.filter_color[0],
+                self.tracks_viewer.filter_color[1],
+                self.tracks_viewer.filter_color[2],
+                1,
+            )
+            self.size[index] = 5
+
         for node in self.tracks_viewer.selected_nodes:
             index = self.node_index_dict[node]
             self.border_color[index] = (
@@ -240,4 +250,5 @@ class TrackPoints(napari.layers.Points):
                 1,
             )
             self.size[index] = 7
+
         self.refresh()
