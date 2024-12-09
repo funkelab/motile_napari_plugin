@@ -6,7 +6,7 @@ from warnings import warn
 
 import pyqtgraph as pg
 from fonticon_fa6 import FA6S
-from motile_plugin.motile.backend import MotileRun
+from motile_tracker.motile.backend import MotileRun
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QFileDialog,

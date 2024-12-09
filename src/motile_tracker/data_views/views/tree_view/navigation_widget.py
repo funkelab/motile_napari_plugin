@@ -11,7 +11,7 @@ from qtpy.QtWidgets import (
 )
 
 if TYPE_CHECKING:
-    from motile_plugin.data_views import NodeSelectionList
+    from motile_tracker.data_views import NodeSelectionList
 
 
 class NavigationWidget(QWidget):

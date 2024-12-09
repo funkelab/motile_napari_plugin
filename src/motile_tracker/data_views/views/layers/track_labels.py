@@ -7,7 +7,7 @@ import numpy as np
 from napari.utils import DirectLabelColormap
 
 if TYPE_CHECKING:
-    from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
+    from motile_tracker.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 
 class TrackLabels(napari.layers.Labels):

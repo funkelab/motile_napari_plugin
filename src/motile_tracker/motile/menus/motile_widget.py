@@ -4,10 +4,10 @@ import logging
 
 import networkx as nx
 import numpy as np
-from motile_plugin.data_model import SolutionTracks
-from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
-from motile_plugin.motile.backend import MotileRun, solve
 from motile_toolbox.candidate_graph import NodeAttr
+from motile_tracker.data_model import SolutionTracks
+from motile_tracker.data_views.views_coordinator.tracks_viewer import TracksViewer
+from motile_tracker.motile.backend import MotileRun, solve
 from napari import Viewer
 from napari.utils.notifications import show_warning
 from psygnal import Signal
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class MotileWidget(QWidget):
-    """A widget that controls the backend components of the motile napari plugin.
+    """A widget that controls the backend components of the motile napari tracker.
     Recieves user input about solver parameters, runs motile, and passes
     results to the TrackingViewController.
     """
@@ -219,14 +219,14 @@ class MotileWidget(QWidget):
         """Create the title and intro paragraph widget, with links to docs
 
         Returns:
-            QWidget: A widget introducing the motile plugin and linking to docs
+            QWidget: A widget introducing the motile tracker and linking to docs
         """
         richtext = r"""<h3>Tracking with Motile</h3>
-        <p>This plugin uses the
+        <p>This tracker uses the
         <a href="https://funkelab.github.io/motile/"><font color=yellow>motile</font></a> library to
         track objects with global optimization. See the
-        <a href="https://funkelab.github.io/motile_napari_plugin/"><font color=yellow>user guide</font></a>
-        for a tutorial to the plugin functionality."""  # noqa
+        <a href="https://funkelab.github.io/motile_tracker/"><font color=yellow>user guide</font></a>
+        for a tutorial to the tracker functionality."""  # noqa
         label = QLabel(richtext)
         label.setWordWrap(True)
         label.setOpenExternalLinks(True)

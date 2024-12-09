@@ -4,8 +4,9 @@ import napari.layers
 import networkx as nx
 import numpy as np
 import pandas as pd
-from motile_plugin.data_model import NodeType, Tracks
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
+
+from motile_tracker.data_model import NodeType, Tracks
 
 
 def extract_sorted_tracks(
@@ -18,7 +19,7 @@ def extract_sorted_tracks(
     function from the Motile toolbox.
 
     Args:
-        tracks (motile_plugin.core.Tracks): A tracks object containing a graph
+        tracks (motile_tracker.core.Tracks): A tracks object containing a graph
             to be converted into a dataframe.
         colormap (napari.utils.CyclicLabelColormap): The colormap to use to
             extract the color of each node from the track ID

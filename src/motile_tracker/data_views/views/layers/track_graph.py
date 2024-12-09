@@ -7,8 +7,8 @@ import napari
 import numpy as np
 
 if TYPE_CHECKING:
-    from motile_plugin.data_model.solution_tracks import SolutionTracks
-    from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
+    from motile_tracker.data_model.solution_tracks import SolutionTracks
+    from motile_tracker.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 
 def update_napari_tracks(

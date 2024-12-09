@@ -3,14 +3,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import napari
-from motile_plugin.data_model.tracks import Tracks
+
+from motile_tracker.data_model.tracks import Tracks
 
 from .track_graph import TrackGraph
 from .track_labels import TrackLabels
 from .track_points import TrackPoints
 
 if TYPE_CHECKING:
-    from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
+    from motile_tracker.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 
 class TracksLayerGroup:

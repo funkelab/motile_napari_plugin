@@ -1,4 +1,4 @@
-from motile_plugin.motile.backend import SolverParams
+from motile_tracker.motile.backend import SolverParams
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QGroupBox,

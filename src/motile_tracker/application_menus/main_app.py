@@ -1,15 +1,16 @@
 import napari
-from motile_plugin.data_views.views.tree_view.tree_widget import TreeWidget
 from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
 
+from motile_tracker.data_views.views.tree_view.tree_widget import TreeWidget
+
 from .menu_widget import MenuWidget
 
 
 class MainApp(QWidget):
-    """Combines the different plugin widgets for faster dock arrangement"""
+    """Combines the different tracker widgets for faster dock arrangement"""
 
     def __init__(self, viewer: napari.Viewer):
         super().__init__()

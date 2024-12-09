@@ -8,7 +8,7 @@ from warnings import warn
 import napari.layers
 import networkx as nx
 import numpy as np
-from motile_plugin.motile.backend import MotileRun
+from motile_tracker.motile.backend import MotileRun
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QComboBox,

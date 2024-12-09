@@ -4,15 +4,16 @@ from typing import Optional
 
 import napari
 import numpy as np
-from motile_plugin.data_model import NodeType, SolutionTracks, Tracks
-from motile_plugin.data_model.tracks_controller import TracksController
-from motile_plugin.data_views.views.layers.tracks_layer_group import TracksLayerGroup
-from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
-    extract_lineage_tree,
-)
-from motile_plugin.utils.relabel_segmentation import relabel_segmentation
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 from psygnal import Signal
+
+from motile_tracker.data_model import NodeType, SolutionTracks, Tracks
+from motile_tracker.data_model.tracks_controller import TracksController
+from motile_tracker.data_views.views.layers.tracks_layer_group import TracksLayerGroup
+from motile_tracker.data_views.views.tree_view.tree_widget_utils import (
+    extract_lineage_tree,
+)
+from motile_tracker.utils.relabel_segmentation import relabel_segmentation
 
 from .node_selection_list import NodeSelectionList
 from .tracks_list import TracksList
@@ -106,7 +107,7 @@ class TracksViewer:
         Will create new segmentation and tracks layers and add them to the viewer.
 
         Args:
-            tracks (motile_plugin.core.Tracks): The tracks to visualize in napari.
+            tracks (motile_tracker.core.Tracks): The tracks to visualize in napari.
             name (str): The name of the tracks to display in the layer names
         """
         self.selected_nodes._list = []
@@ -206,7 +207,7 @@ class TracksViewer:
         assigned track ids. Then calls update_tracks.
 
         Args:
-            tracks (Tracks): A tracks object to view, created externally from the plugin
+            tracks (Tracks): A tracks object to view, created externally from the tracker
             name (str): The name to display in napari layers
         """
         # tracks.segmentation = np.expand_dims(tracks.segmentation, axis=1)

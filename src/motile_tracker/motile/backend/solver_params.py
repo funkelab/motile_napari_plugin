@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class SolverParams(BaseModel):
-    """The set of solver parameters supported in the motile plugin.
+    """The set of solver parameters supported in the motile tracker.
     Used to build the UI as well as store parameters for runs.
     """
 
