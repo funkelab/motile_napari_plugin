@@ -209,16 +209,19 @@ def download_ctc_dataset(ds_name: str, data_dir: Path) -> None:
     zip_filename.unlink()
 
     convert_to_zarr(ds_dir / "01", ds_zarr, "01")
-    convert_to_zarr(ds_dir / "01_ST" / "SEG", ds_zarr, "01_ST")
+    convert_to_zarr(ds_dir / "01_ST" / "SEG", ds_zarr, "01_ST", relabel=True)
     shutil.rmtree(ds_dir)
 
 
-def convert_4d_arr_to_zarr(tiff_file: str, zarr_path: str, zarr_group: str):
+def convert_4d_arr_to_zarr(
+    tiff_file: str, zarr_path: str, zarr_group: str, relabel=False
+):
     """Convert 4D tiff file image data to zarr. Also deletes the tiffs!
     Args:
         tiff_file (str): string representing path to tif file to be converted
         zarr_path (str): path to the zarr file to write the output to
         zarr_group (str): group within the zarr store to write the data to
+        relabel (bool): if true, relabels the segmentations to be unique over time
     """
     img = tifffile.imread(tiff_file)
     data_shape = img.shape
@@ -236,12 +239,17 @@ def convert_4d_arr_to_zarr(tiff_file: str, zarr_path: str, zarr_group: str):
         dtype=data_dtype,
     )
     # save the time points to the zarr file
+    max_label = 0
     for t in range(img.shape[0]):
-        zarr_array[t] = img[t]
+        frame = img[t]
+        if relabel:
+            frame[frame != 0] += max_label
+            max_label = int(np.max(frame))
+        zarr_array[t] = frame
     os.remove(tiff_file)
 
 
-def convert_to_zarr(tiff_path: Path, zarr_path: Path, zarr_group: str):
+def convert_to_zarr(tiff_path: Path, zarr_path: Path, zarr_group: str, relabel=False):
     """Convert tiff file image data to zarr. Also deletes the tiffs!
     Args:
         tif_path (Path): Path to the directory containing the tiff files
@@ -265,8 +273,12 @@ def convert_to_zarr(tiff_path: Path, zarr_path: Path, zarr_group: str):
         dtype=data_dtype,
     )
     # load and save data in zarr
+    max_label = 0
     for t, file in enumerate(files):
-        image = tifffile.imread(file)
-        zarr_array[t] = image
+        frame = tifffile.imread(file)
+        if relabel:
+            frame[frame != 0] += max_label
+            max_label = int(np.max(frame))
+        zarr_array[t] = frame
         file.unlink()
     tiff_path.rmdir()
