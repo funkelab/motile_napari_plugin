@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import napari
 import numpy as np
@@ -8,6 +8,57 @@ from napari.utils import DirectLabelColormap
 
 if TYPE_CHECKING:
     from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
+
+import functools
+
+from napari.layers.labels._labels_utils import (
+    expand_slice,
+)
+from scipy import ndimage as ndi
+
+
+def get_contours(
+    labels: np.ndarray,
+    thickness: int,
+    background_label: int,
+    group_labels: list[int] | None = None,
+):
+    """Computes the contours of a 2D label image.
+
+    Parameters
+    ----------
+    labels : array of integers
+        An input labels image.
+    thickness : int
+        It controls the thickness of the inner boundaries. The outside thickness is always 1.
+        The final thickness of the contours will be `thickness + 1`.
+    background_label : int
+        That label is used to fill everything outside the boundaries.
+
+    Returns
+    -------
+    A new label image in which only the boundaries of the input image are kept.
+    """
+    struct_elem = ndi.generate_binary_structure(labels.ndim, 1)
+
+    thick_struct_elem = ndi.iterate_structure(struct_elem, thickness).astype(bool)
+
+    dilated_labels = ndi.grey_dilation(labels, footprint=struct_elem)
+    eroded_labels = ndi.grey_erosion(labels, footprint=thick_struct_elem)
+    not_boundaries = dilated_labels == eroded_labels
+
+    contours = labels.copy()
+    contours[not_boundaries] = background_label
+
+    # instead of filling with background label, fill the group label with their normal color
+    if group_labels is not None and len(group_labels) > 0:
+        group_mask = functools.reduce(
+            np.logical_or, (labels == val for val in group_labels)
+        )
+        combined_mask = not_boundaries & group_mask
+        contours = np.where(combined_mask, labels, contours)
+
+    return contours
 
 
 class TrackLabels(napari.layers.Labels):
@@ -52,6 +103,10 @@ class TrackLabels(napari.layers.Labels):
         )
 
         self.viewer = viewer
+        self.viewer.dims.events.ndisplay.connect(
+            lambda: self.update_label_colormap(visible=None)
+        )
+        self.group_labels = None
 
         # Key bindings (should be specified both on the viewer (in tracks_viewer)
         # and on the layer to overwrite napari defaults)
@@ -223,9 +278,12 @@ class TrackLabels(napari.layers.Labels):
 
         self.refresh()
 
-    def update_label_colormap(self, visible: list[int] | str) -> None:
+    def update_label_colormap(self, visible: list[int] | str | None = None) -> None:
         """Updates the opacity of the label colormap to highlight the selected label
         and optionally hide cells not belonging to the current lineage"""
+
+        if visible is None:
+            visible = self.group_labels if self.group_labels is not None else "all"
 
         highlighted = [
             self.tracks_viewer.tracks.get_track_id(node)
@@ -240,23 +298,31 @@ class TrackLabels(napari.layers.Labels):
             ]  # set the first track_id to be the selected label color
 
         # update the opacity of the cyclic label colormap values according to whether nodes are visible/invisible/highlighted
+        self.colormap.color_dict = {
+            key: np.array(
+                [*value[:-1], 0.6 if key is not None and key != 0 else value[-1]],
+                dtype=np.float32,
+            )
+            for key, value in self.colormap.color_dict.items()
+        }
+
         if visible == "all":
-            self.colormap.color_dict = {
-                key: np.array(
-                    [*value[:-1], 0.6 if key is not None and key != 0 else value[-1]],
-                    dtype=np.float32,
-                )
-                for key, value in self.colormap.color_dict.items()
-            }
+            self.contour = 0
+            self.group_labels = None
 
         else:
-            self.colormap.color_dict = {
-                key: np.array([*value[:-1], 0], dtype=np.float32)
-                for key, value in self.colormap.color_dict.items()
-            }
-            for label in visible:
-                # find the index in the cyclic label colormap
-                self.colormap.color_dict[label][-1] = 0.6
+            if self.viewer.dims.ndisplay == 2:
+                self.contour = 1
+                self.group_labels = visible  # for now we can not distinguish between individual nodes and tracks, but if we switch to unique labels this will be possible.
+
+            else:
+                self.colormap.color_dict = {
+                    key: np.array([*value[:-1], 0], dtype=np.float32)
+                    for key, value in self.colormap.color_dict.items()
+                }
+                for label in visible:
+                    # find the index in the cyclic label colormap
+                    self.colormap.color_dict[label][-1] = 0.6
 
         for label in highlighted:
             self.colormap.color_dict[label][-1] = 1  # full opacity
@@ -264,6 +330,7 @@ class TrackLabels(napari.layers.Labels):
         self.colormap = DirectLabelColormap(
             color_dict=self.colormap.color_dict
         )  # create a new colormap from the updated colors (otherwise it does not refresh)
+        self.refresh()
 
     def new_colormap(self):
         """Extended version of existing function, to emit refresh signal to also update colors in other layers/widgets"""
@@ -286,3 +353,42 @@ class TrackLabels(napari.layers.Labels):
             self.events.selected_label.connect(
                 self._check_selected_label
             )  # connect again
+
+    def _calculate_contour(
+        self, labels: np.ndarray, data_slice: tuple[slice, ...]
+    ) -> Optional[np.ndarray]:
+        """Calculate the contour of a given label array within the specified data slice.
+
+        Parameters
+        ----------
+        labels : np.ndarray
+            The label array.
+        data_slice : Tuple[slice, ...]
+            The slice of the label array on which to calculate the contour.
+
+        Returns
+        -------
+        Optional[np.ndarray]
+            The calculated contour as a boolean mask array.
+            Returns None if the contour parameter is less than 1,
+            or if the label array has more than 2 dimensions.
+        """
+        if self.contour < 1:
+            return None
+        if labels.ndim > 2:
+            return None
+
+        expanded_slice = expand_slice(data_slice, labels.shape, 1)
+        sliced_labels = get_contours(
+            labels[expanded_slice],
+            self.contour,
+            self.colormap.background_value,
+            self.group_labels,
+        )
+
+        # Remove the latest one-pixel border from the result
+        delta_slice = tuple(
+            slice(s1.start - s2.start, s1.stop - s2.start)
+            for s1, s2 in zip(data_slice, expanded_slice, strict=False)
+        )
+        return sliced_labels[delta_slice]
