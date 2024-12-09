@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import napari
-
 from motile_plugin.data_model.tracks import Tracks
 
 from .track_graph import TrackGraph

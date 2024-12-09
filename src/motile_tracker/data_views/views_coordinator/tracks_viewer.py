@@ -4,9 +4,6 @@ from typing import Optional
 
 import napari
 import numpy as np
-from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
-from psygnal import Signal
-
 from motile_plugin.data_model import NodeType, SolutionTracks, Tracks
 from motile_plugin.data_model.tracks_controller import TracksController
 from motile_plugin.data_views.views.layers.tracks_layer_group import TracksLayerGroup
@@ -14,6 +11,8 @@ from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
     extract_lineage_tree,
 )
 from motile_plugin.utils.relabel_segmentation import relabel_segmentation
+from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
+from psygnal import Signal
 
 from .node_selection_list import NodeSelectionList
 from .tracks_list import TracksList

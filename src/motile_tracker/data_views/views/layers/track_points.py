@@ -5,9 +5,8 @@ from typing import TYPE_CHECKING
 
 import napari
 import numpy as np
-from motile_toolbox.candidate_graph import NodeAttr
-
 from motile_plugin.data_model import NodeType, Tracks
+from motile_toolbox.candidate_graph import NodeAttr
 
 if TYPE_CHECKING:
     from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer

@@ -4,6 +4,8 @@ from warnings import warn
 
 import napari
 from fonticon_fa6 import FA6S
+from motile_plugin.data_model import Tracks
+from motile_plugin.motile.backend.motile_run import MotileRun
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
@@ -18,9 +20,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.fonticon import icon as qticon
-
-from motile_plugin.data_model import Tracks
-from motile_plugin.motile.backend.motile_run import MotileRun
 
 
 class TrackListWidget(QWidget):

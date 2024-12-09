@@ -4,9 +4,8 @@ import napari.layers
 import networkx as nx
 import numpy as np
 import pandas as pd
-from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
-
 from motile_plugin.data_model import NodeType, Tracks
+from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 
 
 def extract_sorted_tracks(

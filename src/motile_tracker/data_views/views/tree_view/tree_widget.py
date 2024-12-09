@@ -6,6 +6,7 @@ import napari
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
+from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 from psygnal import Signal
 from pyqtgraph.Qt import QtCore
 from qtpy.QtCore import Qt
@@ -16,8 +17,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QCollapsible
-
-from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 from .flip_axes_widget import FlipTreeWidget
 from .navigation_widget import NavigationWidget

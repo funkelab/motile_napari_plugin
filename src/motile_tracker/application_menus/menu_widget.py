@@ -1,9 +1,8 @@
 import napari
-from qtpy.QtWidgets import QScrollArea, QTabWidget, QVBoxLayout
-
 from motile_plugin.application_menus.editing_menu import EditingMenu
 from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 from motile_plugin.motile.menus.motile_widget import MotileWidget
+from qtpy.QtWidgets import QScrollArea, QTabWidget, QVBoxLayout
 
 
 class MenuWidget(QScrollArea):

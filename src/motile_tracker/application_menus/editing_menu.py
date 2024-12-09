@@ -1,12 +1,11 @@
 import napari
+from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 from qtpy.QtWidgets import (
     QGroupBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
 )
-
-from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 
 class EditingMenu(QWidget):

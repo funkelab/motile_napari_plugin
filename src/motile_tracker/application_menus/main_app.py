@@ -1,10 +1,9 @@
 import napari
+from motile_plugin.data_views.views.tree_view.tree_widget import TreeWidget
 from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
-from motile_plugin.data_views.views.tree_view.tree_widget import TreeWidget
 
 from .menu_widget import MenuWidget
 
