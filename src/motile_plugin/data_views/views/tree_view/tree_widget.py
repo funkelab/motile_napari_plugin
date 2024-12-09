@@ -182,7 +182,7 @@ class TreePlot(pg.PlotWidget):
 
             self.setLabel(feature_axis, text=axis_titles[feature])
             if feature == "tree":
-                self.getAxis(feature).setStyle(showValues=False)
+                self.getAxis(feature_axis).setStyle(showValues=False)
             else:
                 self.getAxis(feature_axis).setStyle(showValues=True)
                 self.autoRange()  # not sure if this is necessary or not
