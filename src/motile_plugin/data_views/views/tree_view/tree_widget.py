@@ -162,29 +162,31 @@ class TreePlot(pg.PlotWidget):
             if reset_view:
                 self.autoRange()
             return
+
+        axis_titles = {
+            "time": "Time Point",
+            "area": "Object size in calibrated units",
+            "tree": "",
+        }
         if allow_flip:
             if view_direction == "vertical":
-                self.setLabel("left", text="Time Point")
-                self.getAxis("left").setStyle(showValues=True)
-                if feature == "tree":
-                    self.getAxis("bottom").setStyle(showValues=False)
-                    self.setLabel("bottom", text="")
-                else:  # should this actually ever happen?
-                    self.getAxis("bottom").setStyle(showValues=True)
-                    self.setLabel("bottom", text="Object size in calibrated units")
-                    self.autoRange()
+                time_axis = "left"  # time is on y axis
+                feature_axis = "bottom"
                 self.invertY(True)  # to show tracks from top to bottom
-            elif view_direction == "horizontal":
-                self.setLabel("bottom", text="Time Point")
-                self.getAxis("bottom").setStyle(showValues=True)
-                if feature == "tree":
-                    self.setLabel("left", text="")
-                    self.getAxis("left").setStyle(showValues=False)
-                else:
-                    self.setLabel("left", text="Object size in calibrated units")
-                    self.getAxis("left").setStyle(showValues=True)
-                    self.autoRange()
+            else:
+                time_axis = "bottom"  # time is on y axis
+                feature_axis = "left"
                 self.invertY(False)
+            self.setLabel(time_axis, text=axis_titles["time"])
+            self.getAxis(time_axis).setStyle(showValues=True)
+
+            self.setLabel(feature_axis, text=axis_titles[feature])
+            if feature == "tree":
+                self.getAxis(feature).setStyle(showValues=False)
+            else:
+                self.getAxis(feature_axis).setStyle(showValues=True)
+                self.autoRange()  # not sure if this is necessary or not
+
         if (
             self.view_direction != view_direction
             or self.feature != feature
