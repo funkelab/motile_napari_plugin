@@ -1,6 +1,6 @@
 import networkx as nx
 import numpy as np
-from motile_plugin.motile.backend import MotileRun, SolverParams
+from motile_tracker.motile.backend import MotileRun, SolverParams
 
 
 def test_save_load(tmp_path, graph_2d):
