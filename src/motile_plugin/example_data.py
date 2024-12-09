@@ -262,7 +262,6 @@ def convert_to_zarr(tiff_path: Path, zarr_path: Path, zarr_group: str, relabel=F
     example_image = tifffile.imread(files[0])
     data_shape = (len(files), *example_image.shape)
     data_dtype = example_image.dtype
-    print(data_dtype)
     # prepare zarr
     zarr_path.mkdir(parents=True, exist_ok=True)
     store = zarr.NestedDirectoryStore(zarr_path)
