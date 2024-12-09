@@ -99,7 +99,7 @@ class TracksLayerGroup:
         if self.seg_layer is not None:
             self.seg_layer.update_label_colormap(visible)
         if self.points_layer is not None:
-            self.points_layer.update_point_outline(visible)
+            self.points_layer.update_point_visibility(visible)
         if self.tracks_layer is not None:
             self.tracks_layer.update_track_visibility(visible)
 
