@@ -3,7 +3,7 @@ from qtpy.QtWidgets import QGroupBox, QPushButton, QVBoxLayout, QWidget
 
 
 class FlipTreeWidget(QWidget):
-    """Widget to switch between viewing all nodes versus nodes of one or more lineages in the tree widget"""
+    """Widget to flip the axis of the tree view"""
 
     flip_tree = Signal()
 
