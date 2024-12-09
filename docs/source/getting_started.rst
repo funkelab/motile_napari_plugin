@@ -3,7 +3,7 @@ Getting started with the Motile Tracker
 
 Installation
 ************
-This plugin depends on ``ilpy``, which must be installed via conda.::
+The Motile Tracker depends on ``ilpy``, which must be installed via conda.::
 
     conda create -n motile-tracker python=3.10
     conda activate motile-tracker
@@ -11,7 +11,7 @@ This plugin depends on ``ilpy``, which must be installed via conda.::
     pip install motile-tracker
 
 If this is successful, you can then run ``napari`` from your command line, and
-the motile plugin should be visible in the ``Plugins`` drop down menu.
+the motile tracker should be visible in the ``Plugins`` drop down menu.
 Clicking the Main Motile Widget should open the menu widget on the right of the viewer,
 and a lineage tree view in the bottom of the viewer.
 
