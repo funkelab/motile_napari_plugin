@@ -19,6 +19,7 @@ from superqt import QCollapsible
 
 from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
+from .flip_axes_widget import FlipTreeWidget
 from .navigation_widget import NavigationWidget
 from .tree_view_feature_widget import TreeViewFeatureWidget
 from .tree_view_mode_widget import TreeViewModeWidget
@@ -124,6 +125,7 @@ class TreePlot(pg.PlotWidget):
         feature: str,
         selected_nodes: list[Any],
         reset_view: bool | None = False,
+        allow_flip: bool | None = True,
     ):
         """Update the entire view, including the data, view direction, and
         selected nodes
@@ -136,11 +138,15 @@ class TreePlot(pg.PlotWidget):
         """
         self.set_data(track_df, feature)
         self._update_viewed_data(view_direction)  # this can be expensive
-        self.set_view(view_direction, feature, reset_view)
+        self.set_view(view_direction, feature, reset_view, allow_flip)
         self.set_selection(selected_nodes, feature)
 
     def set_view(
-        self, view_direction: str, feature: str, reset_view: bool | None = False
+        self,
+        view_direction: str,
+        feature: str,
+        reset_view: bool | None = False,
+        allow_flip: bool | None = True,
     ):
         """Set the view direction, saving the new value as an attribute and
         changing the axes labels. Shortcuts if the view direction is already
@@ -153,31 +159,34 @@ class TreePlot(pg.PlotWidget):
         """
 
         if view_direction == self.view_direction and feature == self.feature:
-            if view_direction == "horizontal" or reset_view:
+            if reset_view:
                 self.autoRange()
             return
-        if view_direction == "vertical":
-            self.setLabel("left", text="Time Point")
-            self.getAxis("left").setStyle(showValues=True)
-            if feature == "tree":
-                self.getAxis("bottom").setStyle(showValues=False)
-                self.setLabel("bottom", text="")
-            else:  # should this actually ever happen?
-                self.getAxis("bottom").setStyle(showValues=True)
-                self.setLabel("bottom", text="Object size in calibrated units")
-                self.autoRange()
-            self.invertY(True)  # to show tracks from top to bottom
-        elif view_direction == "horizontal":
-            self.setLabel("bottom", text="Time Point")
-            self.getAxis("bottom").setStyle(showValues=True)
-            if feature == "tree":
-                self.setLabel("left", text="")
-                self.getAxis("left").setStyle(showValues=False)
+
+        axis_titles = {
+            "time": "Time Point",
+            "area": "Object size in calibrated units",
+            "tree": "",
+        }
+        if allow_flip:
+            if view_direction == "vertical":
+                time_axis = "left"  # time is on y axis
+                feature_axis = "bottom"
+                self.invertY(True)  # to show tracks from top to bottom
             else:
-                self.setLabel("left", text="Object size in calibrated units")
-                self.getAxis("left").setStyle(showValues=True)
-                self.autoRange()
-            self.invertY(False)
+                time_axis = "bottom"  # time is on y axis
+                feature_axis = "left"
+                self.invertY(False)
+            self.setLabel(time_axis, text=axis_titles["time"])
+            self.getAxis(time_axis).setStyle(showValues=True)
+
+            self.setLabel(feature_axis, text=axis_titles[feature])
+            if feature == "tree":
+                self.getAxis(feature).setStyle(showValues=False)
+            else:
+                self.getAxis(feature_axis).setStyle(showValues=True)
+                self.autoRange()  # not sure if this is necessary or not
+
         if (
             self.view_direction != view_direction
             or self.feature != feature
@@ -439,18 +448,23 @@ class TreeWidget(QWidget):
             self.feature,
         )
 
+        # Add widget to flip the axes
+        self.flip_widget = FlipTreeWidget()
+        self.flip_widget.flip_tree.connect(self._flip_axes)
+
         # Construct a toolbar and set main layout
         panel_layout = QHBoxLayout()
         panel_layout.addWidget(self.mode_widget)
         panel_layout.addWidget(self.feature_widget)
         panel_layout.addWidget(self.navigation_widget)
+        panel_layout.addWidget(self.flip_widget)
         panel_layout.setSpacing(0)
         panel_layout.setContentsMargins(0, 0, 0, 0)
 
         panel = QWidget()
         panel.setLayout(panel_layout)
-        panel.setMaximumWidth(820)
-        panel.setMaximumHeight(78)
+        panel.setMaximumWidth(930)
+        panel.setMaximumHeight(82)
 
         # Make a collapsible for TreeView widgets
         collapsable_widget = QCollapsible("Show/Hide Tree View Controls")
@@ -476,6 +490,7 @@ class TreeWidget(QWidget):
             Qt.Key_R: self.redo,
             Qt.Key_Q: self.toggle_display_mode,
             Qt.Key_W: self.toggle_feature_mode,
+            Qt.Key_F: self._flip_axes,
             Qt.Key_X: lambda: self.set_mouse_enabled(x=True, y=False),
             Qt.Key_Y: lambda: self.set_mouse_enabled(x=False, y=True),
         }
@@ -524,6 +539,22 @@ class TreeWidget(QWidget):
     def toggle_feature_mode(self):
         """Toggle feature mode."""
         self.feature_widget._toggle_feature_mode()
+
+    def _flip_axes(self):
+        """Flip the axes of the plot"""
+
+        if self.view_direction == "horizontal":
+            self.view_direction = "vertical"
+        else:
+            self.view_direction = "horizontal"
+
+        self.navigation_widget.view_direction = self.view_direction
+        self.tree_widget._update_viewed_data(self.view_direction)
+        self.tree_widget.set_view(
+            view_direction=self.view_direction,
+            feature=self.tree_widget.feature,
+            reset_view=False,
+        )
 
     def set_mouse_enabled(self, x: bool, y: bool):
         """Enable or disable mouse zoom scrolling in X or Y direction."""
@@ -593,6 +624,9 @@ class TreeWidget(QWidget):
             self.view_direction = "vertical"
             self.feature = "tree"
             self.feature_widget.show_tree_radio.setChecked(True)
+            allow_flip = True
+        else:
+            allow_flip = False
 
         # also update the navigation widget
         self.navigation_widget.track_df = self.track_df
@@ -607,6 +641,7 @@ class TreeWidget(QWidget):
                 self.feature,
                 self.selected_nodes,
                 reset_view=reset_view,
+                allow_flip=allow_flip,
             )
 
         else:
@@ -616,6 +651,7 @@ class TreeWidget(QWidget):
                 self.feature,
                 self.selected_nodes,
                 reset_view=reset_view,
+                allow_flip=allow_flip,
             )
 
     def _set_mode(self, mode: str) -> None:
