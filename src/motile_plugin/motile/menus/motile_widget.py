@@ -71,7 +71,6 @@ class MotileWidget(QWidget):
             self.edit_run_widget.hide()
             self.view_run_widget.show()
         else:
-            show_warning("Tried to view a Tracks that is not a MotileRun")
             self.view_run_widget.hide()
 
     def edit_run(self, run: MotileRun | None):
