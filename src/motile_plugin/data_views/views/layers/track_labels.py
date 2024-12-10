@@ -7,6 +7,8 @@ import numpy as np
 from napari.utils import DirectLabelColormap
 
 if TYPE_CHECKING:
+    from napari.utils.events import Event
+
     from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 
@@ -67,42 +69,40 @@ class TrackLabels(napari.layers.Labels):
         self.bind_key("r")(self.tracks_viewer.redo)
 
         # Connect click events to node selection
-        @self.mouse_drag_callbacks.append
-        def click(_, event):
-            if (
-                event.type == "mouse_press"
-                and self.mode == "pan_zoom"
-                and not (
-                    self.tracks_viewer.mode == "lineage"
-                    and self.viewer.dims.ndisplay == 3
-                )
-            ):  # disable selecting in lineage mode in 3D
-                label = self.get_value(
-                    event.position,
-                    view_direction=event.view_direction,
-                    dims_displayed=event.dims_displayed,
-                    world=True,
-                )
-
-                if (
-                    label is not None
-                    and label != 0
-                    and self.colormap.map(label)[-1] != 0
-                ):  # check opacity (=visibility) in the colormap
-                    t_values = self.node_properties["t"]
-                    track_ids = self.node_properties["track_id"]
-                    index = np.where(
-                        (t_values == event.position[0]) & (track_ids == label)
-                    )[0]  # np.where returns a tuple with an array per dimension,
-                    # here we apply it to a single dimension so take the first element
-                    # (an array of indices fulfilling condition)
-                    node_id = self.node_properties["node_id"][index[0]]
-                    append = "Shift" in event.modifiers
-                    self.tracks_viewer.selected_nodes.add(node_id, append)
+        self.mouse_drag_callbacks.append(self.click)
 
         # Listen to paint events and changing the selected label
         self.events.paint.connect(self._on_paint)
         self.events.selected_label.connect(self._check_selected_label)
+
+    def click(self, _, event):
+        if (
+            event.type == "mouse_press"
+            and self.mode == "pan_zoom"
+            and not (
+                self.tracks_viewer.mode == "lineage" and self.viewer.dims.ndisplay == 3
+            )
+        ):  # disable selecting in lineage mode in 3D
+            label = self.get_value(
+                event.position,
+                view_direction=event.view_direction,
+                dims_displayed=event.dims_displayed,
+                world=True,
+            )
+
+            self.process_click(event, label)
+
+    def process_click(self, event: Event, label: int):
+        if (
+            label is not None and label != 0 and self.colormap.map(label)[-1] != 0
+        ):  # check opacity (=visibility) in the colormap
+            t_values = self.node_properties["t"]
+            track_ids = self.node_properties["track_id"]
+            index = np.where((t_values == event.position[0]) & (track_ids == label))[0]
+
+            node_id = self.node_properties["node_id"][index[0]]
+            append = "Shift" in event.modifiers
+            self.tracks_viewer.selected_nodes.add(node_id, append)
 
     def _get_node_properties(self):
         tracks = self.tracks_viewer.tracks
