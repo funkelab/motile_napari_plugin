@@ -5,7 +5,7 @@ from motile_plugin.data_views.views.layers.track_labels import TrackLabels
 from motile_plugin.data_views.views.layers.track_points import TrackPoints
 from napari.components.layerlist import Extent
 from napari.components.viewer_model import ViewerModel
-from napari.layers import Labels, Layer, Points, Tracks, Vectors
+from napari.layers import Labels, Layer, Points, Vectors
 from napari.qt import QtViewer
 from napari.utils.action_manager import action_manager
 from napari.utils.events.event import WarningEmitter
@@ -19,19 +19,7 @@ from superqt.utils import qthrottled
 
 
 def copy_layer(layer: Layer, name: str = ""):
-    if isinstance(layer, TrackGraph):
-        res_layer = Tracks(
-            data=layer.data,
-            graph=layer.graph,
-            properties=layer.properties,
-            name=layer.name,
-            tail_length=layer.tail_length,
-            color_by="track_id",
-            scale=layer.scale,
-            blending="translucent_no_depth",
-            colormaps_dict=layer.colormaps_dict,
-        )
-    elif isinstance(layer, TrackLabels):
+    if isinstance(layer, TrackLabels):
         res_layer = Labels(
             data=layer.data,
             name=layer.name,
@@ -253,10 +241,8 @@ class MultipleViewerWidget(QSplitter):
         self.viewer_model2.reset_view()
 
     def _reset_layers(self):
-        print(self.viewer_model1.layers)
         self.viewer_model1.layers.clear()
         self.viewer_model2.layers.clear()
-        print("cleared both layers")
 
     def _layer_selection_changed(self, event):
         """
@@ -308,6 +294,9 @@ class MultipleViewerWidget(QSplitter):
             event.value.name not in self.viewer_model1.layers
             and event.value.name not in self.viewer_model2.layers
         ):
+            # do not include TrackGraphs in the orthogonal views
+            if isinstance(event.value, TrackGraph):
+                return
             self.viewer_model1.layers.insert(
                 event.index, copy_layer(event.value, "model1")
             )
