@@ -1,8 +1,6 @@
 from qtpy.QtWidgets import (
-    QGroupBox,
     QHBoxLayout,
     QPushButton,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -13,17 +11,10 @@ class SyncWidget(QWidget):
     def __init__(self):
         super().__init__()
 
-        sync_box = QGroupBox("Sync/Desync views")
         sync_layout = QHBoxLayout()
         self.sync_button = SyncButton()
         sync_layout.addWidget(self.sync_button)
-        sync_box.setLayout(sync_layout)
-        layout = QVBoxLayout()
-        layout.addWidget(sync_box)
-        sync_box.setMaximumWidth(150)
-        sync_box.setMaximumHeight(60)
-
-        self.setLayout(layout)
+        self.setLayout(sync_layout)
 
 
 class SyncButton(QPushButton):
@@ -31,14 +22,15 @@ class SyncButton(QPushButton):
         super().__init__()
 
         self.setCheckable(True)
-        self.setText("🔗")  # Initial icon as Unicode and text
+        self.setText("Sync Views 🔗")  # Initial icon as Unicode and text
         self.clicked.connect(self.toggle_state)
         self.setFixedHeight(25)
+        self.setFixedWidth(100)
 
     def toggle_state(self):
         """Set text and icon depending on toggle state"""
 
         if self.isChecked():
-            self.setText("❌")  # Replace with your chosen broken link symbol
+            self.setText("Stop sync ❌")  # Replace with your chosen broken link symbol
         else:
-            self.setText("🔗 ")
+            self.setText("Sync views 🔗 ")

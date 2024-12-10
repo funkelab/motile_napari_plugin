@@ -73,6 +73,7 @@ class TracksViewer:
         self.tracks_list.view_tracks.connect(self.update_tracks)
 
         self.collection_widget = CollectionWidget(self)
+        self.collection_widget.group_changed.connect(self.update_selection)
 
         self.filter_widget = FilterWidget(self)
         self.filter_widget.apply_filter.connect(self.apply_filter)
@@ -211,17 +212,14 @@ class TracksViewer:
         elif self.mode == "group":
             self.group_visible = []
             if self.collection_widget.selected_collection is not None:
-                for node_id in self.collection_widget.selected_collection.collection:
-                    self.group_visible += extract_lineage_tree(
-                        self.tracks.graph, node_id
-                    )
-
-            return list(
-                {
-                    self.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
-                    for node in self.group_visible
-                }
-            )
+                return list(
+                    {
+                        self.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
+                        for node in self.collection_widget.selected_collection.collection
+                    }
+                )
+            else:
+                return []
         else:
             return "all"
 
