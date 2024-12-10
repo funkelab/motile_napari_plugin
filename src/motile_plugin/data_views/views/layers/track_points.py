@@ -10,6 +10,8 @@ from motile_toolbox.candidate_graph import NodeAttr
 from motile_plugin.data_model import NodeType, Tracks
 
 if TYPE_CHECKING:
+    from napari.utils.events import Event
+
     from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 
@@ -85,9 +87,7 @@ class TrackPoints(napari.layers.Points):
                     world=True,
                 )
                 if point_index is not None:
-                    node_id = self.nodes[point_index]
-                    append = "Shift" in event.modifiers
-                    self.tracks_viewer.selected_nodes.add(node_id, append)
+                    self.process_point_click(point_index, event)
 
         # listen to updates of the data
         self.events.data.connect(self._update_data)
@@ -100,6 +100,13 @@ class TrackPoints(napari.layers.Points):
         # listen to updates in the selected data (from the point selection tool)
         # to update the nodes in self.tracks_viewer.selected_nodes
         self.selected_data.events.items_changed.connect(self._update_selection)
+
+    def process_point_click(self, point_index: int, event: Event):
+        """Select the clicked point(s)"""
+
+        node_id = self.nodes[point_index]
+        append = "Shift" in event.modifiers
+        self.tracks_viewer.selected_nodes.add(node_id, append)
 
     def set_point_size(self, size: int) -> None:
         """Sets a new default point size"""

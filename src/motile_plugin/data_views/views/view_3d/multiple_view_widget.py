@@ -5,7 +5,7 @@ from motile_plugin.data_views.views.layers.track_labels import TrackLabels
 from motile_plugin.data_views.views.layers.track_points import TrackPoints
 from napari.components.layerlist import Extent
 from napari.components.viewer_model import ViewerModel
-from napari.layers import Labels, Layer, Points, Tracks, Vectors
+from napari.layers import Labels, Layer, Points, Vectors
 from napari.qt import QtViewer
 from napari.utils.action_manager import action_manager
 from napari.utils.events.event import WarningEmitter
@@ -19,19 +19,7 @@ from superqt.utils import qthrottled
 
 
 def copy_layer(layer: Layer, name: str = ""):
-    if isinstance(layer, TrackGraph):
-        res_layer = Tracks(
-            data=layer.data,
-            graph=layer.graph,
-            properties=layer.properties,
-            name=layer.name,
-            tail_length=layer.tail_length,
-            color_by="track_id",
-            scale=layer.scale,
-            blending="translucent_no_depth",
-            colormaps_dict=layer.colormaps_dict,
-        )
-    elif isinstance(layer, TrackLabels):
+    if isinstance(layer, TrackLabels):
         res_layer = Labels(
             data=layer.data,
             name=layer.name,
@@ -253,10 +241,8 @@ class MultipleViewerWidget(QSplitter):
         self.viewer_model2.reset_view()
 
     def _reset_layers(self):
-        print(self.viewer_model1.layers)
         self.viewer_model1.layers.clear()
         self.viewer_model2.layers.clear()
-        print("cleared both layers")
 
     def _layer_selection_changed(self, event):
         """
@@ -308,6 +294,9 @@ class MultipleViewerWidget(QSplitter):
             event.value.name not in self.viewer_model1.layers
             and event.value.name not in self.viewer_model2.layers
         ):
+            # do not include TrackGraphs in the orthogonal views
+            if isinstance(event.value, TrackGraph):
+                return
             self.viewer_model1.layers.insert(
                 event.index, copy_layer(event.value, "model1")
             )
@@ -327,17 +316,91 @@ class MultipleViewerWidget(QSplitter):
                 self.viewer_model2.layers[event.value.name].events.set_data.connect(
                     self._set_data_refresh
                 )
+
+            # connect data and paint events
             if event.value.name != ".cross":
                 self.viewer_model1.layers[event.value.name].events.data.connect(
                     self._sync_data
                 )
+                if isinstance(self.viewer_model1.layers[event.value.name], Labels):
+                    self.viewer_model1.layers[event.value.name].events.paint.connect(
+                        self._sync_paint
+                    )
+                    self.viewer_model1.layers[
+                        event.value.name
+                    ].mouse_drag_callbacks.append(self._sync_click)
+
+                if isinstance(self.viewer_model1.layers[event.value.name], Points):
+                    self.viewer_model1.layers[
+                        event.value.name
+                    ].mouse_drag_callbacks.append(self._sync_point_click)
+
                 self.viewer_model2.layers[event.value.name].events.data.connect(
                     self._sync_data
+                )
+
+                if isinstance(self.viewer_model2.layers[event.value.name], Points):
+                    self.viewer_model2.layers[
+                        event.value.name
+                    ].mouse_drag_callbacks.append(self._sync_point_click)
+
+                if isinstance(self.viewer_model2.layers[event.value.name], Labels):
+                    self.viewer_model2.layers[event.value.name].events.paint.connect(
+                        self._sync_paint
+                    )
+                self.viewer_model2.layers[event.value.name].mouse_drag_callbacks.append(
+                    self._sync_click
                 )
 
             event.value.events.name.connect(self._sync_name)
 
             self._order_update()
+
+    def _sync_point_click(self, layer, event):
+        """Retrieve the label that was clicked on and forward it to the TrackLabels instance if present"""
+
+        name = layer.name
+        if (
+            event.type == "mouse_press"
+            and name in self.viewer.layers
+            and isinstance(self.viewer.layers[name], TrackPoints)
+        ):
+            point_index = layer.get_value(
+                event.position,
+                view_direction=event.view_direction,
+                dims_displayed=event.dims_displayed,
+                world=True,
+            )
+            if point_index is not None:
+                self.viewer.layers[name].process_point_click(point_index, event)
+
+    def _sync_click(self, layer, event):
+        """Retrieve the label that was clicked on and forward it to the TrackLabels instance if present"""
+
+        name = layer.name
+        if (
+            event.type == "mouse_press"
+            and layer.mode == "pan_zoom"
+            and name in self.viewer.layers
+            and isinstance(self.viewer.layers[name], TrackLabels)
+        ):
+            label = layer.get_value(
+                event.position,
+                view_direction=event.view_direction,
+                dims_displayed=event.dims_displayed,
+                world=True,
+            )
+
+            # Process the click event on the TrackLabels instance
+            self.viewer.layers[name].process_click(event, label)
+
+    def _sync_paint(self, event):
+        """Forward the paint event to the TrackLabels, if present"""
+
+        if event.source.name in self.viewer.layers and isinstance(
+            self.viewer.layers[event.source.name], TrackLabels
+        ):
+            self.viewer.layers[event.source.name]._on_paint(event)
 
     def _sync_name(self, event):
         """sync name of layers"""
