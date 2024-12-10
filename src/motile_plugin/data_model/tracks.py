@@ -647,7 +647,7 @@ class Tracks:
         ndim = ndims[0]
         if not all(d == ndim for d in ndims):
             raise ValueError(
-                f"Dimensions from segmentation {seg_ndim}, scale {scale_ndim}, and ndim {provided_ndim} must match"
+                f"Dimensions from segmentation: {seg_ndim}, scale: {scale_ndim}, and ndim: {provided_ndim} must match"
             )
         return ndim
 
