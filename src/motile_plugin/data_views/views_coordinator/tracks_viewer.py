@@ -73,6 +73,7 @@ class TracksViewer:
         self.tracks_list.view_tracks.connect(self.update_tracks)
 
         self.collection_widget = CollectionWidget(self)
+        self.collection_widget.group_changed.connect(self.update_selection)
 
         self.filter_widget = FilterWidget(self)
         self.filter_widget.apply_filter.connect(self.apply_filter)
