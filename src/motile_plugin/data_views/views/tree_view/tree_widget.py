@@ -853,16 +853,6 @@ class TreeWidget(QWidget):
             df = self.group_df
         else:
             df = self.tracks_viewer.track_df
-            self.tree_widget.update(
-                self.lineage_df,
-                self.view_direction,
-                self.feature,
-                self.selected_nodes,
-                self.tracks_viewer.filtered_nodes,
-                self.tracks_viewer.filter_color,
-                reset_view=reset_view,
-                allow_flip=allow_flip,
-            )
 
         if self.sync:
             self.sync_views(force_update=True)
