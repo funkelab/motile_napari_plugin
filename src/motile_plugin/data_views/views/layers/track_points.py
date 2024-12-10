@@ -212,7 +212,9 @@ class TrackPoints(napari.layers.Points):
         return symbols
 
     def update_point_outline(
-        self, visible: list[int] | str, plane_nodes: list[int] | str | None = None
+        self,
+        visible: list[int] | str | None = None,
+        plane_nodes: list[int] | str | None = None,
     ) -> None:
         """Update the outline color of the selected points and visibility according to display mode
 
