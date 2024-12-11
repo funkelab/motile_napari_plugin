@@ -22,8 +22,6 @@ from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
     extract_lineage_tree,
 )
 
-from . import Collection
-
 if TYPE_CHECKING:
     from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
@@ -35,7 +33,7 @@ class CollectionButton(QWidget):
         super().__init__()
         self.name = QLabel(name)
         self.name.setFixedHeight(20)
-        self.collection = Collection()
+        self.collection = set()
         delete_icon = QColoredSVGIcon.from_resources("delete").colored("white")
         self.node_count = QLabel(f"{len(self.collection)} nodes")
         self.delete = QPushButton(icon=delete_icon)
@@ -93,7 +91,7 @@ class CollectionWidget(QGroupBox):
 
         add_layout = QHBoxLayout()
         self.add_nodes_btn = QPushButton("Add node(s)")
-        self.add_nodes_btn.clicked.connect(lambda: self.add_nodes(None))
+        self.add_nodes_btn.clicked.connect(self._add_selection)
         self.add_track_btn = QPushButton("Add track(s)")
         self.add_track_btn.clicked.connect(self._add_track)
         self.add_lineage_btn = QPushButton("Add lineage(s)")
@@ -104,7 +102,7 @@ class CollectionWidget(QGroupBox):
 
         remove_layout = QHBoxLayout()
         self.remove_node_btn = QPushButton("Remove node(s)")
-        self.remove_node_btn.clicked.connect(self._remove_node)
+        self.remove_node_btn.clicked.connect(self._remove_selection)
         self.remove_track_btn = QPushButton("Remove track(s)")
         self.remove_track_btn.clicked.connect(self._remove_track)
         self.remove_lineage_btn = QPushButton("Remove lineage(s)")
@@ -186,7 +184,7 @@ class CollectionWidget(QGroupBox):
         if selected:
             self.selected_collection = self.collection_list.itemWidget(selected[0])
             self.tracks_viewer.selected_nodes.add_list(
-                self.selected_collection.collection._list, append=False
+                list(self.selected_collection.collection), append=False
             )
 
     def retrieve_existing_groups(self) -> None:
@@ -209,8 +207,9 @@ class CollectionWidget(QGroupBox):
         # populate the lists based on the nodes that were assigned to the different groups
         for i in range(self.collection_list.count()):
             self.collection_list.setCurrentRow(i)
-            self.selected_collection.collection.add(
-                group_dict[self.selected_collection.name.text()]
+            self.selected_collection.collection = (
+                self.selected_collection.collection
+                | set(group_dict[self.selected_collection.name.text()])
             )
             self.selected_collection.update_node_count()  # enforce updating the node count for all elements
 
@@ -234,11 +233,9 @@ class CollectionWidget(QGroupBox):
         """
 
         if self.selected_collection is not None:
-            if nodes is None:
-                nodes = (
-                    self.tracks_viewer.selected_nodes._list
-                )  # take the nodes that are currently selected
-            self.selected_collection.collection.add(nodes)
+            self.selected_collection.collection = (
+                self.selected_collection.collection | set(nodes)
+            )
             for node_id in nodes:
                 if "group" not in self.tracks_viewer.tracks.graph.nodes[node_id]:
                     self.tracks_viewer.tracks.graph.nodes[node_id]["group"] = []
@@ -252,66 +249,47 @@ class CollectionWidget(QGroupBox):
 
             self.group_changed.emit()
 
-    def _add_track(self) -> None:
-        """Add tracks by track_ids to the selected collection and send update signal"""
+    def _add_selection(self) -> None:
+        """Add the currently selected node(s) to the collection"""
 
-        if self.selected_collection is not None:
-            for node_id in self.tracks_viewer.selected_nodes:
-                track_id = self.tracks_viewer.tracks._get_node_attr(
-                    node_id, NodeAttr.TRACK_ID.value
-                )
-                track = list(
-                    {
-                        node
-                        for node, data in self.tracks_viewer.tracks.graph.nodes(
-                            data=True
-                        )
-                        if data.get("track_id") == track_id
-                    }
-                )
-                self.selected_collection.collection.add(track)
-                for node_id in track:
-                    if "group" not in self.tracks_viewer.tracks.graph.nodes[node_id]:
-                        self.tracks_viewer.tracks.graph.nodes[node_id]["group"] = []
-                    if (
-                        self.selected_collection.name.text()
-                        not in self.tracks_viewer.tracks.graph.nodes[node_id]["group"]
-                    ):
-                        self.tracks_viewer.tracks.graph.nodes[node_id]["group"].append(
-                            self.selected_collection.name.text()
-                        )
-            self.group_changed.emit()
+        self.add_nodes(self.tracks_viewer.selected_nodes._list)
+
+    def _add_track(self) -> None:
+        """Add the tracks belonging to selected nodes to the selected collection"""
+
+        for node_id in self.tracks_viewer.selected_nodes:
+            track_id = self.tracks_viewer.tracks._get_node_attr(
+                node_id, NodeAttr.TRACK_ID.value
+            )
+            track = list(
+                {
+                    node
+                    for node, data in self.tracks_viewer.tracks.graph.nodes(data=True)
+                    if data.get("track_id") == track_id
+                }
+            )
+            self.add_nodes(track)
 
     def _add_lineage(self) -> None:
-        """Add lineages to the selected collection and send update signal"""
+        """Add lineages to the selected collection"""
 
-        if self.selected_collection is not None:
-            for node_id in self.tracks_viewer.selected_nodes:
-                lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
-                self.selected_collection.collection.add(lineage)
-                for node_id in lineage:
-                    if "group" not in self.tracks_viewer.tracks.graph.nodes[node_id]:
-                        self.tracks_viewer.tracks.graph.nodes[node_id]["group"] = []
-                    if (
-                        self.selected_collection.name.text()
-                        not in self.tracks_viewer.tracks.graph.nodes[node_id]["group"]
-                    ):
-                        self.tracks_viewer.tracks.graph.nodes[node_id]["group"].append(
-                            self.selected_collection.name.text()
-                        )
-            self.group_changed.emit()
+        for node_id in self.tracks_viewer.selected_nodes:
+            lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
+            self.add_nodes(lineage)
 
-    def _remove_node(self) -> None:
-        """Remove individual nodes from the selected collection and send update signal"""
+    def remove_nodes(self, nodes: list[Any]) -> None:
+        """Remove selected nodes from the selected collection"""
 
         if self.selected_collection is not None:
             # remove from the collection
-            self.selected_collection.collection.remove(
-                self.tracks_viewer.selected_nodes
-            )
+            self.selected_collection.collection = {
+                item
+                for item in self.selected_collection.collection
+                if item not in nodes
+            }
 
             # remove from the node attribute
-            for node_id in self.tracks_viewer.selected_nodes:
+            for node_id in nodes:
                 node_attrs = self.tracks_viewer.tracks.graph.nodes[node_id]
                 group_list = node_attrs.get("group")
                 if (
@@ -323,42 +301,34 @@ class CollectionWidget(QGroupBox):
 
             self.group_changed.emit()
 
-    def _remove_track(self) -> None:
-        """Remove tracks by track id from the selected collection and send update signal"""
+    def _remove_selection(self) -> None:
+        """Remove individual nodes from the selected collection"""
 
-        if self.selected_collection is not None:
-            for node_id in self.tracks_viewer.selected_nodes:
-                track_id = self.tracks_viewer.tracks._get_node_attr(
-                    node_id, NodeAttr.TRACK_ID.value
-                )
-                track = list(
-                    {
-                        node
-                        for node, data in self.tracks_viewer.tracks.graph.nodes(
-                            data=True
-                        )
-                        if data.get("track_id") == track_id
-                    }
-                )
-                self.selected_collection.collection.remove(track)
-                for node_id in track:
-                    self.tracks_viewer.tracks.graph.nodes[node_id]["group"].remove(
-                        self.selected_collection.name.text()
-                    )
-        self.group_changed.emit()
+        self.remove_nodes(self.tracks_viewer.selected_nodes)
+
+    def _remove_track(self) -> None:
+        """Remove tracks by track id from the selected collection"""
+
+        for node_id in self.tracks_viewer.selected_nodes:
+            track_id = self.tracks_viewer.tracks._get_node_attr(
+                node_id, NodeAttr.TRACK_ID.value
+            )
+            track = list(
+                {
+                    node
+                    for node, data in self.tracks_viewer.tracks.graph.nodes(data=True)
+                    if data.get("track_id") == track_id
+                }
+            )
+
+            self.remove_nodes(track)
 
     def _remove_lineage(self) -> None:
-        """Remove lineages from the selected collection and send update signal"""
+        """Remove lineages from the selected collection"""
 
-        if self.selected_collection is not None:
-            for node_id in self.tracks_viewer.selected_nodes:
-                lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
-                self.selected_collection.collection.remove(lineage)
-                for node_id in lineage:
-                    self.tracks_viewer.tracks.graph.nodes[node_id]["group"].remove(
-                        self.selected_collection.name.text()
-                    )
-        self.group_changed.emit()
+        for node_id in self.tracks_viewer.selected_nodes:
+            lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
+            self.remove_nodes(lineage)
 
     def add_group(self, name: str | None = None, select: bool = True) -> None:
         """Create a new custom group
