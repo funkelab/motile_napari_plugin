@@ -329,33 +329,39 @@ class TreePlot(pg.PlotWidget):
 
         if len(filtered_nodes) > 0:
             color = [c * 255 for c in color]
-            for node_id in filtered_nodes:
-                node_df = self.track_df.loc[self.track_df["node_id"] == node_id]
-                if not node_df.empty:
-                    index = self.node_ids.index(node_id)
-                    outlines[index] = pg.mkPen(color=color, width=2)
+            node_indices = {node_id: idx for idx, node_id in enumerate(self.node_ids)}
+            valid_nodes = [
+                node_id for node_id in filtered_nodes if node_id in node_indices
+            ]
+            indices_to_update = [node_indices[node_id] for node_id in valid_nodes]
+
+            new_values = [pg.mkPen(color=color, width=2)] * len(indices_to_update)
+            outlines = np.array(outlines)  # Convert to NumPy for slicing
+            outlines[indices_to_update] = new_values
 
         if len(selected_nodes) > 0:
-            x_values = []
-            t_values = []
-            for node_id in selected_nodes:
-                node_df = self.track_df.loc[self.track_df["node_id"] == node_id]
-                x_axis_value = None
-                if not node_df.empty:
-                    x_axis_value = node_df[axis_label].values[0]
-                    t = node_df["t"].values[0]
-
-                    x_values.append(x_axis_value)
-                    t_values.append(t)
-
-                    # Update size and outline
-                    index = self.node_ids.index(node_id)
-                    size[index] += 5
-                    outlines[index] = pg.mkPen(color="c", width=2)
+            filtered_df = self.track_df[
+                self.track_df["node_id"].isin(selected_nodes._list)
+            ]
+            x_values = filtered_df[axis_label].values
+            t_values = filtered_df["t"].values
+            node_indices = {node_id: idx for idx, node_id in enumerate(self.node_ids)}
+            valid_indices = np.array(
+                [
+                    node_indices[node_id]
+                    for node_id in selected_nodes
+                    if node_id in node_indices
+                ]
+            )
+            size[valid_indices] += 5
+            outlines[valid_indices] = pg.mkPen(color="c", width=2)
 
             # Center point if a single node is selected, center range if multiple nodes are selected
-            if len(selected_nodes) == 1 and x_axis_value is not None:
-                self._center_view(x_axis_value, t)
+            if len(selected_nodes) == 1 and not filtered_df.empty:
+                x_axis_value = filtered_df[axis_label].values[0]
+                t = filtered_df["t"].values[0]
+                if x_axis_value is not None:
+                    self._center_view(x_axis_value, t)
             else:
                 if (
                     len(x_values) > 0
