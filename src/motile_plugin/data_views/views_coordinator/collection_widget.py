@@ -22,8 +22,6 @@ from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
     extract_lineage_tree,
 )
 
-from . import Collection
-
 if TYPE_CHECKING:
     from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
 
@@ -35,7 +33,7 @@ class CollectionButton(QWidget):
         super().__init__()
         self.name = QLabel(name)
         self.name.setFixedHeight(20)
-        self.collection = Collection()
+        self.collection = set()
         delete_icon = QColoredSVGIcon.from_resources("delete").colored("white")
         self.node_count = QLabel(f"{len(self.collection)} nodes")
         self.delete = QPushButton(icon=delete_icon)
@@ -186,7 +184,7 @@ class CollectionWidget(QGroupBox):
         if selected:
             self.selected_collection = self.collection_list.itemWidget(selected[0])
             self.tracks_viewer.selected_nodes.add_list(
-                self.selected_collection.collection._list, append=False
+                list(self.selected_collection.collection), append=False
             )
 
     def retrieve_existing_groups(self) -> None:
@@ -209,8 +207,9 @@ class CollectionWidget(QGroupBox):
         # populate the lists based on the nodes that were assigned to the different groups
         for i in range(self.collection_list.count()):
             self.collection_list.setCurrentRow(i)
-            self.selected_collection.collection.add(
-                group_dict[self.selected_collection.name.text()]
+            self.selected_collection.collection = (
+                self.selected_collection.collection
+                | set(group_dict[self.selected_collection.name.text()])
             )
             self.selected_collection.update_node_count()  # enforce updating the node count for all elements
 
@@ -238,7 +237,9 @@ class CollectionWidget(QGroupBox):
                 nodes = (
                     self.tracks_viewer.selected_nodes._list
                 )  # take the nodes that are currently selected
-            self.selected_collection.collection.add(nodes)
+            self.selected_collection.collection = (
+                self.selected_collection.collection | set(nodes)
+            )
             for node_id in nodes:
                 if "group" not in self.tracks_viewer.tracks.graph.nodes[node_id]:
                     self.tracks_viewer.tracks.graph.nodes[node_id]["group"] = []
@@ -269,7 +270,9 @@ class CollectionWidget(QGroupBox):
                         if data.get("track_id") == track_id
                     }
                 )
-                self.selected_collection.collection.add(track)
+                self.selected_collection.collection = (
+                    self.selected_collection.collection | set(track)
+                )
                 for node_id in track:
                     if "group" not in self.tracks_viewer.tracks.graph.nodes[node_id]:
                         self.tracks_viewer.tracks.graph.nodes[node_id]["group"] = []
@@ -288,7 +291,9 @@ class CollectionWidget(QGroupBox):
         if self.selected_collection is not None:
             for node_id in self.tracks_viewer.selected_nodes:
                 lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
-                self.selected_collection.collection.add(lineage)
+                self.selected_collection.collection = (
+                    self.selected_collection.collection | set(lineage)
+                )
                 for node_id in lineage:
                     if "group" not in self.tracks_viewer.tracks.graph.nodes[node_id]:
                         self.tracks_viewer.tracks.graph.nodes[node_id]["group"] = []
@@ -306,9 +311,11 @@ class CollectionWidget(QGroupBox):
 
         if self.selected_collection is not None:
             # remove from the collection
-            self.selected_collection.collection.remove(
-                self.tracks_viewer.selected_nodes
-            )
+            self.selected_collection.collection = {
+                item
+                for item in self.selected_collection.collection
+                if item not in self.tracks_viewer.selected_nodes
+            }
 
             # remove from the node attribute
             for node_id in self.tracks_viewer.selected_nodes:
@@ -340,7 +347,12 @@ class CollectionWidget(QGroupBox):
                         if data.get("track_id") == track_id
                     }
                 )
-                self.selected_collection.collection.remove(track)
+
+                self.selected_collection.collection = {
+                    item
+                    for item in self.selected_collection.collection
+                    if item not in track
+                }
                 for node_id in track:
                     self.tracks_viewer.tracks.graph.nodes[node_id]["group"].remove(
                         self.selected_collection.name.text()
@@ -353,7 +365,11 @@ class CollectionWidget(QGroupBox):
         if self.selected_collection is not None:
             for node_id in self.tracks_viewer.selected_nodes:
                 lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
-                self.selected_collection.collection.remove(lineage)
+                self.selected_collection.collection = {
+                    item
+                    for item in self.selected_collection.collection
+                    if item not in lineage
+                }
                 for node_id in lineage:
                     self.tracks_viewer.tracks.graph.nodes[node_id]["group"].remove(
                         self.selected_collection.name.text()
