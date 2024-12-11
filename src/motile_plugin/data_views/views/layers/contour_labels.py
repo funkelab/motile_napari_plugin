@@ -65,7 +65,6 @@ class ContourLabels(napari.layers.Labels):
 
     def __init__(
         self,
-        viewer: napari.Viewer,
         data: np.array,
         name: str,
         opacity: float,
@@ -80,7 +79,6 @@ class ContourLabels(napari.layers.Labels):
             colormap=colormap,
         )
 
-        self.viewer = viewer
         self.group_labels = None
 
     def _calculate_contour(
