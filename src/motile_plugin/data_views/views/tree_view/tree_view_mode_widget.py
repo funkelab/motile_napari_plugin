@@ -48,7 +48,7 @@ class TreeViewModeWidget(QWidget):
 
         if self.mode == "lineage":
             self._set_mode("group")
-            self.show_all_group.setChecked(True)
+            self.show_group_radio.setChecked(True)
         elif self.mode == "group":
             self._set_mode("all")
             self.show_all_radio.setChecked(True)
