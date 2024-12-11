@@ -1,5 +1,6 @@
 import napari
 import numpy as np
+from motile_plugin.data_views.views.layers.contour_labels import ContourLabels
 from motile_plugin.data_views.views.layers.track_graph import TrackGraph
 from motile_plugin.data_views.views.layers.track_labels import TrackLabels
 from motile_plugin.data_views.views.layers.track_points import TrackPoints
@@ -20,7 +21,7 @@ from superqt.utils import qthrottled
 
 def copy_layer(layer: Layer, name: str = ""):
     if isinstance(layer, TrackLabels):
-        res_layer = Labels(
+        res_layer = ContourLabels(
             data=layer.data,
             name=layer.name,
             colormap=layer.colormap,
@@ -441,6 +442,8 @@ class MultipleViewerWidget(QSplitter):
                     continue
                 try:
                     self._block = True
+                    if isinstance(layer, ContourLabels):
+                        layer.group_labels = event.source.group_labels
                     layer.refresh()
                 finally:
                     self._block = False
