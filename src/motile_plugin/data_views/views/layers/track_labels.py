@@ -46,7 +46,6 @@ class TrackLabels(ContourLabels):
         )
 
         super().__init__(
-            viewer=viewer,
             data=data,
             name=name,
             opacity=opacity,
