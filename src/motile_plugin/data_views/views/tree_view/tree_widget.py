@@ -994,7 +994,7 @@ class TreeWidget(QWidget):
                 if node_id in self.tracks_viewer.track_df["node_id"].tolist():
                     visible += extract_lineage_tree(self.graph, node_id)
                 else:
-                    self.tracks_viewer.collection_widget.selected_collection.collection._list.remove(
+                    self.tracks_viewer.collection_widget.selected_collection.collection.remove(
                         node_id
                     )
         self.group_df = self.tracks_viewer.track_df[
@@ -1009,7 +1009,7 @@ class TreeWidget(QWidget):
             self.group_df["color"] = self.group_df.apply(
                 lambda row: [*row["color"][:3], 62.0]
                 if row["node_id"]
-                not in self.tracks_viewer.collection_widget.selected_collection.collection._list
+                not in self.tracks_viewer.collection_widget.selected_collection.collection
                 else row["color"],
                 axis=1,
             )
