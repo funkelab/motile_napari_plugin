@@ -80,10 +80,13 @@ class CollectionWidget(QGroupBox):
         selection_layout = QHBoxLayout()
         self.select_btn = QPushButton("Select nodes in group")
         self.select_btn.clicked.connect(self._select_nodes)
+        self.invert_btn = QPushButton("Invert selection")
+        self.invert_btn.clicked.connect(self._invert_selection)
         self.deselect_btn = QPushButton("Deselect")
         self.deselect_btn.clicked.connect(self.tracks_viewer.selected_nodes.reset)
         selection_layout.addWidget(self.select_btn)
         selection_layout.addWidget(self.deselect_btn)
+        selection_layout.addWidget(self.invert_btn)
 
         # edit layout
         edit_widget = QGroupBox("Edit")
@@ -189,6 +192,16 @@ class CollectionWidget(QGroupBox):
                 item for item in nodes if item in graph_nodes
             }
             self.selected_collection.update_node_count()
+
+    def _invert_selection(self) -> None:
+        """Invert the current selection"""
+
+        nodes = [
+            node
+            for node in self.tracks_viewer.tracks.graph.nodes
+            if node not in self.tracks_viewer.selected_nodes
+        ]
+        self.tracks_viewer.selected_nodes.add_list(nodes, append=False)
 
     def _select_nodes(self) -> None:
         """Select all nodes in the collection"""
