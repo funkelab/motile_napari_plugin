@@ -234,6 +234,38 @@ class MultipleViewerWidget(QSplitter):
         self.viewer_model1.events.status.connect(self._status_update)
         self.viewer_model2.events.status.connect(self._status_update)
 
+        # add any existing layers to viewer
+        for layer in self.viewer.layers:
+            self.viewer_model1.layers.insert(0, copy_layer(layer, "model1"))
+            self.viewer_model2.layers.insert(0, copy_layer(layer, "model2"))
+            for name in get_property_names(layer):
+                getattr(layer.events, name).connect(
+                    own_partial(self._property_sync, name)
+                )
+
+            if isinstance(layer, Labels):
+                layer.events.set_data.connect(self._set_data_refresh)
+                self.viewer_model1.layers[layer.name].events.set_data.connect(
+                    self._set_data_refresh
+                )
+                self.viewer_model2.layers[layer.name].events.set_data.connect(
+                    self._set_data_refresh
+                )
+
+            # connect events
+            if layer.name != ".cross":
+                self.viewer_model1.layers[layer.name].events.data.connect(
+                    self._sync_data
+                )
+
+                self.viewer_model2.layers[layer.name].events.data.connect(
+                    self._sync_data
+                )
+
+            layer.events.name.connect(self._sync_name)
+
+            self._order_update()
+
     def _status_update(self, event):
         self.viewer.status = event.value
 
