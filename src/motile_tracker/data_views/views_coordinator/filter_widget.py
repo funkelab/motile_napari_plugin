@@ -27,7 +27,7 @@ from qtpy.QtWidgets import (
 )
 
 if TYPE_CHECKING:
-    from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
+    from motile_tracker.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 import pyqtgraph as pg
 from qtpy.QtCore import Qt

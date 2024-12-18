@@ -3,9 +3,6 @@ from __future__ import annotations
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
-from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
-    extract_lineage_tree,
-)
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtCore import Signal
@@ -21,8 +18,12 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+from motile_tracker.data_views.views.tree_view.tree_widget_utils import (
+    extract_lineage_tree,
+)
+
 if TYPE_CHECKING:
-    from motile_plugin.data_views.views_coordinator.tracks_viewer import TracksViewer
+    from motile_tracker.data_views.views_coordinator.tracks_viewer import TracksViewer
 
 
 class CollectionButton(QWidget):
