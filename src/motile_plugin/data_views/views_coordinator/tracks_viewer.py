@@ -106,6 +106,7 @@ class TracksViewer:
             self.selected_nodes._list = []
 
         self.tracking_layers._refresh()
+        self.collection_widget._refresh()
 
         self.tracks_updated.emit(refresh_view)
 
