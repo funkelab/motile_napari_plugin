@@ -330,6 +330,7 @@ class MultipleViewerWidget(QSplitter):
             # do not include TrackGraphs in the orthogonal views
             if isinstance(event.value, TrackGraph):
                 return
+
             self.viewer_model1.layers.insert(
                 event.index, copy_layer(event.value, "model1")
             )
@@ -349,6 +350,9 @@ class MultipleViewerWidget(QSplitter):
                 self.viewer_model2.layers[event.value.name].events.set_data.connect(
                     self._set_data_refresh
                 )
+
+            if isinstance(event.value, TrackPoints):
+                event.value.events.border_color.connect(self._sync_shown_points)
 
             # connect data and paint events
             if event.value.name != ".cross":
@@ -458,6 +462,20 @@ class MultipleViewerWidget(QSplitter):
                 try:
                     self._block = True
                     layer.data = event.source.data
+                finally:
+                    self._block = False
+
+    def _sync_shown_points(self, event):
+        """Sync the visible points between TrackPoints layer and orthogonal views"""
+
+        for model in [self.viewer_model1, self.viewer_model2]:
+            if event.source.name in model.layers:
+                layer = model.layers[event.source.name]
+                if layer is event.source:
+                    continue
+                try:
+                    self._block = True
+                    layer.shown = event.source.shown
                 finally:
                     self._block = False
 
