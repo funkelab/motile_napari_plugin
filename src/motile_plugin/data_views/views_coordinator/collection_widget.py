@@ -177,6 +177,19 @@ class CollectionWidget(QGroupBox):
         else:
             self.new_group_button.setEnabled(False)
 
+    def _refresh(self) -> None:
+        """Removes nodes that are no longer existing from the collection"""
+
+        selected = self.collection_list.selectedItems()
+        if selected:
+            self.selected_collection = self.collection_list.itemWidget(selected[0])
+            nodes = self.selected_collection.collection
+            graph_nodes = set(self.tracks_viewer.tracks.graph.nodes)
+            self.selected_collection.collection = {
+                item for item in nodes if item in graph_nodes
+            }
+            self.selected_collection.update_node_count()
+
     def _select_nodes(self) -> None:
         """Select all nodes in the collection"""
 
@@ -257,24 +270,39 @@ class CollectionWidget(QGroupBox):
     def _add_track(self) -> None:
         """Add the tracks belonging to selected nodes to the selected collection"""
 
+        track_ids = []
         for node_id in self.tracks_viewer.selected_nodes:
             track_id = self.tracks_viewer.tracks._get_node_attr(
                 node_id, NodeAttr.TRACK_ID.value
             )
-            track = list(
-                {
-                    node
-                    for node, data in self.tracks_viewer.tracks.graph.nodes(data=True)
-                    if data.get("track_id") == track_id
-                }
-            )
-            self.add_nodes(track)
+            if track_id in track_ids:
+                continue  # skip, since we already added all nodes with this track id
+            else:
+                track = list(
+                    {
+                        node
+                        for node, data in self.tracks_viewer.tracks.graph.nodes(
+                            data=True
+                        )
+                        if data.get("track_id") == track_id
+                    }
+                )
+                self.add_nodes(track)
+                track_ids.append(track_id)
 
     def _add_lineage(self) -> None:
         """Add lineages to the selected collection"""
 
+        track_ids = []
         for node_id in self.tracks_viewer.selected_nodes:
-            lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
+            track_id = self.tracks_viewer.tracks._get_node_attr(
+                node_id, NodeAttr.TRACK_ID.value
+            )
+            if track_id in track_ids:
+                continue  # skip, since we already added all nodes with this track id
+            else:
+                lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
+                track_ids.append(track_id)
             self.add_nodes(lineage)
 
     def remove_nodes(self, nodes: list[Any]) -> None:
@@ -309,26 +337,40 @@ class CollectionWidget(QGroupBox):
     def _remove_track(self) -> None:
         """Remove tracks by track id from the selected collection"""
 
+        track_ids = []
         for node_id in self.tracks_viewer.selected_nodes:
             track_id = self.tracks_viewer.tracks._get_node_attr(
                 node_id, NodeAttr.TRACK_ID.value
             )
-            track = list(
-                {
-                    node
-                    for node, data in self.tracks_viewer.tracks.graph.nodes(data=True)
-                    if data.get("track_id") == track_id
-                }
-            )
-
-            self.remove_nodes(track)
+            if track_id in track_ids:
+                continue
+            else:
+                track = list(
+                    {
+                        node
+                        for node, data in self.tracks_viewer.tracks.graph.nodes(
+                            data=True
+                        )
+                        if data.get("track_id") == track_id
+                    }
+                )
+                self.remove_nodes(track)
+                track_ids.append(track_id)
 
     def _remove_lineage(self) -> None:
         """Remove lineages from the selected collection"""
 
+        track_ids = []
         for node_id in self.tracks_viewer.selected_nodes:
-            lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
-            self.remove_nodes(lineage)
+            track_id = self.tracks_viewer.tracks._get_node_attr(
+                node_id, NodeAttr.TRACK_ID.value
+            )
+            if track_id in track_ids:
+                continue
+            else:
+                lineage = extract_lineage_tree(self.tracks_viewer.tracks.graph, node_id)
+                self.remove_nodes(lineage)
+                track_ids.append(track_id)
 
     def add_group(self, name: str | None = None, select: bool = True) -> None:
         """Create a new custom group
