@@ -1,4 +1,4 @@
-project = "Motile Plugin"
+project = "Motile Tracker"
 copyright = "2024, Howard Hughes Medical Institute"
 author = "Caroline Malin-Mayor"
 
@@ -9,7 +9,7 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinxcontrib.video",
 ]
-autoapi_dirs = ["../../src/motile_plugin"]
+autoapi_dirs = ["../../src/motile_tracker"]
 
 exclude_patterns = []
 

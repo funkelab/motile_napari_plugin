@@ -1,0 +1,46 @@
+name: motile-tracker
+display_name: Motile
+# use 'hidden' to remove plugin from napari hub search results
+visibility: public
+# see https://napari.org/stable/plugins/manifest.html for valid categories
+categories: ["Utilities"]
+contributions:
+  commands:
+    - id: motile-tracker.main_app
+      python_name: motile_tracker.application_menus.main_app:MainApp
+      title: "Open the motile main application"
+    - id: motile-tracker.tree_widget
+      python_name: motile_tracker.data_views.views.tree_view.tree_widget:TreeWidget
+      title: "Open the lineage view widget"
+    - id: motile-tracker.menus_widget
+      python_name: motile_tracker.application_menus.menu_widget:MenuWidget
+      title: "Open the motile menus widget"
+    - id: motile-tracker.solve
+      python_name: motile_tracker.motile.backend.solve:solve
+      title: "Run motile tracking (backend only)"
+    - id: motile-tracker.Fluo_N2DL_HeLa
+      python_name: motile_tracker.example_data:Fluo_N2DL_HeLa
+      title: "Load Fluo-N2DL-HeLa tracking dataset"
+    - id: motile-tracker.Fluo_N2DL_HeLa_crop
+      python_name: motile_tracker.example_data:Fluo_N2DL_HeLa_crop
+      title: "Load Fluo-N2DL-HeLa tracking dataset (crop)"
+    - id: motile-tracker.Mouse_Embryo_Membrane
+      python_name: motile_tracker.example_data:Mouse_Embryo_Membrane
+      title: "Load Mouse Embryo_Membrane tracking dataset"
+  widgets:
+    - command: motile-tracker.main_app
+      display_name: Motile Main Widget
+    - command: motile-tracker.menus_widget
+      display_name: Motile Menus Widget
+    - command: motile-tracker.tree_widget
+      display_name: Motile Lineage View
+  sample_data:
+    - command: motile-tracker.Fluo_N2DL_HeLa
+      key: "Fluo-N2DL-HeLa"
+      display_name: "Fluo-N2DL-HeLa (2D)"
+    - command: motile-tracker.Fluo_N2DL_HeLa_crop
+      key: "Fluo-N2DL-HeLa-crop"
+      display_name: "Fluo-N2DL-HeLa crop (2D)"
+    - command: motile-tracker.Mouse_Embryo_Membrane
+      key: "Mouse_Embryo_Membrane"
+      display_name: "Mouse Embryo Membranes (3D)"

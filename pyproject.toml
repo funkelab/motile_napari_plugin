@@ -3,9 +3,9 @@ requires = ["setuptools>=70", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "motile-plugin"
+name = "motile-tracker"
 dynamic = ["version"]
-description = "Tracking with motile"
+description = "Application for interactive tracking with global optimization"
 readme = "README.md"
 license = { text = "BSD 3-Clause License" }
 requires-python = ">=3.10"
@@ -13,9 +13,11 @@ authors = [
     { name = "Caroline Malin-Mayor", email = "malinmayorc@janelia.hhmi.org" },
 ]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Framework :: napari",
     "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
@@ -48,8 +50,8 @@ docs = ["myst-parser", "sphinx", "sphinx-autoapi", "sphinx_rtd_theme", "sphinxco
 motile-plugin = "motile_plugin:napari.yaml"
 
 [project.urls]
-"Bug Tracker" = "https://github.com/funkelab/motile-napari-plugin/issues"
-"Documentation" ="https://funkelab.github.io/motile_napari_plugin/"
+"Bug Tracker" = "https://github.com/funkelab/motile_tracker/issues"
+"Documentation" ="https://funkelab.github.io/motile_tracker/"
 
 [tool.setuptools_scm]
 
@@ -77,6 +79,10 @@ ignore = [
     "UP006", "UP007", # type annotation. As using magicgui require runtime type annotation then we disable this.
     "ISC001", # implicit string concatenation
     "E501", # line too long
+]
+
+unfixable = [
+  "B905", # currently adds strict=False to zips. Should add strict=True (manually)
 ]
 
 [tool.ruff.lint.per-file-ignores]
