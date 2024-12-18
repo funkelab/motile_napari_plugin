@@ -15,6 +15,8 @@ from motile_tracker.data_views.views.tree_view.tree_widget_utils import (
 )
 from motile_tracker.utils.relabel_segmentation import relabel_segmentation
 
+from .collection_widget import CollectionWidget
+from .filter_widget import FilterWidget
 from .node_selection_list import NodeSelectionList
 from .tracks_list import TracksList
 
@@ -28,6 +30,7 @@ class TracksViewer:
     """
 
     tracks_updated = Signal(Optional[bool])
+    display_mode_updated = Signal(str)
 
     @classmethod
     def get_instance(cls, viewer=None):
@@ -63,10 +66,22 @@ class TracksViewer:
         self.selected_nodes = NodeSelectionList()
         self.selected_nodes.list_updated.connect(self.update_selection)
 
+        self.filtered_nodes = {}
+        self.filter_color = (1, 1, 1, 0)
+
         self.tracks_list = TracksList()
         self.tracks_list.view_tracks.connect(self.update_tracks)
 
+        self.collection_widget = CollectionWidget(self)
+        self.collection_widget.group_changed.connect(self.update_selection)
+
+        self.filter_widget = FilterWidget(self)
+        self.filter_widget.apply_filter.connect(self.apply_filter)
+
         self.set_keybinds()
+
+    def apply_filter(self):
+        self.tracking_layers.points_layer.update_point_outline()
 
     def set_keybinds(self):
         # TODO: separate and document keybinds (and maybe allow user to choose)
@@ -89,9 +104,10 @@ class TracksViewer:
         if len(self.selected_nodes) > 0 and any(
             not self.tracks.graph.has_node(node) for node in self.selected_nodes
         ):
-            self.selected_nodes.reset()
+            self.selected_nodes._list = []
 
         self.tracking_layers._refresh()
+        self.collection_widget._refresh()
 
         self.tracks_updated.emit(refresh_view)
 
@@ -126,6 +142,13 @@ class TracksViewer:
             if isinstance(layer, (napari.layers.Labels | napari.layers.Points)):
                 layer.visible = False
 
+        # retrieve existing groups
+        self.collection_widget.retrieve_existing_groups()
+
+        # clear filters and update buttons
+        self.filter_widget.filter_list.clearSelection()
+        self.filter_widget.update_buttons()
+
         self.set_display_mode("all")
         self.tracking_layers.set_tracks(tracks, name)
         self.selected_nodes.reset()
@@ -135,6 +158,8 @@ class TracksViewer:
         """Toggle the display mode between available options"""
 
         if self.mode == "lineage":
+            self.set_display_mode("group")
+        elif self.mode == "group":
             self.set_display_mode("all")
         else:
             self.set_display_mode("lineage")
@@ -146,6 +171,9 @@ class TracksViewer:
         if mode == "lineage":
             self.mode = "lineage"
             self.viewer.text_overlay.text = "Toggle Display [Q]\n Lineage"
+        elif mode == "group":
+            self.mode = "group"
+            self.viewer.text_overlay.text = "Toggle Display [Q]\n Group"
         else:
             self.mode = "all"
             self.viewer.text_overlay.text = "Toggle Display [Q]\n All"
@@ -153,6 +181,7 @@ class TracksViewer:
         self.viewer.text_overlay.visible = True
         visible = self.filter_visible_nodes()
         self.tracking_layers.update_visible(visible)
+        self.display_mode_updated.emit(mode)
 
     def filter_visible_nodes(self) -> list[int]:
         """Construct a list of track_ids that should be displayed"""
@@ -181,6 +210,17 @@ class TracksViewer:
                     for node in self.visible
                 }
             )
+        elif self.mode == "group":
+            self.group_visible = []
+            if self.collection_widget.selected_collection is not None:
+                return list(
+                    {
+                        self.tracks.graph.nodes[node][NodeAttr.TRACK_ID.value]
+                        for node in self.collection_widget.selected_collection.collection
+                    }
+                )
+            else:
+                return []
         else:
             return "all"
 

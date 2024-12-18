@@ -9,8 +9,10 @@ from napari.utils import DirectLabelColormap
 if TYPE_CHECKING:
     from motile_tracker.data_views.views_coordinator.tracks_viewer import TracksViewer
 
+from .contour_labels import ContourLabels
 
-class TrackLabels(napari.layers.Labels):
+
+class TrackLabels(ContourLabels):
     """Extended labels layer that holds the track information and emits
     and responds to dynamics visualization signals"""
 
@@ -52,6 +54,10 @@ class TrackLabels(napari.layers.Labels):
         )
 
         self.viewer = viewer
+        self.viewer.dims.events.ndisplay.connect(
+            lambda: self.update_label_colormap(visible=None)
+        )
+        self.group_labels = None
 
         # Key bindings (should be specified both on the viewer (in tracks_viewer)
         # and on the layer to overwrite napari defaults)
@@ -223,9 +229,12 @@ class TrackLabels(napari.layers.Labels):
 
         self.refresh()
 
-    def update_label_colormap(self, visible: list[int] | str) -> None:
+    def update_label_colormap(self, visible: list[int] | str | None = None) -> None:
         """Updates the opacity of the label colormap to highlight the selected label
         and optionally hide cells not belonging to the current lineage"""
+
+        if visible is None:
+            visible = self.group_labels if self.group_labels is not None else "all"
 
         highlighted = [
             self.tracks_viewer.tracks.get_track_id(node)
@@ -240,23 +249,31 @@ class TrackLabels(napari.layers.Labels):
             ]  # set the first track_id to be the selected label color
 
         # update the opacity of the cyclic label colormap values according to whether nodes are visible/invisible/highlighted
+        self.colormap.color_dict = {
+            key: np.array(
+                [*value[:-1], 0.6 if key is not None and key != 0 else value[-1]],
+                dtype=np.float32,
+            )
+            for key, value in self.colormap.color_dict.items()
+        }
+
         if visible == "all":
-            self.colormap.color_dict = {
-                key: np.array(
-                    [*value[:-1], 0.6 if key is not None and key != 0 else value[-1]],
-                    dtype=np.float32,
-                )
-                for key, value in self.colormap.color_dict.items()
-            }
+            self.contour = 0
+            self.group_labels = None
 
         else:
-            self.colormap.color_dict = {
-                key: np.array([*value[:-1], 0], dtype=np.float32)
-                for key, value in self.colormap.color_dict.items()
-            }
-            for label in visible:
-                # find the index in the cyclic label colormap
-                self.colormap.color_dict[label][-1] = 0.6
+            if self.viewer.dims.ndisplay == 2:
+                self.contour = 1
+                self.group_labels = visible  # for now we can not distinguish between individual nodes and tracks, but if we switch to unique labels this will be possible.
+
+            else:
+                self.colormap.color_dict = {
+                    key: np.array([*value[:-1], 0], dtype=np.float32)
+                    for key, value in self.colormap.color_dict.items()
+                }
+                for label in visible:
+                    # find the index in the cyclic label colormap
+                    self.colormap.color_dict[label][-1] = 0.6
 
         for label in highlighted:
             self.colormap.color_dict[label][-1] = 1  # full opacity
@@ -264,6 +281,7 @@ class TrackLabels(napari.layers.Labels):
         self.colormap = DirectLabelColormap(
             color_dict=self.colormap.color_dict
         )  # create a new colormap from the updated colors (otherwise it does not refresh)
+        self.refresh()
 
     def new_colormap(self):
         """Extended version of existing function, to emit refresh signal to also update colors in other layers/widgets"""

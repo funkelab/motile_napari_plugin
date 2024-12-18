@@ -22,17 +22,20 @@ class TreeViewModeWidget(QWidget):
         display_box = QGroupBox("Display [Q]")
         display_layout = QHBoxLayout()
         button_group = QButtonGroup()
-        self.show_all_radio = QRadioButton("All cells")
+        self.show_all_radio = QRadioButton("All")
         self.show_all_radio.setChecked(True)
         self.show_all_radio.clicked.connect(lambda: self._set_mode("all"))
-        self.show_lineage_radio = QRadioButton("Current lineage(s)")
+        self.show_lineage_radio = QRadioButton("Selected lineage(s)")
         self.show_lineage_radio.clicked.connect(lambda: self._set_mode("lineage"))
+        self.show_group_radio = QRadioButton("Group")
+        self.show_group_radio.clicked.connect(lambda: self._set_mode("group"))
         button_group.addButton(self.show_all_radio)
         button_group.addButton(self.show_lineage_radio)
         display_layout.addWidget(self.show_all_radio)
         display_layout.addWidget(self.show_lineage_radio)
+        display_layout.addWidget(self.show_group_radio)
         display_box.setLayout(display_layout)
-        display_box.setMaximumWidth(250)
+        display_box.setMaximumWidth(300)
         display_box.setMaximumHeight(60)
 
         layout = QVBoxLayout()
@@ -44,6 +47,9 @@ class TreeViewModeWidget(QWidget):
         """Toggle display mode"""
 
         if self.mode == "lineage":
+            self._set_mode("group")
+            self.show_group_radio.setChecked(True)
+        elif self.mode == "group":
             self._set_mode("all")
             self.show_all_radio.setChecked(True)
         else:
