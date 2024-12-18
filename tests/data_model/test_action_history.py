@@ -1,7 +1,7 @@
 import networkx as nx
-from motile_plugin.data_model.action_history import ActionHistory
-from motile_plugin.data_model.actions import AddNodes
-from motile_plugin.data_model.tracks import Tracks
+from motile_tracker.data_model.action_history import ActionHistory
+from motile_tracker.data_model.actions import AddNodes
+from motile_tracker.data_model.tracks import Tracks
 
 # https://github.com/zaboople/klonk/blob/master/TheGURQ.md
 

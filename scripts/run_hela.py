@@ -4,15 +4,15 @@ from pathlib import Path
 import napari
 import zarr
 from appdirs import AppDirs
-from motile_plugin.application_menus.main_app import MainApp
-from motile_plugin.data_views.views import TreeWidget
+from motile_tracker.application_menus import MainApp
+from motile_tracker.data_views import TreeWidget
 from napari.utils.theme import _themes
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(filename)s:%(lineno)d] %(levelname)-8s %(message)s",
 )
-# logging.getLogger('napari').setLevel(logging.DEBUG)
+logging.getLogger("motile_tracker").setLevel(logging.DEBUG)
 
 _themes["dark"].font_size = "18pt"
 
@@ -20,7 +20,7 @@ _themes["dark"].font_size = "18pt"
 # Load Zarr datasets
 
 ds_name = "Fluo-N2DL-HeLa"
-appdir = AppDirs("motile-plugin")
+appdir = AppDirs("motile-tracker")
 data_dir = Path(appdir.user_data_dir)
 zarr_directory = data_dir / f"{ds_name}.zarr"
 zarr_group = zarr.open_group(zarr_directory, mode="r")

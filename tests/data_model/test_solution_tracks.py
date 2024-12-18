@@ -1,4 +1,4 @@
-from motile_plugin.data_model import SolutionTracks
+from motile_tracker.data_model import SolutionTracks
 
 
 def test_export_to_csv(graph_2d, graph_3d, tmp_path):

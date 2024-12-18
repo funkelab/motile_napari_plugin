@@ -1,13 +1,13 @@
 import networkx as nx
 import numpy as np
 import pytest
-from motile_plugin.data_model import Tracks
-from motile_plugin.data_model.actions import (
+from motile_toolbox.candidate_graph.graph_attributes import EdgeAttr, NodeAttr
+from motile_tracker.data_model import Tracks
+from motile_tracker.data_model.actions import (
     AddEdges,
     AddNodes,
     UpdateNodeSegs,
 )
-from motile_toolbox.candidate_graph.graph_attributes import EdgeAttr, NodeAttr
 from numpy.testing import assert_array_almost_equal
 
 
