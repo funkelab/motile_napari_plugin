@@ -11,23 +11,27 @@ def _test_valid(df: pd.DataFrame, segmentation: np.ndarray, scale: list[float]) 
     with the provided seg_id as a basic sanity check that the csv file matches with the
     segmentation file
     """
-    assert NodeAttr.SEG_ID.value in df.columns, f"Missing {NodeAttr.SEG_ID.value} attribute"
+    assert (
+        NodeAttr.SEG_ID.value in df.columns
+    ), f"Missing {NodeAttr.SEG_ID.value} attribute"
     row = df.iloc[0]
-    pos = [row[NodeAttr.TIME.value], row["z"], row["y"], row["x"]] \
-        if "z" in df.columns \
+    pos = (
+        [row[NodeAttr.TIME.value], row["z"], row["y"], row["x"]]
+        if "z" in df.columns
         else [row[NodeAttr.TIME.value], row["y"], row["x"]]
+    )
     seg_id = row[NodeAttr.SEG_ID.value]
     coordinates = [
-        int(coord/ scale_value)
-        for coord, scale_value in zip(pos, scale, strict=True)
+        int(coord / scale_value) for coord, scale_value in zip(pos, scale, strict=True)
     ]
     value = segmentation[coordinates]
     return value == seg_id
 
+
 def tracks_from_df(
     df: pd.DataFrame,
     segmentation: np.ndarray | None = None,
-    scale: list[float] | None = None
+    scale: list[float] | None = None,
 ) -> SolutionTracks:
     """Turns a pandas data frame with columns:
         t,[z],y,x,id,parent_id,[seg_id], [optional custom attr 1], ...
@@ -37,13 +41,13 @@ def tracks_from_df(
 
     Args:
         df (pd.DataFrame):
-            a pandas DataFrame containing columns 
+            a pandas DataFrame containing columns
             t,[z],y,x,id,parent_id,[seg_id], [optional custom attr 1], ...
         segmentation (np.ndarray | None, optional):
             An optional accompanying segmentation.
             If provided, assumes that the seg_id column in the dataframe exists and
             corresponds to the label ids in the segmentation array. Defaults to None.
-        scale (list[float] | None, optional): 
+        scale (list[float] | None, optional):
             The scale of the segmentation (including the time dimension). Defaults to None.
 
     Returns:
@@ -52,14 +56,18 @@ def tracks_from_df(
         ValueError: if the segmentation IDs in the dataframe do not match the provided
             segmentation
     """
+    print(df.columns)
+    print(NodeAttr.TIME.value)
     required_columns = ["id", NodeAttr.TIME.value, "y", "x", "parent_id"]
     for column in required_columns:
-        assert column in df.columns, \
-            f"Required column {column} not found in dataframe columns {df.columns}"
-        
-    if segmentation is not None:
-        if not _test_valid(df, segmentation, scale):
-            raise ValueError(f"Segmentation ids in dataframe do not match values in segmentation")
+        assert (
+            column in df.columns
+        ), f"Required column {column} not found in dataframe columns {df.columns}"
+
+    if segmentation is not None and not _test_valid(df, segmentation, scale):
+        raise ValueError(
+            "Segmentation ids in dataframe do not match values in segmentation"
+        )
 
     # sort the dataframe to ensure that parents get added to the graph before children
     df = df.sort_values(NodeAttr.TIME.value)
@@ -75,9 +83,9 @@ def tracks_from_df(
         else:
             pos = [row["y"], row["x"]]
             ndims = 3
-        
+
         attrs = {
-            NodeAttr.TIME.value: row["t"],
+            NodeAttr.TIME.value: row["time"],
             NodeAttr.POS.value: pos,
         }
 
@@ -92,13 +100,18 @@ def tracks_from_df(
         # add the edge to the graph, if the node has a parent
         # note: this loading format does not support edge attributes
         if not pd.isna(parent_id) and parent_id != -1:
-            assert parent_id in graph.nodes, \
-                f"Parent id {parent_id} of node {_id} not in graph yet"
+            assert (
+                parent_id in graph.nodes
+            ), f"Parent id {parent_id} of node {_id} not in graph yet"
             graph.add_edge(parent_id, _id)
 
     if segmentation is not None:
         # add dummy hypothesis dimension (for now)
-        segmentation = np.expand_dims(segmentation, axis=1) 
+        segmentation = np.expand_dims(segmentation, axis=1)
+
+    print(ndims)
+    print(scale)
+
     tracks = SolutionTracks(
         graph=graph,
         segmentation=segmentation,
