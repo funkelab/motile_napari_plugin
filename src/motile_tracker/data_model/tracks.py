@@ -544,6 +544,7 @@ class Tracks:
             "scale": self.scale
             if not isinstance(self.scale, np.ndarray)
             else self.scale.tolist(),
+            "ndim": self.ndim,
         }
         with open(out_path, "w") as f:
             json.dump(attrs_dict, f)
