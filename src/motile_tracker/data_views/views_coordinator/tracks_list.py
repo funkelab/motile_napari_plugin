@@ -7,6 +7,8 @@ from fonticon_fa6 import FA6S
 from napari._qt.qt_resources import QColoredSVGIcon
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
+    QComboBox,
+    QDialog,
     QFileDialog,
     QGroupBox,
     QHBoxLayout,
@@ -20,6 +22,9 @@ from qtpy.QtWidgets import (
 from superqt.fonticon import icon as qticon
 
 from motile_tracker.data_model import Tracks
+from motile_tracker.import_export.import_external_tracks_dialog import (
+    ImportTracksDialog,
+)
 from motile_tracker.motile.backend.motile_run import MotileRun
 
 
@@ -91,13 +96,28 @@ class TracksList(QGroupBox):
         self.tracks_list.setSelectionMode(1)  # single selection
         self.tracks_list.itemSelectionChanged.connect(self._selection_changed)
 
-        load_button = QPushButton("Load tracks")
+        load_menu = QHBoxLayout()
+        self.dropdown_menu = QComboBox()
+        self.dropdown_menu.addItems(["Motile Run", "External tracks from CSV"])
+
+        load_button = QPushButton("Load")
         load_button.clicked.connect(self.load_tracks)
+
+        load_menu.addWidget(self.dropdown_menu)
+        load_menu.addWidget(load_button)
 
         layout = QVBoxLayout()
         layout.addWidget(self.tracks_list)
-        layout.addWidget(load_button)
+        layout.addLayout(load_menu)
         self.setLayout(layout)
+
+    def _load_external_tracks(self):
+        dialog = ImportTracksDialog()
+        if dialog.exec_() == QDialog.Accepted:
+            tracks = dialog.tracks
+            name = dialog.name
+            if tracks is not None:
+                self.add_tracks(tracks, name, select=True)
 
     def _selection_changed(self):
         selected = self.tracks_list.selectedItems()
@@ -151,9 +171,19 @@ class TracksList(QGroupBox):
         self.tracks_list.takeItem(row)
 
     def load_tracks(self):
+        """Call the function to load tracks from disk for a Motile Run or for externally generated tracks (CSV file),
+        depending on the choice in the dropdown menu."""
+
+        if self.dropdown_menu.currentText() == "Motile Run":
+            self.load_motile_run()
+        elif self.dropdown_menu.currentText() == "External tracks from CSV":
+            self._load_external_tracks()
+
+    def load_motile_run(self):
         """Load a set of tracks from disk. The user selects the directory created
         by calling save_tracks.
         """
+
         if self.file_dialog.exec_():
             directory = Path(self.file_dialog.selectedFiles()[0])
             name = directory.stem

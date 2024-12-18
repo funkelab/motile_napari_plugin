@@ -6,6 +6,7 @@ from warnings import warn
 
 import pyqtgraph as pg
 from fonticon_fa6 import FA6S
+from motile_tracker.import_export import export_solution_to_csv
 from motile_tracker.motile.backend import MotileRun
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
@@ -195,7 +196,7 @@ class RunViewer(QGroupBox):
         self.export_tracks_dialog.selectFile(str(base_path / default_name))
         if self.export_tracks_dialog.exec_():
             outfile = self.export_tracks_dialog.selectedFiles()[0]
-            self.run.export_tracks(outfile)
+            export_solution_to_csv(self.run, outfile)
         else:
             warn("Exporting aborted", stacklevel=2)
 

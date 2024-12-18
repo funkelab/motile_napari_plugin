@@ -7,13 +7,12 @@ import numpy as np
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
 from psygnal import Signal
 
-from motile_tracker.data_model import NodeType, SolutionTracks, Tracks
+from motile_tracker.data_model import NodeType, Tracks
 from motile_tracker.data_model.tracks_controller import TracksController
 from motile_tracker.data_views.views.layers.tracks_layer_group import TracksLayerGroup
 from motile_tracker.data_views.views.tree_view.tree_widget_utils import (
     extract_lineage_tree,
 )
-from motile_tracker.utils.relabel_segmentation import relabel_segmentation
 
 from .node_selection_list import NodeSelectionList
 from .tracks_list import TracksList
@@ -200,19 +199,6 @@ class TracksViewer:
         self.set_napari_view()
         visible = self.filter_visible_nodes()
         self.tracking_layers.update_visible(visible)
-
-    def view_external_tracks(self, tracks: SolutionTracks, name: str) -> None:
-        """View tracks created externally. Assigns tracklet ids, adds a hypothesis
-        dimension to the segmentation, and relabels the segmentation based on the
-        assigned track ids. Then calls update_tracks.
-
-        Args:
-            tracks (Tracks): A tracks object to view, created externally from the tracker
-            name (str): The name to display in napari layers
-        """
-        # tracks.segmentation = np.expand_dims(tracks.segmentation, axis=1)
-        tracks.segmentation = relabel_segmentation(tracks.graph, tracks.segmentation)
-        self.update_tracks(tracks, name)
 
     def set_napari_view(self) -> None:
         """Adjust the current_step of the viewer to jump to the last item of the selected_nodes list"""
