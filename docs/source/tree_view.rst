@@ -3,7 +3,7 @@ Tree View
 
 Usage Overview
 **************
-In addition to performing tracking with motile, this plugin also provides the ability to
+In addition to performing tracking with motile, the tracker also provides the ability to
 visualize tracks (and segmentations) in napari, through a lineage tree view and
 synchronized points, segmentation, and tracks layers. To visualize results generated
 through the motile widget in the tree view, you can open the tree widget from the UI
@@ -51,4 +51,4 @@ the following lines will view it in the Tree View and create synchronized napari
 We plan to incorporate loaders from standard formats in the future to make this process easier,
 and incorporate the loading into the user interface.
 
-.. _SolutionTracks object: https://funkelab.github.io/motile_napari_plugin/autoapi/motile_plugin/data_model/solution_tracks/index.html
+.. _SolutionTracks object: https://funkelab.github.io/motile_tracker/autoapi/motile_tracker/data_model/solution_tracks/index.html

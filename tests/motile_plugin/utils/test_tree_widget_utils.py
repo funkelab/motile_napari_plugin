@@ -1,10 +1,10 @@
 import napari
 import pandas as pd
-from motile_plugin.data_model import SolutionTracks
-from motile_plugin.data_views.views.tree_view.tree_widget_utils import (
+from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
+from motile_tracker.data_model import SolutionTracks
+from motile_tracker.data_views.views.tree_view.tree_widget_utils import (
     extract_sorted_tracks,
 )
-from motile_toolbox.visualization.napari_utils import assign_tracklet_ids
 
 
 def test_track_df(graph_2d):
