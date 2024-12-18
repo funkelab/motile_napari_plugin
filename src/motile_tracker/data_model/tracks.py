@@ -408,8 +408,6 @@ class Tracks:
         for pix, val in zip(pixels, values, strict=False):
             if val is None:
                 raise ValueError("Cannot set pixels to None value")
-            if len(pix) == self.ndim:
-                pix = (pix[0], *pix[1:])
             self.segmentation[pix] = val
 
     def update_segmentations(
