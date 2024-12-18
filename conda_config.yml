@@ -1,4 +1,4 @@
-name: motile-plugin
+name: motile-tracker
 channels:
   - conda-forge
   - funkelab

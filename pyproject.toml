@@ -47,7 +47,7 @@ testing =["napari", "pyqt5", "pytest", "pytest-cov", "pytest-qt"]
 docs = ["myst-parser", "sphinx", "sphinx-autoapi", "sphinx_rtd_theme", "sphinxcontrib-video"]
 
 [project.entry-points."napari.manifest"]
-motile-plugin = "motile_plugin:napari.yaml"
+motile-tracker = "motile_tracker:napari.yaml"
 
 [project.urls]
 "Bug Tracker" = "https://github.com/funkelab/motile_tracker/issues"
