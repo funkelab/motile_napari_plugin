@@ -13,20 +13,20 @@ def test_create_tracks(graph_3d, segmentation_3d):
 
     # create tracks with graph only
     tracks = Tracks(graph=graph_3d, ndim=4)
-    assert tracks.get_positions(["0_1"]).tolist() == [[50, 50, 50]]
-    assert tracks.get_time("0_1") == 0
+    assert tracks.get_positions([1]).tolist() == [[50, 50, 50]]
+    assert tracks.get_time(1) == 0
     with pytest.raises(KeyError):
         tracks.get_positions(["0"])
 
     # create track with graph and seg
     tracks = Tracks(graph=graph_3d, segmentation=segmentation_3d)
-    assert tracks.get_positions(["0_1"]).tolist() == [[50, 50, 50]]
-    assert tracks.get_time("0_1") == 0
-    assert tracks.get_positions(["0_1"], incl_time=True).tolist() == [[0, 50, 50, 50]]
-    tracks.set_time("0_1", 1)
-    assert tracks.get_positions(["0_1"], incl_time=True).tolist() == [[1, 50, 50, 50]]
-    assert tracks.get_seg_id("0_1") == 1
-    assert tracks.get_node(seg_id=1, time=1) == "0_1"
+    assert tracks.get_positions([1]).tolist() == [[50, 50, 50]]
+    assert tracks.get_time(1) == 0
+    assert tracks.get_positions([1], incl_time=True).tolist() == [[0, 50, 50, 50]]
+    tracks.set_time(1, 1)
+    assert tracks.get_positions([1], incl_time=True).tolist() == [[1, 50, 50, 50]]
+    assert tracks.get_seg_id(1) == 1
+    assert tracks.get_node(seg_id=1, time=1) == 1
 
     with pytest.raises(KeyError):  # raises error at construction if time is wrong
         tracks_wrong_attr = Tracks(
@@ -35,7 +35,7 @@ def test_create_tracks(graph_3d, segmentation_3d):
 
     tracks_wrong_attr = Tracks(graph=graph_3d, pos_attr="test", ndim=3)
     with pytest.raises(KeyError):
-        tracks_wrong_attr.get_positions(["0_1"])
+        tracks_wrong_attr.get_positions([1])
 
     # test multiple position attrs
     pos_attr = ("z", "y", "x")
@@ -48,12 +48,12 @@ def test_create_tracks(graph_3d, segmentation_3d):
         graph_3d.nodes[node]["x"] = x
 
     tracks = Tracks(graph=graph_3d, pos_attr=pos_attr, ndim=4)
-    assert tracks.get_positions(["0_1"]).tolist() == [[50, 50, 50]]
-    tracks.set_position("0_1", [55, 56, 57])
-    assert tracks.get_position("0_1") == [55, 56, 57]
+    assert tracks.get_positions([1]).tolist() == [[50, 50, 50]]
+    tracks.set_position(1, [55, 56, 57])
+    assert tracks.get_position(1) == [55, 56, 57]
 
-    tracks.set_position("0_1", [1, 50, 50, 50], incl_time=True)
-    assert tracks.get_time("0_1") == 1
+    tracks.set_position(1, [1, 50, 50, 50], incl_time=True)
+    assert tracks.get_time(1) == 1
 
 
 def test_add_remove_nodes(graph_2d, segmentation_2d):
@@ -78,7 +78,7 @@ def test_add_remove_nodes(graph_2d, segmentation_2d):
     tracks = Tracks(graph=graph_2d, segmentation=segmentation_2d, scale=[1, 2, 1])
 
     # removing a node removes it from the seg_time mapping
-    node = "1_3"
+    node = 3
     assert tracks.get_node(seg_id=3, time=1) == node
     tracks.remove_node(node)
     assert tracks.get_node(3, 1) is None
@@ -120,7 +120,7 @@ def test_add_remove_edges(graph_2d, segmentation_2d):
     tracks = Tracks(graph=graph_2d, segmentation=segmentation_2d)
     num_edges = tracks.graph.number_of_edges()
 
-    edge = ("0_1", "1_3")
+    edge = (1, 3)
     iou = tracks.get_iou(edge)
     tracks.remove_edge(edge)
     assert tracks.graph.number_of_edges() == num_edges - 1
@@ -128,7 +128,7 @@ def test_add_remove_edges(graph_2d, segmentation_2d):
     assert tracks.graph.number_of_edges() == num_edges
     assert pytest.approx(tracks.get_iou(edge), abs=0.01) == iou
 
-    edges = [("0_1", "1_3"), ("0_1", "1_2")]
+    edges = [(1, 3), (1, 2)]
     tracks.remove_edges(edges)
     assert tracks.graph.number_of_edges() == num_edges - 2
 
@@ -136,7 +136,7 @@ def test_add_remove_edges(graph_2d, segmentation_2d):
         tracks.remove_edge((1, 2))
 
     with pytest.raises(KeyError):
-        tracks.remove_edges([("0_1", "1_3"), (1, 2)])
+        tracks.remove_edges([(1, 3), (1, 2)])
 
     # with pytest.raises(ValueError):
     #     # TODO: what happens if you add a duplicate edge? remove a nonexisting edge?
@@ -148,14 +148,13 @@ def test_pixels_and_seg_id(graph_3d, segmentation_3d):
     tracks = Tracks(graph=graph_3d, segmentation=segmentation_3d)
 
     # changing a segmentation id changes it in the mapping
-    assert tracks.get_node(1, 0) == "0_1"
-    pix = tracks.get_pixels(["0_1"])
-    print(pix)
+    assert tracks.get_node(1, 0) == 1
+    pix = tracks.get_pixels([1])
     new_seg_id = 10
     tracks.set_pixels(pix, [new_seg_id])
-    tracks.set_seg_id("0_1", new_seg_id)
+    tracks.set_seg_id(1, new_seg_id)
     assert tracks.get_node(1, 0) is None
-    assert tracks.get_node(new_seg_id, 0) == "0_1"
+    assert tracks.get_node(new_seg_id, 0) == 1
 
     with pytest.raises(KeyError):
         tracks.get_positions(["0"])
@@ -165,9 +164,10 @@ def test_update_segmentations(graph_2d, segmentation_2d):
     tracks = Tracks(graph_2d.copy(), segmentation=segmentation_2d.copy())
 
     # remove pixels from a segmentation
-    nodes = ["0_1"]
-    edge = ("0_1", "1_3")
+    nodes = [1]
+    edge = (1, 3)
     current_pix = tracks.get_pixels(nodes)
+    print(current_pix, segmentation_2d.ndim)
     areas = tracks.get_areas(nodes)
     iou = tracks.get_iou(edge)
     # get the first 5 pixels of each segmentation

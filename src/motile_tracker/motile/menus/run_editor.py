@@ -7,7 +7,6 @@ from warnings import warn
 
 import napari.layers
 import networkx as nx
-import numpy as np
 from motile_tracker.motile.backend import MotileRun
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
@@ -128,25 +127,6 @@ class RunEditor(QGroupBox):
             return None
         return self.viewer.layers[layer_name]
 
-    def reshape_labels(self, segmentation: np.ndarray) -> np.ndarray:
-        """Expect napari segmentation to have shape t, [z], y, x.
-        Motile toolbox needs a channel dimension between time and space.
-        This also raises an error if the input seg is not the expected shape.
-
-        Args:
-            segmentation (np.ndarray): _description_
-
-        Raises:
-            ValueError if segmentation is not 3D or 4D.
-        """
-        ndim = segmentation.ndim
-        if ndim > 4:
-            raise ValueError("Expected segmentation to be at most 4D, found %d", ndim)
-        elif ndim < 3:
-            raise ValueError("Expected segmentation to be at least 3D, found %d", ndim)
-        reshaped = np.expand_dims(segmentation, 1)
-        return reshaped
-
     def _run_widget(self) -> QWidget:
         """Construct a widget where you set the run name and start solving.
         Initializes self.run_name and connects the generate tracks button
@@ -181,7 +161,16 @@ class RunEditor(QGroupBox):
             warn("No input layer selected", stacklevel=2)
             return None
         if isinstance(input_layer, napari.layers.Labels):
-            input_seg = self.reshape_labels(input_layer.data)
+            input_seg = input_layer.data
+            ndim = input_seg.ndim
+            if ndim > 4:
+                raise ValueError(
+                    "Expected segmentation to be at most 4D, found %d", ndim
+                )
+            elif ndim < 3:
+                raise ValueError(
+                    "Expected segmentation to be at least 3D, found %d", ndim
+                )
             input_points = None
         elif isinstance(input_layer, napari.layers.Points):
             input_seg = None
