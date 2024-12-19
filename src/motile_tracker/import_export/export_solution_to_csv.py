@@ -1,3 +1,5 @@
+import csv
+import json
 from pathlib import Path
 
 from motile_toolbox.candidate_graph.graph_attributes import NodeAttr
@@ -33,8 +35,10 @@ def export_solution_to_csv(solution: SolutionTracks, outfile: Path | str):
 
     if solution.ndim == 3:
         header = [header[0]] + header[2:]  # remove z
-    with open(outfile, "w") as f:
-        f.write(",".join(header))
+
+    with open(outfile, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
         for node_id in solution.graph.nodes():
             parents = list(solution.graph.predecessors(node_id))
             parent_id = "" if len(parents) == 0 else parents[0]
@@ -42,7 +46,7 @@ def export_solution_to_csv(solution: SolutionTracks, outfile: Path | str):
             time = solution.get_time(node_id)
             position = solution.get_position(node_id)
             custom_attr = [
-                solution._get_node_attr(node_id, attr, required=False)
+                json.dumps(solution._get_node_attr(node_id, attr, required=False))
                 for attr in custom_attrs
             ]  # any other attributes, such as area or group
             row = [
@@ -54,5 +58,4 @@ def export_solution_to_csv(solution: SolutionTracks, outfile: Path | str):
                 *custom_attr,
             ]
             row = ["" if value is None else value for value in row]
-            f.write("\n")
-            f.write(",".join(map(str, row)))
+            writer.writerow(row)
