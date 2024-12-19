@@ -1,3 +1,5 @@
+import ast
+
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -24,7 +26,7 @@ def _test_valid(df: pd.DataFrame, segmentation: np.ndarray, scale: list[float]) 
     coordinates = [
         int(coord / scale_value) for coord, scale_value in zip(pos, scale, strict=True)
     ]
-    value = segmentation[coordinates]
+    value = segmentation[tuple(coordinates)]
     return value == seg_id
 
 
@@ -56,8 +58,7 @@ def tracks_from_df(
         ValueError: if the segmentation IDs in the dataframe do not match the provided
             segmentation
     """
-    print(df.columns)
-    print(NodeAttr.TIME.value)
+
     required_columns = ["id", NodeAttr.TIME.value, "y", "x", "parent_id"]
     for column in required_columns:
         assert (
@@ -66,8 +67,25 @@ def tracks_from_df(
 
     if segmentation is not None and not _test_valid(df, segmentation, scale):
         raise ValueError(
-            "Segmentation ids in dataframe do not match values in segmentation"
+            "Segmentation ids in dataframe do not match values in segmentation. Is it possible that you loaded the wrong combination of csv file and segmentation, or that the scaling information you provided is incorrect?"
         )
+
+    # Convert custom attributes stored as strings back to lists
+    for col in df.columns:
+        if col not in [
+            NodeAttr.TIME.value,
+            "z",
+            "y",
+            "x",
+            "id",
+            "parent_id",
+            NodeAttr.SEG_ID.value,
+        ]:
+            df[col] = df[col].apply(
+                lambda x: ast.literal_eval(x)
+                if isinstance(x, str) and x.startswith("[") and x.endswith("]")
+                else x
+            )
 
     # sort the dataframe to ensure that parents get added to the graph before children
     df = df.sort_values(NodeAttr.TIME.value)
@@ -94,6 +112,9 @@ def tracks_from_df(
             del row_dict[attr]
         attrs.update(row_dict)
 
+        if "seg_id" in df.columns:
+            attrs[NodeAttr.TRACK_ID.value] = row["seg_id"]
+
         # add the node to the graph
         graph.add_node(_id, **attrs)
 
@@ -108,9 +129,6 @@ def tracks_from_df(
     if segmentation is not None:
         # add dummy hypothesis dimension (for now)
         segmentation = np.expand_dims(segmentation, axis=1)
-
-    print(ndims)
-    print(scale)
 
     tracks = SolutionTracks(
         graph=graph,
