@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 AttrValue: TypeAlias = Any
-Node: TypeAlias = Any
+Node: TypeAlias = int
 Edge: TypeAlias = tuple[Node, Node]
 AttrValues: TypeAlias = Sequence[AttrValue]
 Attrs: TypeAlias = Mapping[str, AttrValues]
@@ -230,6 +230,7 @@ class Tracks:
         if seg_ids is not None and self.segmentation is not None:
             self.set_seg_ids(nodes, seg_ids)
             computed_attrs = self._compute_node_attrs(seg_ids, times)
+            print(computed_attrs)
             if positions is None:
                 final_pos = np.array(computed_attrs[NodeAttr.POS.value])
             else:
@@ -385,10 +386,9 @@ class Tracks:
                 pix_list.append((np.array([], dtype=np.uint64),) * self.ndim)
             else:
                 time = self.get_time(node)
-                loc_pixels = np.nonzero(self.segmentation[time][0] == seg_id)
+                loc_pixels = np.nonzero(self.segmentation[time] == seg_id)
                 time_array = np.ones_like(loc_pixels[0]) * time
-                hypo_array = np.zeros_like(loc_pixels[0])
-                pix_list.append((time_array, hypo_array, *loc_pixels))
+                pix_list.append((time_array, *loc_pixels))
         return pix_list
 
     def set_pixels(
@@ -408,9 +408,6 @@ class Tracks:
         for pix, val in zip(pixels, values, strict=False):
             if val is None:
                 raise ValueError("Cannot set pixels to None value")
-            if len(pix) == self.ndim:
-                # add dummy hypothesis dimension for now
-                pix = (pix[0], np.zeros_like(pix[0]), *pix[1:])
             self.segmentation[pix] = val
 
     def update_segmentations(
@@ -637,7 +634,7 @@ class Tracks:
         scale: list[float] | None,
         provided_ndim: int | None,
     ):
-        seg_ndim = seg.ndim - 1 if seg is not None else None  # remove hypothesis dim
+        seg_ndim = seg.ndim if seg is not None else None
         scale_ndim = len(scale) if scale is not None else None
         ndims = [seg_ndim, scale_ndim, provided_ndim]
         ndims = [d for d in ndims if d is not None]
@@ -754,7 +751,7 @@ class Tracks:
                 area = None
                 pos = None
             else:
-                seg = self.segmentation[time][0] == seg_id
+                seg = self.segmentation[time] == seg_id
                 pos_scale = self.scale[1:] if self.scale is not None else None
                 area = np.sum(seg)
                 if pos_scale is not None:
@@ -803,8 +800,8 @@ class Tracks:
                 source_time = self.get_time(source)
                 target_time = self.get_time(target)
 
-                source_arr = self.segmentation[source_time][0] == source_seg
-                target_arr = self.segmentation[target_time][0] == target_seg
+                source_arr = self.segmentation[source_time] == source_seg
+                target_arr = self.segmentation[target_time] == target_seg
 
                 iou_list = _compute_ious(
                     source_arr, target_arr

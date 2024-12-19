@@ -3,7 +3,7 @@ from motile_tracker.motile.backend import SolverParams, solve
 
 # capsys is a pytest fixture that captures stdout and stderr output streams
 def test_solve_2d(segmentation_2d, graph_2d):
-    graph_2d.remove_nodes_from([2, 4, 5])
+    graph_2d.remove_nodes_from([4, 5, 6])
     params = SolverParams()
     params.appear_cost = None
     soln_graph = solve(params, segmentation_2d)

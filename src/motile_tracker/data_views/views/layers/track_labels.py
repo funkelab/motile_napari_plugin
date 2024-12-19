@@ -205,7 +205,7 @@ class TrackLabels(napari.layers.Labels):
     def _refresh(self):
         """Refresh the data in the labels layer"""
 
-        self.data = self.tracks_viewer.tracks.segmentation[:, 0]
+        self.data = self.tracks_viewer.tracks.segmentation
         self.node_properties = self._get_node_properties()
 
         self.colormap = DirectLabelColormap(

@@ -15,59 +15,19 @@ def segmentation_2d():
     segmentation[0][rr, cc] = 1
 
     # make frame with two cells
-    # first cell centered at (20, 80) with label 1
-    # second cell centered at (60, 45) with label 2
+    # first cell centered at (20, 80) with label 2
+    # second cell centered at (60, 45) with label 3
     rr, cc = disk(center=(20, 80), radius=10, shape=frame_shape)
     segmentation[1][rr, cc] = 2
     rr, cc = disk(center=(60, 45), radius=15, shape=frame_shape)
     segmentation[1][rr, cc] = 3
 
     # continue track 3 with squares from 0 to 4 in x and y with label 3
-    segmentation[2, 0:4, 0:4] = 3
-    segmentation[4, 0:4, 0:4] = 3
+    segmentation[2, 0:4, 0:4] = 4
+    segmentation[4, 0:4, 0:4] = 5
 
     # unconnected node
-    segmentation[4, 96:100, 96:100] = 5
-    print(np.sum(segmentation == 5))
-
-    return np.expand_dims(segmentation, 1)
-
-
-@pytest.fixture
-def multi_hypothesis_segmentation_2d():
-    """
-    Creates a multi-hypothesis version of the `segmentation_2d` fixture defined above.
-
-    """
-    frame_shape = (100, 100)
-    total_shape = (
-        2,
-        2,
-        *frame_shape,
-    )  # 2 time points, 2 hypotheses layers, H, W
-    segmentation = np.zeros(total_shape, dtype="int32")
-    # make frame with one cell in center with label 1 (hypo 1)
-    rr0, cc0 = disk(center=(50, 50), radius=20, shape=frame_shape)
-    # make frame with one cell at (45, 45) with label 1 (hypo 2)
-    rr1, cc1 = disk(center=(45, 45), radius=15, shape=frame_shape)
-
-    segmentation[0, 0][rr0, cc0] = 1
-    segmentation[0, 1][rr1, cc1] = 1
-
-    # make frame with two cells
-    # first cell centered at (20, 80) with label 1
-    rr0, cc0 = disk(center=(20, 80), radius=10, shape=frame_shape)
-    rr1, cc1 = disk(center=(15, 75), radius=15, shape=frame_shape)
-
-    segmentation[1, 0][rr0, cc0] = 1
-    segmentation[1, 1][rr1, cc1] = 1
-
-    # second cell centered at (60, 45) with label 2
-    rr0, cc0 = disk(center=(60, 45), radius=15, shape=frame_shape)
-    rr1, cc1 = disk(center=(55, 40), radius=20, shape=frame_shape)
-
-    segmentation[1, 0][rr0, cc0] = 2
-    segmentation[1, 1][rr1, cc1] = 2
+    segmentation[4, 96:100, 96:100] = 6
 
     return segmentation
 
@@ -77,7 +37,7 @@ def graph_2d():
     graph = nx.DiGraph()
     nodes = [
         (
-            "0_1",
+            1,
             {
                 NodeAttr.POS.value: [50, 50],
                 NodeAttr.TIME.value: 0,
@@ -87,7 +47,7 @@ def graph_2d():
             },
         ),
         (
-            "1_2",
+            2,
             {
                 NodeAttr.POS.value: [20, 80],
                 NodeAttr.TIME.value: 1,
@@ -97,7 +57,7 @@ def graph_2d():
             },
         ),
         (
-            "1_3",
+            3,
             {
                 NodeAttr.POS.value: [60, 45],
                 NodeAttr.TIME.value: 1,
@@ -107,171 +67,49 @@ def graph_2d():
             },
         ),
         (
-            2,
+            4,
             {
                 NodeAttr.POS.value: [1.5, 1.5],
                 NodeAttr.TIME.value: 2,
-                NodeAttr.SEG_ID.value: 3,
+                NodeAttr.SEG_ID.value: 4,
                 NodeAttr.AREA.value: 16,
                 NodeAttr.TRACK_ID.value: 3,
             },
         ),
         (
-            4,
+            5,
             {
                 NodeAttr.POS.value: [1.5, 1.5],
                 NodeAttr.TIME.value: 4,
-                NodeAttr.SEG_ID.value: 3,
+                NodeAttr.SEG_ID.value: 5,
                 NodeAttr.AREA.value: 16,
                 NodeAttr.TRACK_ID.value: 3,
             },
         ),
         # unconnected node
         (
-            5,
+            6,
             {
                 NodeAttr.POS.value: [97.5, 97.5],
                 NodeAttr.TIME.value: 4,
-                NodeAttr.SEG_ID.value: 5,
+                NodeAttr.SEG_ID.value: 6,
                 NodeAttr.AREA.value: 16,
                 NodeAttr.TRACK_ID.value: 5,
             },
         ),
     ]
     edges = [
+        (1, 2, {EdgeAttr.IOU.value: 0.0}),
+        (1, 3, {EdgeAttr.IOU.value: 0.395}),
         (
-            "0_1",
-            "1_2",
-            {EdgeAttr.IOU.value: 0.0},
-        ),
-        (
-            "0_1",
-            "1_3",
-            {EdgeAttr.IOU.value: 0.395},
-        ),
-        (
-            "1_3",
-            2,
-            {EdgeAttr.IOU.value: 0.0},
-        ),
-        (
-            2,
+            3,
             4,
+            {EdgeAttr.IOU.value: 0.0},
+        ),
+        (
+            4,
+            5,
             {EdgeAttr.IOU.value: 1.0},
-        ),
-    ]
-    graph.add_nodes_from(nodes)
-    graph.add_edges_from(edges)
-
-    return graph
-
-
-@pytest.fixture
-def multi_hypothesis_graph_2d():
-    graph = nx.DiGraph()
-    nodes = [
-        (
-            "0_0_1",
-            {
-                NodeAttr.POS.value: [50, 50],
-                NodeAttr.TIME.value: 0,
-                NodeAttr.SEG_HYPO.value: 0,
-                NodeAttr.SEG_ID.value: 1,
-                NodeAttr.AREA.value: 1245,
-            },
-        ),
-        (
-            "0_1_1",
-            {
-                NodeAttr.POS.value: [45, 45],
-                NodeAttr.TIME.value: 0,
-                NodeAttr.SEG_HYPO.value: 1,
-                NodeAttr.SEG_ID.value: 1,
-                NodeAttr.AREA.value: 697,
-            },
-        ),
-        (
-            "1_0_1",
-            {
-                NodeAttr.POS.value: [20, 80],
-                NodeAttr.TIME.value: 1,
-                NodeAttr.SEG_HYPO.value: 0,
-                NodeAttr.SEG_ID.value: 1,
-                NodeAttr.AREA.value: 305,
-            },
-        ),
-        (
-            "1_1_1",
-            {
-                NodeAttr.POS.value: [15, 75],
-                NodeAttr.TIME.value: 1,
-                NodeAttr.SEG_HYPO.value: 1,
-                NodeAttr.SEG_ID.value: 1,
-                NodeAttr.AREA.value: 697,
-            },
-        ),
-        (
-            "1_0_2",
-            {
-                NodeAttr.POS.value: [60, 45],
-                NodeAttr.TIME.value: 1,
-                NodeAttr.SEG_HYPO.value: 0,
-                NodeAttr.SEG_ID.value: 2,
-                NodeAttr.AREA.value: 697,
-                NodeAttr.AREA.value: 1245,
-            },
-        ),
-        (
-            "1_1_2",
-            {
-                NodeAttr.POS.value: [55, 40],
-                NodeAttr.TIME.value: 1,
-                NodeAttr.SEG_HYPO.value: 1,
-                NodeAttr.SEG_ID.value: 2,
-            },
-        ),
-    ]
-
-    edges = [
-        (
-            "0_0_1",
-            "1_0_1",
-            {EdgeAttr.IOU.value: 0.0},
-        ),
-        (
-            "0_0_1",
-            "1_1_1",
-            {EdgeAttr.IOU.value: 0.0},
-        ),
-        (
-            "0_0_1",
-            "1_0_2",
-            {EdgeAttr.IOU.value: 0.3931},
-        ),
-        (
-            "0_0_1",
-            "1_1_2",
-            {EdgeAttr.IOU.value: 0.4768},
-        ),
-        (
-            "0_1_1",
-            "1_0_1",
-            {EdgeAttr.IOU.value: 0.0},
-        ),
-        (
-            "0_1_1",
-            "1_1_1",
-            {EdgeAttr.IOU.value: 0.0},
-        ),
-        (
-            "0_1_1",
-            "1_0_2",
-            {EdgeAttr.IOU.value: 0.2402},
-        ),
-        (
-            "0_1_1",
-            "1_1_2",
-            {EdgeAttr.IOU.value: 0.3931},
         ),
     ]
     graph.add_nodes_from(nodes)
@@ -297,44 +135,12 @@ def segmentation_3d():
     segmentation[0][mask] = 1
 
     # make frame with two cells
-    # first cell centered at (20, 50, 80) with label 1
-    # second cell centered at (60, 50, 45) with label 2
+    # first cell centered at (20, 50, 80) with label 2
+    # second cell centered at (60, 50, 45) with label 3
     mask = sphere(center=(20, 50, 80), radius=10, shape=frame_shape)
-    segmentation[1][mask] = 1
-    mask = sphere(center=(60, 50, 45), radius=15, shape=frame_shape)
     segmentation[1][mask] = 2
-
-    return np.expand_dims(segmentation, 1)
-
-
-@pytest.fixture
-def multi_hypothesis_segmentation_3d():
-    """
-    Creates a multi-hypothesis version of the `segmentation_3d` fixture defined above.
-
-    """
-    frame_shape = (100, 100, 100)
-    total_shape = (2, 2, *frame_shape)  # 2 time points, 2 hypotheses
-    segmentation = np.zeros(total_shape, dtype="int32")
-    # make first frame with one cell in center with label 1
-    mask = sphere(center=(50, 50, 50), radius=20, shape=frame_shape)
-    segmentation[0, 0][mask] = 1
-    mask = sphere(center=(45, 50, 55), radius=20, shape=frame_shape)
-    segmentation[0, 1][mask] = 1
-
-    # make second frame, first hypothesis with two cells
-    # first cell centered at (20, 50, 80) with label 1
-    # second cell centered at (60, 50, 45) with label 2
-    mask = sphere(center=(20, 50, 80), radius=10, shape=frame_shape)
-    segmentation[1, 0][mask] = 1
     mask = sphere(center=(60, 50, 45), radius=15, shape=frame_shape)
-    segmentation[1, 0][mask] = 2
-
-    # make second frame, second hypothesis with one cell
-    # first cell centered at (15, 50, 70) with label 1
-    # second cell centered at (55, 55, 45) with label 2
-    mask = sphere(center=(15, 50, 70), radius=10, shape=frame_shape)
-    segmentation[1, 1][mask] = 1
+    segmentation[1][mask] = 3
 
     return segmentation
 
@@ -344,7 +150,7 @@ def graph_3d():
     graph = nx.DiGraph()
     nodes = [
         (
-            "0_1",
+            1,
             {
                 NodeAttr.POS.value: [50, 50, 50],
                 NodeAttr.TIME.value: 0,
@@ -352,88 +158,25 @@ def graph_3d():
             },
         ),
         (
-            "1_1",
+            2,
             {
                 NodeAttr.POS.value: [20, 50, 80],
-                NodeAttr.TIME.value: 1,
-                NodeAttr.SEG_ID.value: 1,
-            },
-        ),
-        (
-            "1_2",
-            {
-                NodeAttr.POS.value: [60, 50, 45],
                 NodeAttr.TIME.value: 1,
                 NodeAttr.SEG_ID.value: 2,
             },
         ),
-    ]
-    edges = [
-        ("0_1", "1_1"),
-        ("0_1", "1_2"),
-    ]
-    graph.add_nodes_from(nodes)
-    graph.add_edges_from(edges)
-    return graph
-
-
-@pytest.fixture
-def multi_hypothesis_graph_3d():
-    graph = nx.DiGraph()
-    nodes = [
         (
-            "0_0_1",
-            {
-                NodeAttr.POS.value: [50, 50, 50],
-                NodeAttr.TIME.value: 0,
-                NodeAttr.SEG_HYPO.value: 0,
-                NodeAttr.SEG_ID.value: 1,
-            },
-        ),
-        (
-            "0_1_1",
-            {
-                NodeAttr.POS.value: [45, 50, 55],
-                NodeAttr.TIME.value: 1,
-                NodeAttr.SEG_HYPO.value: 1,
-                NodeAttr.SEG_ID.value: 1,
-            },
-        ),
-        (
-            "1_0_1",
-            {
-                NodeAttr.POS.value: [20, 50, 80],
-                NodeAttr.TIME.value: 1,
-                NodeAttr.SEG_HYPO.value: 0,
-                NodeAttr.SEG_ID.value: 1,
-            },
-        ),
-        (
-            "1_0_2",
+            3,
             {
                 NodeAttr.POS.value: [60, 50, 45],
                 NodeAttr.TIME.value: 1,
-                NodeAttr.SEG_HYPO.value: 0,
-                NodeAttr.SEG_ID.value: 2,
-            },
-        ),
-        (
-            "1_1_1",
-            {
-                NodeAttr.POS.value: [15, 50, 70],
-                NodeAttr.TIME.value: 1,
-                NodeAttr.SEG_HYPO.value: 1,
-                NodeAttr.SEG_ID.value: 1,
+                NodeAttr.SEG_ID.value: 3,
             },
         ),
     ]
     edges = [
-        ("0_0_1", "1_0_1"),
-        ("0_0_1", "1_0_2"),
-        ("0_1_1", "1_0_1"),
-        ("0_1_1", "1_0_2"),
-        ("0_0_1", "1_1_1"),
-        ("0_1_1", "1_1_1"),
+        (1, 2),
+        (1, 3),
     ]
     graph.add_nodes_from(nodes)
     graph.add_edges_from(edges)
