@@ -12,8 +12,8 @@ from motile.costs import Appear, EdgeDistance, EdgeSelection, Split
 from motile_toolbox.candidate_graph import (
     EdgeAttr,
     NodeAttr,
-    get_candidate_graph,
-    get_candidate_graph_from_points_list,
+    compute_graph_from_points_list,
+    compute_graph_from_seg,
     graph_to_nx,
 )
 
@@ -52,11 +52,11 @@ def solve(
             motile_toolbox for exact implementation details.
     """
     if input_data.ndim == 2:
-        cand_graph = get_candidate_graph_from_points_list(
+        cand_graph = compute_graph_from_points_list(
             input_data, solver_params.max_edge_distance, scale=scale
         )
     else:
-        cand_graph, _ = get_candidate_graph(
+        cand_graph = compute_graph_from_seg(
             input_data,
             solver_params.max_edge_distance,
             iou=solver_params.iou_cost is not None,
