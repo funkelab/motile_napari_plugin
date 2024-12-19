@@ -2,7 +2,7 @@ import napari
 from motile_tracker.application_menus import MainApp
 from motile_tracker.data_views.views_coordinator.tracks_viewer import TracksViewer
 from motile_tracker.example_data import Fluo_N2DL_HeLa
-from motile_tracker.utils.load_tracks import tracks_from_csv
+from motile_tracker.import_export.load_tracks import tracks_from_csv
 
 if __name__ == "__main__":
     # load the example data
@@ -10,8 +10,22 @@ if __name__ == "__main__":
     segmentation_arr = labels_layer_info[0]
     # the segmentation ids in this file correspond to the segmentation ids in the
     # example segmentation data, loaded above
-    csvfile = "hela_example_tracks.csv"
-    tracks = tracks_from_csv(csvfile, segmentation_arr)
+    csvfile = "scripts/hela_example_tracks.csv"
+    selected_columns = {
+        "t": "t",
+        "y": "y",
+        "x": "x",
+        "id": "id",
+        "parent_id": "parent_id",
+        "seg_id": "seg_id",
+    }
+    tracks = tracks_from_csv(
+        csvfile,
+        selected_columns,
+        extra_columns={},
+        segmentation=segmentation_arr,
+        scale=[1, 1],
+    )
 
     viewer = napari.Viewer()
     raw_data, raw_kwargs, _ = raw_layer_info
